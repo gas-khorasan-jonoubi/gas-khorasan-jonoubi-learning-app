@@ -10,6 +10,11 @@ workflows:
           if [ ! -d android ]; then
             flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
           fi
+      - name: Extract the selected image bundle
+        script: |
+          if [ -f gas_assets_for_github_upload.zip ]; then
+            unzip -o gas_assets_for_github_upload.zip -d .
+          fi
       - name: Verify the two selected image assets
         script: |
           test -s assets/app_icon.jpg || { echo "Missing exact NIGC app icon: assets/app_icon.jpg"; exit 1; }
