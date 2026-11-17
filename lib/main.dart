@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -34,25 +35,28 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 5), () {
+    Future.delayed(const Duration(seconds: 3), () {
       if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
     });
   }
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: navy,
-    body: Center(child: Padding(
-      padding: const EdgeInsets.all(28),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.school_rounded, color: Colors.white, size: 82),
-        const SizedBox(height: 28),
-        const Text('شرکت گاز خراسان جنوبی', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
-        const Text('اداره گاز شهرستان عشق‌آباد', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 18)),
-        const SizedBox(height: 34),
-        const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
-      ]),
-    )),
+    backgroundColor: const Color(0xFF75BCEB),
+    body: SizedBox.expand(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Fill unused screen space with a softly blurred version of the SAME poster.
+          ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Image.asset('assets/splash_poster.webp', fit: BoxFit.cover),
+          ),
+          Container(color: Colors.black.withOpacity(0.10)),
+          // Keep the complete original poster visible without cropping its Persian text or artwork.
+          Image.asset('assets/splash_poster.webp', fit: BoxFit.contain),
+        ],
+      ),
+    ),
   );
 }
 

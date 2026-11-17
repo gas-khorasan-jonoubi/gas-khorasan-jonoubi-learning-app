@@ -1,7 +1,6 @@
-
 workflows:
   android-release:
-    name: Gas Khorasan Jonoubi - Android APK
+    name: آموزش شرکت گاز خراسان جنوبی - Android APK
     max_build_duration: 60
     environment:
       flutter: stable
@@ -11,8 +10,33 @@ workflows:
           if [ ! -d android ]; then
             flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
           fi
+      - name: Verify the two selected image assets
+        script: |
+          test -s assets/app_icon.jpg || { echo "Missing exact NIGC app icon: assets/app_icon.jpg"; exit 1; }
+          test -s assets/splash_poster.webp || { echo "Missing approved colorful splash poster: assets/splash_poster.webp"; exit 1; }
       - name: Get Flutter packages
         script: flutter pub get
+      - name: Generate Android launcher icon from the selected NIGC artwork
+        script: dart run flutter_launcher_icons
+      - name: Set the Persian Android application name
+        script: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          content = manifest.read_text(encoding="utf-8")
+          content, count = re.subn(
+              r'android:label="[^"]*"',
+              'android:label="آموزش شرکت گاز خراسان جنوبی"',
+              content,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit("Could not find android:label in AndroidManifest.xml")
+          manifest.write_text(content, encoding="utf-8")
+          PY
+      - name: Analyze Flutter code
+        script: flutter analyze
       - name: Build release APK
         script: flutter build apk --release
     artifacts:
