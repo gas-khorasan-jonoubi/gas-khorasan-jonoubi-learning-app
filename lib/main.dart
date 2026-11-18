@@ -177,6 +177,14 @@ class SearchEntry {
 }
 String normalizeSearchText(String value) => value.replaceAll('ي','ی').replaceAll('ك','ک').replaceAll(RegExp(r'[\u064B-\u065F\u0670\u0640]'),'').toLowerCase().trim();
 
+List<SearchEntry> searchEntries(List<SearchEntry> entries, String query) {
+  final normalizedQuery = normalizeSearchText(query);
+  if (normalizedQuery.isEmpty) return [];
+  return entries.where((entry) => normalizeSearchText(
+    '${entry.title} ${entry.subtitle} ${entry.content}',
+  ).contains(normalizedQuery)).toList();
+}
+
 List<SearchEntry> get allSearchEntries => [
   const SearchEntry(title:'آزمون ایمنی و آشنایی با محیط کار',subtitle:'آزمون شماره ۱',section:'exam',kind:SearchKind.exam),
   ...List.generate(questions.length,(i)=>SearchEntry(title:questions[i]['q'] as String,subtitle:'سؤال ${i+1} از آزمون شماره ۱',content:(questions[i]['a'] as List<String>).join('، '),section:'exam',kind:SearchKind.exam,index:i)),
@@ -199,7 +207,7 @@ class _SearchPanelState extends State<SearchPanel> {
   @override void dispose(){controller.dispose();super.dispose();}
   @override Widget build(BuildContext context){
     final query=normalizeSearchText(controller.text);
-    final matches=query.isEmpty?<SearchEntry>[]:widget.entries.where((e)=>normalizeSearchText('${e.title} ${e.subtitle} ${e.content}').contains(query)).toList();
+    final matches=searchEntries(widget.entries,query);
     return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       TextField(controller:controller,textInputAction:TextInputAction.search,onChanged:(_)=>setState((){}),decoration:InputDecoration(hintText:widget.hint,prefixIcon:const Icon(Icons.search),suffixIcon:controller.text.isEmpty?null:IconButton(icon:const Icon(Icons.clear),onPressed:(){controller.clear();setState((){});}),filled:true,fillColor:Colors.white,border:OutlineInputBorder(borderRadius:BorderRadius.circular(14),borderSide:BorderSide.none))),
       if(controller.text.isNotEmpty)...[
