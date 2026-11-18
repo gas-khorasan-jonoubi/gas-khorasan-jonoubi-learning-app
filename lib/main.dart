@@ -72,7 +72,7 @@ class _HomePageState extends State<HomePage> {
   final titles = const ['داشبورد', 'آزمون‌ها', 'آموزش‌ها', 'کتابخانه', 'نتایج'];
   Widget get activePage => switch (index) {
     0 => const DashboardPage(),
-    1 => ExamPage(initialQuestion: selectedExamQuestion ?? 0),
+    1 => ExamPage(key: ValueKey(selectedExamQuestion), initialQuestion: selectedExamQuestion ?? 0),
     2 => const TrainingPage(),
     3 => LibraryPage(initialTopic: selectedLibraryTopic),
     _ => const ResultsPage(),
@@ -92,7 +92,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void navigateTo(int nextIndex) {
-    if (nextIndex < 0 || nextIndex >= pages.length) { return; }
+    if (nextIndex < 0 || nextIndex >= titles.length) { return; }
     setState(() => index = nextIndex);
   }
 
