@@ -76,7 +76,15 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => PopScope<Object?>(
+    canPop: index == 0,
+    onPopInvokedWithResult: (didPop, result) {
+      if (didPop) return;
+      if (index != 0 && mounted) {
+        setState(() => index = 0);
+      }
+    },
+    child: Scaffold(
     appBar: AppBar(title: Text(titles[index])),
     body: pages[index],
     bottomNavigationBar: NavigationBar(
@@ -90,6 +98,7 @@ class _HomePageState extends State<HomePage> {
         NavigationDestination(icon: Icon(Icons.bar_chart_outlined), label: 'نتایج'),
       ],
     ),
+  ),
   );
 }
 
