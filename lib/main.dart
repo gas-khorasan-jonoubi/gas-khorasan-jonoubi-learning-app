@@ -96,6 +96,14 @@ class _HomePageState extends State<HomePage> {
     setState(() => index = nextIndex);
   }
 
+  void openLibraryTopic(String topic) {
+    setState(() { index = 3; selectedLibraryTopic = topic; });
+  }
+
+  void closeLibraryTopic() {
+    setState(() => selectedLibraryTopic = null);
+  }
+
   @override
   Widget build(BuildContext context) => PopScope<Object?>(
     canPop: index == 0,
@@ -309,7 +317,7 @@ class LibraryPage extends StatelessWidget {
     return ListView(
     padding: const EdgeInsets.all(18),
     children: [
-      SearchPanel(entries:allSearchEntries.where((e)=>e.section=='library'||e.section=='library-topic').toList(),hint:'جستجو در کتابخانه...',onSelected:(entry){if(entry.section=='library-topic'){context.findAncestorStateOfType<_HomePageState>()?.setState(()=>context.findAncestorStateOfType<_HomePageState>()?.selectedLibraryTopic=entry.title);}}),
+      SearchPanel(entries:allSearchEntries.where((e)=>e.section=='library'||e.section=='library-topic').toList(),hint:'جستجو در کتابخانه...',onSelected:(entry){if(entry.section=='library-topic'){context.findAncestorStateOfType<_HomePageState>()?.openLibraryTopic(entry.title);}}),
       const SizedBox(height:12),
       const Text('کتابخانه دیجیتال', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
       const SizedBox(height: 6),
@@ -341,7 +349,7 @@ class LibraryPage extends StatelessWidget {
             leading: const Icon(Icons.folder_outlined, color: blue),
             title: Text(area),
             dense: true,
-            onTap: () => context.findAncestorStateOfType<_HomePageState>()?.setState(() => context.findAncestorStateOfType<_HomePageState>()?.selectedLibraryTopic = area),
+            onTap: () => context.findAncestorStateOfType<_HomePageState>()?.openLibraryTopic(area),
           )).toList(),
         ),
       ),
@@ -353,7 +361,7 @@ class _LibraryTopicPage extends StatelessWidget {
   final String topic;
   const _LibraryTopicPage({required this.topic});
   @override Widget build(BuildContext context)=>ListView(padding:const EdgeInsets.all(18),children:[
-    Row(children:[IconButton(onPressed:()=>context.findAncestorStateOfType<_HomePageState>()?.setState(()=>context.findAncestorStateOfType<_HomePageState>()?.selectedLibraryTopic=null),icon:const Icon(Icons.arrow_back)),Expanded(child:Text(topic,style:const TextStyle(fontSize:19,fontWeight:FontWeight.bold)))]),
+    Row(children:[IconButton(onPressed:()=>context.findAncestorStateOfType<_HomePageState>()?.closeLibraryTopic(),icon:const Icon(Icons.arrow_back)),Expanded(child:Text(topic,style:const TextStyle(fontSize:19,fontWeight:FontWeight.bold)))]),
     SearchPanel(entries:[SearchEntry(title:topic,subtitle:'موضوع کتابخانه',content:'مطالب و فایل‌های این موضوع پس از دریافت و ثبت محتوا در برنامه قابل جستجو خواهند بود.',section:'library-topic',kind:SearchKind.topic)],hint:'جستجو در $topic...',onSelected:(entry)=>showDialog<void>(context:context,builder:(_)=>AlertDialog(title:Text(entry.title),content:const Text('محتوای این موضوع هنوز به کتابخانه افزوده نشده است.'),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('بستن'))]))),
     const SizedBox(height:14),const Card(child:Padding(padding:EdgeInsets.all(16),child:Text('محتوای این بخش پس از دریافت جزوه‌ها، دستورالعمل‌ها، تصاویر و فایل‌های مربوط اضافه می‌شود.'))),
   ]);
