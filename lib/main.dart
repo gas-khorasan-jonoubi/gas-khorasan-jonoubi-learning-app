@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' show ImageFilter;
 import 'package:material_ui/material_ui.dart';
@@ -250,79 +251,494 @@ const questions = <Map<String, Object>>[
   {'q':'پیش از استفاده از تجهیزات باید چه کاری انجام داد؟','a':['بررسی سلامت و ایمنی تجهیزات','تغییر خودسرانه تنظیمات','حذف حفاظ‌ها','استفاده بدون بررسی'],'correct':0},
 ];
 
+class ExamResultSummary {
+  final int correctCount;
+  final int wrongCount;
+  final int unansweredCount;
+  const ExamResultSummary({
+    required this.correctCount,
+    required this.wrongCount,
+    required this.unansweredCount,
+  });
+  int get totalCount => correctCount + wrongCount + unansweredCount;
+}
+
+ExamResultSummary evaluateExamAnswers(
+  List<Map<String, Object>> examQuestions,
+  Map<int, int> selectedAnswers,
+) {
+  var correct = 0;
+  var wrong = 0;
+  var unanswered = 0;
+  for (var i = 0; i < examQuestions.length; i++) {
+    final selected = selectedAnswers[i];
+    if (selected == null) {
+      unanswered++;
+    } else if (selected == examQuestions[i]['correct']) {
+      correct++;
+    } else {
+      wrong++;
+    }
+  }
+  return ExamResultSummary(
+    correctCount: correct,
+    wrongCount: wrong,
+    unansweredCount: unanswered,
+  );
+}
+
 class ExamPage extends StatefulWidget {
   final int initialQuestion;
-  const ExamPage({super.key,this.initialQuestion=0});
+  const ExamPage({super.key, this.initialQuestion = 0});
   @override
   State<ExamPage> createState() => _ExamPageState();
 }
+
 class _ExamPageState extends State<ExamPage> {
-  int question = 0, score = 0;
-  int? selected;
+  static const int secondsPerQuestion = 30;
+  final Map<int, int> selectedAnswers = {};
+  Timer? _timer;
+  late DateTime _deadline;
+  int question = 0;
+  int remainingSeconds = 0;
   bool finished = false;
+  Map<String, Object>? resultRecord;
+
+  int get totalSeconds => questions.length * secondsPerQuestion;
+
   @override
-  void initState(){super.initState();question=widget.initialQuestion.clamp(0,questions.length-1).toInt();}
+  void initState() {
+    super.initState();
+    question = widget.initialQuestion.clamp(0, questions.length - 1).toInt();
+    _startTimer();
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _deadline = DateTime.now().add(Duration(seconds: totalSeconds));
+    remainingSeconds = totalSeconds;
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || finished) return;
+      final milliseconds = _deadline.difference(DateTime.now()).inMilliseconds;
+      final nextValue = milliseconds <= 0 ? 0 : (milliseconds + 999) ~/ 1000;
+      setState(() => remainingSeconds = nextValue);
+      if (nextValue <= 0) {
+        _finish(timeExpired: true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String get _formattedTime {
+    final minutes = remainingSeconds ~/ 60;
+    final seconds = remainingSeconds % 60;
+    return minutes.toString().padLeft(2, '0') +
+        ':' +
+        seconds.toString().padLeft(2, '0');
+  }
+
+  void _goToQuestion(int next) {
+    if (finished || next < 0 || next >= questions.length) return;
+    setState(() => question = next);
+  }
+
+  Future<void> _confirmFinish() async {
+    final unanswered = questions.length - selectedAnswers.length;
+    final shouldFinish = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('پایان آزمون'),
+        content: Text(
+          unanswered == 0
+              ? 'همه پرسش‌ها پاسخ داده شده‌اند. آزمون پایان یابد؟'
+              : 'تعداد پرسش‌های بی‌پاسخ: ' +
+                  unanswered.toString() +
+                  '. آیا آزمون را پایان می‌دهید؟',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('بازگشت به آزمون'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('پایان آزمون'),
+          ),
+        ],
+      ),
+    );
+    if (shouldFinish == true) {
+      await _finish(timeExpired: false);
+    }
+  }
+
+  Future<void> _finish({required bool timeExpired}) async {
+    if (finished) return;
+    _timer?.cancel();
+    final summary = evaluateExamAnswers(questions, selectedAnswers);
+    final details = List.generate(questions.length, (i) {
+      final item = questions[i];
+      return <String, Object>{
+        'question': item['q'] as String,
+        'options': item['a'] as List<String>,
+        'selected': selectedAnswers[i] ?? -1,
+        'correct': item['correct'] as int,
+      };
+    });
+    final record = <String, Object>{
+      'date': DateTime.now().toIso8601String(),
+      'total': summary.totalCount,
+      'correctCount': summary.correctCount,
+      'wrongCount': summary.wrongCount,
+      'unansweredCount': summary.unansweredCount,
+      'timeExpired': timeExpired,
+      'questions': details,
+    };
+    if (mounted) {
+      setState(() {
+        finished = true;
+        resultRecord = record;
+      });
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final old = prefs.getStringList('exam_results') ?? [];
+      old.insert(0, jsonEncode(record));
+      await prefs.setStringList('exam_results', old.take(100).toList());
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('نتیجه نمایش داده شد، اما ذخیره آن ناموفق بود.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (finished) {
-      return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.emoji_events, color: blue, size: 64),
-        Text('نتیجه آزمون: $score از ${questions.length}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 16),
-        FilledButton(
-          onPressed: () => setState(() {
-            question = 0;
-            score = 0;
-            selected = null;
-            finished = false;
-          }),
-          child: const Text('آزمون مجدد'),
-        ),
-      ]));
+    if (finished && resultRecord != null) {
+      return _ExamFinishedView(record: resultRecord!);
     }
-    final q = questions[question];
-    final answers = q['a'] as List<String>;
-    return ListView(padding: const EdgeInsets.all(18), children: [
-      SearchPanel(entries:List.generate(questions.length,(i)=>SearchEntry(title:questions[i]['q'] as String,subtitle:'سؤال ${i+1} از آزمون شماره ۱',content:(questions[i]['a'] as List<String>).join('، '),section:'exam',kind:SearchKind.exam,index:i)),hint:'جستجو در همین آزمون...',onSelected:(entry){setState((){question=entry.index;selected=null;});}),
-      const SizedBox(height:12),
-      LinearProgressIndicator(value: (question+1)/questions.length),
-      const SizedBox(height: 18),
-      Text('پرسش ${question+1} از ${questions.length}', style: const TextStyle(color: navy, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 12),
-      Text(q['q'] as String, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 16),
-      RadioGroup<int>(
-        groupValue: selected,
-        onChanged: (value) => setState(() => selected = value),
-        child: Column(
-          children: List.generate(
-            answers.length,
-            (i) => Card(
-              child: RadioListTile<int>(
-                value: i,
-                title: Text(answers[i]),
+    final current = questions[question];
+    final answers = current['a'] as List<String>;
+    final selected = selectedAnswers[question];
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        SearchPanel(
+          entries: List.generate(
+            questions.length,
+            (i) => SearchEntry(
+              title: questions[i]['q'] as String,
+              subtitle: 'سؤال ' + (i + 1).toString() + ' از آزمون شماره ۱',
+              content: (questions[i]['a'] as List<String>).join('، '),
+              section: 'exam',
+              kind: SearchKind.exam,
+              index: i,
+            ),
+          ),
+          hint: 'جستجو در همین آزمون...',
+          onSelected: (entry) => _goToQuestion(entry.index),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.timer_outlined,
+                  color: remainingSeconds <= 60 ? Colors.red : navy,
+                ),
+                const SizedBox(width: 8),
+                const Text('زمان باقی‌مانده'),
+                const Spacer(),
+                Text(
+                  _formattedTime,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: remainingSeconds <= 60 ? Colors.red : navy,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        LinearProgressIndicator(value: (question + 1) / questions.length),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'پرسش ' +
+                    (question + 1).toString() +
+                    ' از ' +
+                    questions.length.toString(),
+                style: const TextStyle(color: navy, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Chip(
+              avatar: Icon(
+                selected == null ? Icons.circle_outlined : Icons.check_circle,
+                size: 17,
+              ),
+              label: Text(selected == null ? 'بی‌پاسخ' : 'پاسخ ثبت شد'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          current['q'] as String,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        RadioGroup<int>(
+          groupValue: selected,
+          onChanged: (value) {
+            if (value == null || finished) return;
+            setState(() => selectedAnswers[question] = value);
+          },
+          child: Column(
+            children: List.generate(
+              answers.length,
+              (i) => Card(
+                child: RadioListTile<int>(
+                  value: i,
+                  title: Text(answers[i]),
+                ),
               ),
             ),
           ),
         ),
-      ),
-      const SizedBox(height: 14),
-      FilledButton(onPressed: selected==null ? null : () {
-        if (selected == q['correct']) { score++; }
-        if (question == questions.length-1) {
-          setState(()=>finished=true);
-          _saveResult();
-        } else { setState(() { question++; selected=null; }); }
-      }, child: Text(question==questions.length-1 ? 'پایان آزمون' : 'پرسش بعدی')),
-    ]);
-  }
-  Future<void> _saveResult() async {
-    final prefs = await SharedPreferences.getInstance();
-    final old = prefs.getStringList('exam_results') ?? [];
-    old.insert(0, jsonEncode({'score':score,'total':questions.length,'date':DateTime.now().toIso8601String()}));
-    await prefs.setStringList('exam_results', old.take(100).toList());
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: question == 0 ? null : () => _goToQuestion(question - 1),
+                icon: const Icon(Icons.chevron_right),
+                label: const Text('سؤال قبل'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: question == questions.length - 1
+                    ? _confirmFinish
+                    : () => _goToQuestion(question + 1),
+                icon: Icon(
+                  question == questions.length - 1
+                      ? Icons.flag_outlined
+                      : Icons.chevron_left,
+                ),
+                label: Text(
+                  question == questions.length - 1 ? 'پایان آزمون' : 'سؤال بعد',
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton(
+          onPressed: _confirmFinish,
+          child: const Text('پایان دادن به آزمون'),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'زمان آزمون بر اساس ۳۰ ثانیه برای هر پرسش محاسبه می‌شود. '
+          'تا پایان زمان می‌توانید بین پرسش‌ها جابه‌جا شوید و پاسخ‌ها را تغییر دهید.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.black54, fontSize: 12),
+        ),
+      ],
+    );
   }
 }
+
+class _ExamFinishedView extends StatefulWidget {
+  final Map<String, Object> record;
+  const _ExamFinishedView({required this.record});
+  @override
+  State<_ExamFinishedView> createState() => _ExamFinishedViewState();
+}
+
+class _ExamFinishedViewState extends State<_ExamFinishedView> {
+  int? selectedCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    final correct = widget.record['correctCount'] as int;
+    final wrong = widget.record['wrongCount'] as int;
+    final unanswered = widget.record['unansweredCount'] as int;
+    final items = (widget.record['questions'] as List)
+        .cast<Map<String, dynamic>>();
+    final filtered = selectedCategory == null
+        ? <Map<String, dynamic>>[]
+        : items.where((item) {
+            final selected = item['selected'] as int;
+            final answer = item['correct'] as int;
+            if (selectedCategory == 0) return selected == answer;
+            if (selectedCategory == 1) return selected >= 0 && selected != answer;
+            return selected < 0;
+          }).toList();
+
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        const Icon(Icons.emoji_events, color: blue, size: 58),
+        const SizedBox(height: 8),
+        const Text(
+          'آزمون به پایان رسید',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
+        ),
+        if (widget.record['timeExpired'] == true)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              'زمان آزمون به پایان رسید.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: _ResultCountCard(
+                label: 'صحیح',
+                count: correct,
+                color: Colors.green,
+                onTap: () => setState(() => selectedCategory = 0),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _ResultCountCard(
+                label: 'غلط',
+                count: wrong,
+                color: Colors.red,
+                onTap: () => setState(() => selectedCategory = 1),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _ResultCountCard(
+                label: 'بی‌پاسخ',
+                count: unanswered,
+                color: Colors.orange,
+                onTap: () => setState(() => selectedCategory = 2),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'مجموع پرسش‌ها: ' + (widget.record['total'] as int).toString(),
+          textAlign: TextAlign.center,
+        ),
+        if (selectedCategory != null) ...[
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'مرور پاسخ‌ها',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => selectedCategory = null),
+                child: const Text('بستن'),
+              ),
+            ],
+          ),
+          if (filtered.isEmpty)
+            const Text('در این دسته پرسشی وجود ندارد.')
+          else
+            ...filtered.map((item) {
+              final options = (item['options'] as List).cast<String>();
+              final selected = item['selected'] as int;
+              final answer = item['correct'] as int;
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['question'] as String,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'پاسخ شما: ' +
+                            (selected < 0 ? 'بدون پاسخ' : options[selected]),
+                      ),
+                      Text('پاسخ صحیح: ' + options[answer]),
+                    ],
+                  ),
+                ),
+              );
+            }),
+        ],
+        const SizedBox(height: 14),
+        FilledButton(
+          onPressed: () => setState(() {
+            selectedCategory = null;
+          }),
+          child: const Text('مشاهده خلاصه نتیجه'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ResultCountCard extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color color;
+  final VoidCallback onTap;
+  const _ResultCountCard({
+    required this.label,
+    required this.count,
+    required this.color,
+    required this.onTap,
+  });
+  @override
+  Widget build(BuildContext context) => Card(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+            child: Column(
+              children: [
+                Text(
+                  count.toString(),
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 25,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(label, style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+        ),
+      );
+  }
+}
+
 
 class TrainingPage extends StatelessWidget {
   const TrainingPage({super.key});
