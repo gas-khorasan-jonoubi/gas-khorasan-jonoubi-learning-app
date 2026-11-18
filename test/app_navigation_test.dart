@@ -58,6 +58,11 @@ void main() {
     );
     await tester.tap(find.text('سؤال قبل'));
     await tester.pump();
+    await tester.scrollUntilVisible(
+      find.text('هدف اصلی آموزش ایمنی در محیط کار چیست؟'),
+      -250,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(
       find.text('هدف اصلی آموزش ایمنی در محیط کار چیست؟'),
       findsOneWidget,
