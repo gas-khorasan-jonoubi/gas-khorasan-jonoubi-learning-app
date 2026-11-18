@@ -80,10 +80,20 @@ jobs:
       - name: Analyze
         run: flutter analyze
       - name: Build release APK
-        if: github.event_name == 'push' || inputs.build_apk == true
+        if: github.ref == 'refs/heads/main' || inputs.build_apk == true
         run: flutter build apk --release --target-platform android-arm64
+      - name: Verify APK package ID and signature
+        if: github.ref == 'refs/heads/main' || inputs.build_apk == true
+        run: |
+          expected='ir.gas.khorasanjonoubi.gas_khorasan_jonoubi_learning_app'
+          grep -R --fixed-strings "$expected" android/app
+          sdk="\${ANDROID_HOME:-\${ANDROID_SDK_ROOT:-}}"
+          test -n "$sdk"
+          apksigner="$(find "$sdk/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$apksigner"
+          "$apksigner" verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk
       - name: Upload APK artifact
-        if: github.event_name == 'push' || inputs.build_apk == true
+        if: github.ref == 'refs/heads/main' || inputs.build_apk == true
         uses: actions/upload-artifact@v4
         with:
           name: gas-khorasan-jonoubi-release-apk
