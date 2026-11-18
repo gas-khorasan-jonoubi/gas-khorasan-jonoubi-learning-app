@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:ui' show ImageFilter;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const navy = Color(0xFF123B66);
@@ -152,10 +152,24 @@ class _ExamPageState extends State<ExamPage> {
       const SizedBox(height: 12),
       Text(q['q'] as String, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
       const SizedBox(height: 16),
-      ...List.generate(answers.length, (i) => Card(child: RadioListTile<int>(value:i, groupValue:selected, onChanged:(v)=>setState(()=>selected=v), title:Text(answers[i])))),
+      RadioGroup<int>(
+        groupValue: selected,
+        onChanged: (value) => setState(() => selected = value),
+        child: Column(
+          children: List.generate(
+            answers.length,
+            (i) => Card(
+              child: RadioListTile<int>(
+                value: i,
+                title: Text(answers[i]),
+              ),
+            ),
+          ),
+        ),
+      ),
       const SizedBox(height: 14),
       FilledButton(onPressed: selected==null ? null : () {
-        if (selected == q['correct']) score++;
+        if (selected == q['correct']) { score++; }
         if (question == questions.length-1) {
           setState(()=>finished=true);
           _saveResult();
