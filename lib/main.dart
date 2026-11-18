@@ -737,8 +737,6 @@ class _ResultCountCard extends StatelessWidget {
         ),
       );
   }
-}
-
 
 class TrainingPage extends StatelessWidget {
   const TrainingPage({super.key});
