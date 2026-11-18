@@ -2,11 +2,20 @@ name: Build Android APK
 
 on:
   push:
+    branches: [main, fix/splash-three-seconds-nigc-icon]
+    paths:
+      - 'lib/**'
+      - 'assets/**'
+      - 'tooling/assets_bundle.zip.b64.part.*'
+      - 'pubspec.yaml'
+      - 'codemagic.yaml'
+      - '.github/workflows/android-apk.yml'
+  pull_request:
     branches: [main]
     paths:
       - 'lib/**'
       - 'assets/**'
-      - 'gas_assets_for_github_upload.zip'
+      - 'tooling/assets_bundle.zip.b64.part.*'
       - 'pubspec.yaml'
       - 'codemagic.yaml'
       - '.github/workflows/android-apk.yml'
@@ -33,12 +42,11 @@ jobs:
           if [ ! -d android ]; then
             flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
           fi
-      - name: Extract selected image bundle
+      - name: Restore the two approved images from the repository bundle
         run: |
-          if [ -f gas_assets_for_github_upload.zip ]; then
-            unzip -o gas_assets_for_github_upload.zip -d .
-          fi
-      - name: Verify selected image assets
+          cat tooling/assets_bundle.zip.b64.part.* | tr -d '\n\r ' | base64 --decode > /tmp/gas_assets_bundle.zip
+          unzip -oq /tmp/gas_assets_bundle.zip -d .
+      - name: Verify exact selected image assets
         run: |
           test -s assets/app_icon.jpg
           test -s assets/splash_poster.webp
