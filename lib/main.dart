@@ -356,7 +356,7 @@ class LibraryPage extends StatelessWidget {
     return ListView(
     padding: const EdgeInsets.all(18),
     children: [
-      SearchPanel(entries:allSearchEntries.where((e)=>e.section=='library'||e.section=='library-topic').toList(),hint:'جستجو در کتابخانه...',onSelected:(entry){if(entry.section=='library-topic'){context.findAncestorStateOfType<_HomePageState>()?.openLibraryTopic(entry.title);}}),
+      SearchPanel(entries:allSearchEntries.where((e)=>e.section=='library'||e.section=='library-topic').toList(),hint:'جستجو در کتابخانه...',onSelected:(entry){final state=context.findAncestorStateOfType<_HomePageState>();if(entry.section=='library-topic'){state?.openLibraryTopic(entry.title);}else if(entry.title.contains('آزمون')){state?.navigateTo(1);}else{Navigator.of(context).push(MaterialPageRoute<void>(builder:(_)=>SearchResultPage(entry:entry)));}}),
       const SizedBox(height:12),
       const Text('کتابخانه دیجیتال', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
       const SizedBox(height: 6),
@@ -367,6 +367,7 @@ class LibraryPage extends StatelessWidget {
           leading: CircleAvatar(backgroundColor: paleBlue, child: Icon(Icons.quiz, color: navy)),
           title: Text('۱. آزمون‌ها و سؤالات', style: TextStyle(fontWeight: FontWeight.bold)),
           subtitle: Text('مجموعه آزمون‌های شماره‌گذاری‌شده و پرسش‌های چهارگزینه‌ای'),
+          onTap: () => context.findAncestorStateOfType<_HomePageState>()?.navigateTo(1),
         ),
       ),
       Card(
@@ -375,6 +376,7 @@ class LibraryPage extends StatelessWidget {
           leading: CircleAvatar(backgroundColor: paleBlue, child: Icon(Icons.menu_book, color: navy)),
           title: Text('۲. جزوه‌ها و دستورالعمل‌ها', style: TextStyle(fontWeight: FontWeight.bold)),
           subtitle: Text('جزوه‌ها، آیین‌نامه‌ها، دستورالعمل‌ها و فایل‌های مرجع'),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SearchResultPage(entry: SearchEntry(title: 'جزوه‌ها و دستورالعمل‌ها', subtitle: 'کتابخانه دیجیتال', content: 'فهرست جزوه‌ها و دستورالعمل‌ها پس از افزودن فایل‌های اصلی نمایش داده می‌شود.', section: 'library', kind: SearchKind.topic)))),
         ),
       ),
       Card(
