@@ -51,7 +51,7 @@ class _SplashPageState extends State<SplashPage> {
             imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
             child: Image.asset('assets/splash_poster.webp', fit: BoxFit.cover),
           ),
-          Container(color: Colors.black.withOpacity(0.10)),
+          Container(color: Colors.black.withValues(alpha: 0.10)),
           // Keep the complete original poster visible without cropping its Persian text or artwork.
           Image.asset('assets/splash_poster.webp', fit: BoxFit.contain),
         ],
@@ -69,6 +69,12 @@ class _HomePageState extends State<HomePage> {
   int index = 0;
   final pages = const [DashboardPage(), ExamPage(), TrainingPage(), LibraryPage(), ResultsPage()];
   final titles = const ['داشبورد', 'آزمون‌ها', 'آموزش‌ها', 'کتابخانه', 'نتایج'];
+
+  void navigateTo(int nextIndex) {
+    if (nextIndex < 0 || nextIndex >= pages.length) return;
+    setState(() => index = nextIndex);
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text(titles[index])),
@@ -105,7 +111,7 @@ class DashboardPage extends StatelessWidget {
   ]);
   void _go(BuildContext context, int i) {
     final state = context.findAncestorStateOfType<_HomePageState>();
-    state?.setState(() => state.index = i);
+    state?.navigateTo(i);
   }
 }
 class _MenuTile extends StatelessWidget {
