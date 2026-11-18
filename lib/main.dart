@@ -66,19 +66,48 @@ class _HomePageState extends State<HomePage> {
   final pages = const [DashboardPage(), ExamPage(), TrainingPage(), LibraryPage(), ResultsPage()];
   final titles = const ['داشبورد', 'آزمون‌ها', 'آموزش‌ها', 'کتابخانه', 'نتایج'];
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(titles[index])),
-    body: pages[index],
-    bottomNavigationBar: NavigationBar(
-      selectedIndex: index,
-      onDestinationSelected: (v) => setState(() => index = v),
-      destinations: const [
-        NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'خانه'),
-        NavigationDestination(icon: Icon(Icons.quiz_outlined), label: 'آزمون'),
-        NavigationDestination(icon: Icon(Icons.play_lesson_outlined), label: 'آموزش'),
-        NavigationDestination(icon: Icon(Icons.local_library_outlined), label: 'کتابخانه'),
-        NavigationDestination(icon: Icon(Icons.bar_chart_outlined), label: 'نتایج'),
-      ],
+  Widget build(BuildContext context) => WillPopScope(
+    onWillPop: () async {
+      // در بخش‌های داخلی، دکمه برگشت فقط به داشبورد برمی‌گردد.
+      if (index != 0) {
+        setState(() => index = 0);
+        return false;
+      }
+
+      // خروج از برنامه در صفحه اصلی فقط با تأیید کاربر انجام می‌شود.
+      final shouldExit = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('خروج از برنامه'),
+          content: const Text('آیا می‌خواهید از برنامه خارج شوید؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('انصراف'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('خروج'),
+            ),
+          ],
+        ),
+      );
+      return shouldExit ?? false;
+    },
+    child: Scaffold(
+      appBar: AppBar(title: Text(titles[index])),
+      body: pages[index],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: index,
+        onDestinationSelected: (v) => setState(() => index = v),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'خانه'),
+          NavigationDestination(icon: Icon(Icons.quiz_outlined), label: 'آزمون'),
+          NavigationDestination(icon: Icon(Icons.play_lesson_outlined), label: 'آموزش'),
+          NavigationDestination(icon: Icon(Icons.local_library_outlined), label: 'کتابخانه'),
+          NavigationDestination(icon: Icon(Icons.bar_chart_outlined), label: 'نتایج'),
+        ],
+      ),
     ),
   );
 }
