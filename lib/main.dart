@@ -337,9 +337,7 @@ class _ExamPageState extends State<ExamPage> {
   String get _formattedTime {
     final minutes = remainingSeconds ~/ 60;
     final seconds = remainingSeconds % 60;
-    return minutes.toString().padLeft(2, '0') +
-        ':' +
-        seconds.toString().padLeft(2, '0');
+    return "${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}";
   }
 
   void _goToQuestion(int next) {
@@ -356,9 +354,7 @@ class _ExamPageState extends State<ExamPage> {
         content: Text(
           unanswered == 0
               ? 'همه پرسش‌ها پاسخ داده شده‌اند. آزمون پایان یابد؟'
-              : 'تعداد پرسش‌های بی‌پاسخ: ' +
-                  unanswered.toString() +
-                  '. آیا آزمون را پایان می‌دهید؟',
+              : 'تعداد پرسش‌های بی‌پاسخ: $unanswered. آیا آزمون را پایان می‌دهید؟',
         ),
         actions: [
           TextButton(
@@ -435,7 +431,7 @@ class _ExamPageState extends State<ExamPage> {
             questions.length,
             (i) => SearchEntry(
               title: questions[i]['q'] as String,
-              subtitle: 'سؤال ' + (i + 1).toString() + ' از آزمون شماره ۱',
+              subtitle: 'سؤال ${i + 1} از آزمون شماره ۱',
               content: (questions[i]['a'] as List<String>).join('، '),
               section: 'exam',
               kind: SearchKind.exam,
@@ -478,10 +474,7 @@ class _ExamPageState extends State<ExamPage> {
           children: [
             Expanded(
               child: Text(
-                'پرسش ' +
-                    (question + 1).toString() +
-                    ' از ' +
-                    questions.length.toString(),
+                'پرسش ${question + 1} از ${questions.length}',
                 style: const TextStyle(color: navy, fontWeight: FontWeight.bold),
               ),
             ),
@@ -642,7 +635,7 @@ class _ExamFinishedViewState extends State<_ExamFinishedView> {
         ),
         const SizedBox(height: 12),
         Text(
-          'مجموع پرسش‌ها: ' + (widget.record['total'] as int).toString(),
+          'مجموع پرسش‌ها: ${widget.record['total'] as int}',
           textAlign: TextAlign.center,
         ),
         if (selectedCategory != null) ...[
@@ -679,11 +672,8 @@ class _ExamFinishedViewState extends State<_ExamFinishedView> {
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        'پاسخ شما: ' +
-                            (selected < 0 ? 'بدون پاسخ' : options[selected]),
-                      ),
-                      Text('پاسخ صحیح: ' + options[answer]),
+                      Text('پاسخ شما: ${selected < 0 ? 'بدون پاسخ' : options[selected]}'),
+                      Text('پاسخ صحیح: ${options[answer]}'),
                     ],
                   ),
                 ),
