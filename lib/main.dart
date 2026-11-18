@@ -78,17 +78,23 @@ class _HomePageState extends State<HomePage> {
     _ => const ResultsPage(),
   };
   void openSearchResult(SearchEntry entry) {
-    setState(() {
-      if (entry.section == 'exam') {
-        index = 1;
-        selectedExamQuestion = entry.index;
-      } else if (entry.section == 'training') {
-        index = 2;
-      } else {
-        index = 3;
-        selectedLibraryTopic = entry.section == 'library-topic' ? entry.title : null;
-      }
-    });
+    if (entry.section == 'exam') {
+      setState(() { index = 1; selectedExamQuestion = entry.index; });
+      return;
+    }
+    if (entry.section == 'training' || entry.kind == SearchKind.article ||
+        entry.kind == SearchKind.image || entry.kind == SearchKind.pdf ||
+        entry.kind == SearchKind.video || entry.kind == SearchKind.file) {
+      Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => SearchResultPage(entry: entry),
+      ));
+      return;
+    }
+    if (entry.section == 'library-topic') {
+      openLibraryTopic(entry.title);
+      return;
+    }
+    setState(() { index = entry.title.contains('آزمون') ? 1 : 3; selectedLibraryTopic = null; });
   }
 
   void navigateTo(int nextIndex) {
@@ -166,7 +172,8 @@ class SearchEntry {
   final String title, subtitle, content, section;
   final SearchKind kind;
   final int index;
-  const SearchEntry({required this.title, this.subtitle = '', this.content = '', required this.section, required this.kind, this.index = 0});
+  final String? assetPath;
+  const SearchEntry({required this.title, this.subtitle = '', this.content = '', required this.section, required this.kind, this.index = 0, this.assetPath});
 }
 String normalizeSearchText(String value) => value.replaceAll('ي','ی').replaceAll('ك','ک').replaceAll(RegExp(r'[\u064B-\u065F\u0670\u0640]'),'').toLowerCase().trim();
 
@@ -204,6 +211,30 @@ class _SearchPanelState extends State<SearchPanel> {
   }
 }
 IconData _searchIcon(SearchKind kind)=>switch(kind){SearchKind.exam=>Icons.quiz_outlined,SearchKind.article=>Icons.menu_book_outlined,SearchKind.topic=>Icons.folder_outlined,SearchKind.image=>Icons.image_outlined,SearchKind.pdf=>Icons.picture_as_pdf_outlined,SearchKind.video=>Icons.video_library_outlined,SearchKind.file=>Icons.insert_drive_file_outlined};
+class SearchResultPage extends StatelessWidget {
+  final SearchEntry entry;
+  const SearchResultPage({super.key, required this.entry});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(entry.title)),
+    body: ListView(padding: const EdgeInsets.all(18), children: [
+      Row(children: [
+        Icon(_searchIcon(entry.kind), color: blue),
+        const SizedBox(width: 8),
+        Expanded(child: Text(entry.subtitle, style: const TextStyle(color: navy))),
+      ]),
+      const SizedBox(height: 16),
+      if (entry.kind == SearchKind.image && entry.assetPath != null)
+        ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.asset(entry.assetPath!, fit: BoxFit.contain))
+      else if (entry.kind == SearchKind.image)
+        const Text('مسیر تصویر هنوز به محتوای برنامه متصل نشده است.')
+      else
+        Text(entry.content.isEmpty ? 'محتوای این مورد هنوز به برنامه افزوده نشده است.' : entry.content, style: const TextStyle(fontSize: 16, height: 1.8)),
+      if (entry.kind == SearchKind.pdf || entry.kind == SearchKind.video || entry.kind == SearchKind.file)
+        const Padding(padding: EdgeInsets.only(top: 12), child: Text('برای نمایش این نوع فایل، پس از افزودن فایل اصلی، نمایشگر سازگار آن به برنامه متصل می‌شود.')),
+    ]),
+  );
+}
 
 const questions = <Map<String, Object>>[
   {'q':'هدف اصلی آموزش ایمنی در محیط کار چیست؟','a':['افزایش سرعت کار','پیشگیری از حادثه و کاهش خطر','افزایش هزینه‌ها','حذف دستورالعمل‌ها'],'correct':1},
@@ -289,7 +320,7 @@ class TrainingPage extends StatelessWidget {
   const TrainingPage({super.key});
   @override
   Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(18), children: [
-    SearchPanel(entries:allSearchEntries.where((e)=>e.section=='training').toList(),hint:'جستجو در آموزش‌ها...',onSelected:(entry)=>showDialog<void>(context:context,builder:(_)=>AlertDialog(title:Text(entry.title),content:Text(entry.content),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('بستن'))]))),
+    SearchPanel(entries:allSearchEntries.where((e)=>e.section=='training').toList(),hint:'جستجو در آموزش‌ها...',onSelected:(entry)=>Navigator.of(context).push(MaterialPageRoute<void>(builder:(_)=>SearchResultPage(entry:entry)))),
     const SizedBox(height:12),
     const Text('محتوای آموزشی', style: TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
     _InfoCard(icon:Icons.health_and_safety,title:'اصول ایمنی و بهداشت',body:'آشنایی با اصول عمومی ایمنی، شناسایی خطرها و گزارش شرایط ناایمن.'),
