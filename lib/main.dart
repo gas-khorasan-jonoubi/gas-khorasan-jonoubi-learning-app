@@ -16,6 +16,9 @@ class GasLearningApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
     title: 'آموزش شرکت گاز خراسان جنوبی',
+    locale: const Locale('fa', 'IR'),
+    localizationsDelegates: GlobalMaterialLocalizations.delegates,
+    supportedLocales: GlobalMaterialLocalizations.supportedLocales,
     theme: ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(seedColor: blue, primary: navy),
