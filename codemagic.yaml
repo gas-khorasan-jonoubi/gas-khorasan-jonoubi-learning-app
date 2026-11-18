@@ -14,11 +14,12 @@ workflows:
       - name: Restore the two approved images from the repository bundle
         script: |
           cat tooling/assets_bundle.zip.b64.part.* | tr -d '\n\r ' | base64 --decode > /tmp/gas_assets_bundle.zip
-          unzip -oq /tmp/gas_assets_bundle.zip -d .
+          unzip -oqn /tmp/gas_assets_bundle.zip -d .
       - name: Verify the exact selected app icon and splash poster
         script: |
           test -s assets/app_icon.jpg || { echo "Missing selected NIGC app icon"; exit 1; }
           test -s assets/splash_poster.webp || { echo "Missing approved colorful splash poster"; exit 1; }
+          echo 'e0310a00567f7b4877632119ceba87c862dbf67b20b53e29202fe37e84c7094a  assets/app_icon.jpg' | sha256sum --check -
       - name: Get Flutter packages
         script: flutter pub get
       - name: Generate Android launcher icon from the selected NIGC artwork
