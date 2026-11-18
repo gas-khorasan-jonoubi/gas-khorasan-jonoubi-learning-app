@@ -864,7 +864,7 @@ class _ResultsPageState extends State<ResultsPage> {
               final date = DateTime.tryParse(record['date'] as String? ?? '');
               final dateLabel = date == null
                   ? 'تاریخ نامشخص'
-                  : '\${date.year}/\${date.month}/\${date.day} - \${date.hour}:\${date.minute.toString().padLeft(2, '0')}';
+                  : '${date.year}/${date.month}/${date.day} - ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
               final hasDetails = record['questions'] is List;
               return Card(
                 child: ListTile(
