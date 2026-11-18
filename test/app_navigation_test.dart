@@ -38,6 +38,11 @@ void main() {
     await tester.pump();
     expect(find.text('پاسخ ثبت شد'), findsOneWidget);
 
+    await tester.scrollUntilVisible(
+      find.text('سؤال بعد'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('سؤال بعد'));
     await tester.pump();
     expect(
@@ -45,6 +50,11 @@ void main() {
       findsOneWidget,
     );
 
+    await tester.scrollUntilVisible(
+      find.text('سؤال قبل'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('سؤال قبل'));
     await tester.pump();
     expect(
