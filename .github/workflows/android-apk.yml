@@ -46,11 +46,12 @@ jobs:
       - name: Restore the two approved images from the repository bundle
         run: |
           cat tooling/assets_bundle.zip.b64.part.* | tr -d '\n\r ' | base64 --decode > /tmp/gas_assets_bundle.zip
-          unzip -oq /tmp/gas_assets_bundle.zip -d .
+          unzip -oqn /tmp/gas_assets_bundle.zip -d .
       - name: Verify exact selected image assets
         run: |
           test -s assets/app_icon.jpg
           test -s assets/splash_poster.webp
+          echo 'e0310a00567f7b4877632119ceba87c862dbf67b20b53e29202fe37e84c7094a  assets/app_icon.jpg' | sha256sum --check -
       - name: Get packages and generate launcher icon
         run: |
           flutter pub get
