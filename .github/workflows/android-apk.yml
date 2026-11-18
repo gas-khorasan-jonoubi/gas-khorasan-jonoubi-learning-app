@@ -42,7 +42,7 @@ jobs:
       - name: Generate Android platform files
         run: |
           if [ ! -d android ]; then
-            flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
+            flutter create --platforms=android --org ir.gas.khorasanjonoubi --project-name gas_khorasan_jonoubi_learning_app .
           fi
           rm -f test/widget_test.dart
       - name: Restore the two approved images from the repository bundle
