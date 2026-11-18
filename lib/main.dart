@@ -363,8 +363,8 @@ class LibraryPage extends StatelessWidget {
       const Text('مطالب این کتابخانه در سه دسته اصلی و به‌صورت آفلاین در برنامه قرار می‌گیرند.'),
       Card(
         margin: const EdgeInsets.only(top: 14),
-        child: const ListTile(
-          leading: CircleAvatar(backgroundColor: paleBlue, child: Icon(Icons.quiz, color: navy)),
+        child: ListTile(
+          leading: const CircleAvatar(backgroundColor: paleBlue, child: Icon(Icons.quiz, color: navy)),
           title: Text('۱. آزمون‌ها و سؤالات', style: TextStyle(fontWeight: FontWeight.bold)),
           subtitle: Text('مجموعه آزمون‌های شماره‌گذاری‌شده و پرسش‌های چهارگزینه‌ای'),
           onTap: () => context.findAncestorStateOfType<_HomePageState>()?.navigateTo(1),
@@ -372,8 +372,8 @@ class LibraryPage extends StatelessWidget {
       ),
       Card(
         margin: const EdgeInsets.only(top: 10),
-        child: const ListTile(
-          leading: CircleAvatar(backgroundColor: paleBlue, child: Icon(Icons.menu_book, color: navy)),
+        child: ListTile(
+          leading: const CircleAvatar(backgroundColor: paleBlue, child: Icon(Icons.menu_book, color: navy)),
           title: Text('۲. جزوه‌ها و دستورالعمل‌ها', style: TextStyle(fontWeight: FontWeight.bold)),
           subtitle: Text('جزوه‌ها، آیین‌نامه‌ها، دستورالعمل‌ها و فایل‌های مرجع'),
           onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SearchResultPage(entry: SearchEntry(title: 'جزوه‌ها و دستورالعمل‌ها', subtitle: 'کتابخانه دیجیتال', content: 'فهرست جزوه‌ها و دستورالعمل‌ها پس از افزودن فایل‌های اصلی نمایش داده می‌شود.', section: 'library', kind: SearchKind.topic)))),
