@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'dart:ui' show ImageFilter;
+import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const navy = Color(0xFF123B66);
@@ -34,25 +35,28 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 5), () {
+    Future.delayed(const Duration(seconds: 3), () {
       if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
     });
   }
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: navy,
-    body: Center(child: Padding(
-      padding: const EdgeInsets.all(28),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.school_rounded, color: Colors.white, size: 82),
-        const SizedBox(height: 28),
-        const Text('شرکت گاز خراسان جنوبی', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
-        const Text('اداره گاز شهرستان عشق‌آباد', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 18)),
-        const SizedBox(height: 34),
-        const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
-      ]),
-    )),
+    backgroundColor: const Color(0xFF75BCEB),
+    body: SizedBox.expand(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Fill unused screen space with a softly blurred version of the SAME poster.
+          ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Image.asset('assets/splash_poster.webp', fit: BoxFit.cover),
+          ),
+          Container(color: Colors.black.withValues(alpha: 0.10)),
+          // Keep the complete original poster visible without cropping its Persian text or artwork.
+          Image.asset('assets/splash_poster.webp', fit: BoxFit.contain),
+        ],
+      ),
+    ),
   );
 }
 
@@ -65,6 +69,12 @@ class _HomePageState extends State<HomePage> {
   int index = 0;
   final pages = const [DashboardPage(), ExamPage(), TrainingPage(), LibraryPage(), ResultsPage()];
   final titles = const ['داشبورد', 'آزمون‌ها', 'آموزش‌ها', 'کتابخانه', 'نتایج'];
+
+  void navigateTo(int nextIndex) {
+    if (nextIndex < 0 || nextIndex >= pages.length) { return; }
+    setState(() => index = nextIndex);
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text(titles[index])),
@@ -101,7 +111,7 @@ class DashboardPage extends StatelessWidget {
   ]);
   void _go(BuildContext context, int i) {
     final state = context.findAncestorStateOfType<_HomePageState>();
-    state?.setState(() => state.index = i);
+    state?.navigateTo(i);
   }
 }
 class _MenuTile extends StatelessWidget {
@@ -128,11 +138,22 @@ class _ExamPageState extends State<ExamPage> {
   bool finished = false;
   @override
   Widget build(BuildContext context) {
-    if (finished) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(Icons.emoji_events, color: blue, size: 64),
-      Text('نتیجه آزمون: $score از ${questions.length}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 16), FilledButton(onPressed: () => setState(() { question=0; score=0; selected=null; finished=false; }), child: const Text('آزمون مجدد')),
-    ]));
+    if (finished) {
+      return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const Icon(Icons.emoji_events, color: blue, size: 64),
+        Text('نتیجه آزمون: $score از ${questions.length}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 16),
+        FilledButton(
+          onPressed: () => setState(() {
+            question = 0;
+            score = 0;
+            selected = null;
+            finished = false;
+          }),
+          child: const Text('آزمون مجدد'),
+        ),
+      ]));
+    }
     final q = questions[question];
     final answers = q['a'] as List<String>;
     return ListView(padding: const EdgeInsets.all(18), children: [
@@ -142,10 +163,24 @@ class _ExamPageState extends State<ExamPage> {
       const SizedBox(height: 12),
       Text(q['q'] as String, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
       const SizedBox(height: 16),
-      ...List.generate(answers.length, (i) => Card(child: RadioListTile<int>(value:i, groupValue:selected, onChanged:(v)=>setState(()=>selected=v), title:Text(answers[i])))),
+      RadioGroup<int>(
+        groupValue: selected,
+        onChanged: (value) => setState(() => selected = value),
+        child: Column(
+          children: List.generate(
+            answers.length,
+            (i) => Card(
+              child: RadioListTile<int>(
+                value: i,
+                title: Text(answers[i]),
+              ),
+            ),
+          ),
+        ),
+      ),
       const SizedBox(height: 14),
       FilledButton(onPressed: selected==null ? null : () {
-        if (selected == q['correct']) score++;
+        if (selected == q['correct']) { score++; }
         if (question == questions.length-1) {
           setState(()=>finished=true);
           _saveResult();

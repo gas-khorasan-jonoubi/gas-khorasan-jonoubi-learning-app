@@ -1,7 +1,6 @@
-
 workflows:
   android-release:
-    name: Gas Khorasan Jonoubi - Android APK
+    name: آموزش شرکت گاز خراسان جنوبی - Android APK
     max_build_duration: 60
     environment:
       flutter: stable
@@ -11,9 +10,40 @@ workflows:
           if [ ! -d android ]; then
             flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
           fi
+          rm -f test/widget_test.dart
+      - name: Restore the two approved images from the repository bundle
+        script: |
+          cat tooling/assets_bundle.zip.b64.part.* | tr -d '\n\r ' | base64 --decode > /tmp/gas_assets_bundle.zip
+          unzip -oqn /tmp/gas_assets_bundle.zip -d .
+      - name: Verify the exact selected app icon and splash poster
+        script: |
+          test -s assets/app_icon.jpg || { echo "Missing selected NIGC app icon"; exit 1; }
+          test -s assets/splash_poster.webp || { echo "Missing approved colorful splash poster"; exit 1; }
+          echo 'e0310a00567f7b4877632119ceba87c862dbf67b20b53e29202fe37e84c7094a  assets/app_icon.jpg' | sha256sum --check -
       - name: Get Flutter packages
         script: flutter pub get
+      - name: Generate Android launcher icon from the selected NIGC artwork
+        script: dart run flutter_launcher_icons
+      - name: Set the Persian Android application name
+        script: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          content = manifest.read_text(encoding="utf-8")
+          content, count = re.subn(
+              r'android:label="[^"]*"',
+              'android:label="آموزش شرکت گاز خراسان جنوبی"',
+              content,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit("Could not find android:label in AndroidManifest.xml")
+          manifest.write_text(content, encoding="utf-8")
+          PY
+      - name: Analyze Flutter code
+        script: flutter analyze
       - name: Build release APK
-        script: flutter build apk --release
+        script: flutter build apk --release --target-platform android-arm64
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
