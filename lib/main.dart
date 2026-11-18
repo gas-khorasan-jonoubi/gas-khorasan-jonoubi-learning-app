@@ -71,7 +71,7 @@ class _HomePageState extends State<HomePage> {
   final titles = const ['داشبورد', 'آزمون‌ها', 'آموزش‌ها', 'کتابخانه', 'نتایج'];
 
   void navigateTo(int nextIndex) {
-    if (nextIndex < 0 || nextIndex >= pages.length) return;
+    if (nextIndex < 0 || nextIndex >= pages.length) { return; }
     setState(() => index = nextIndex);
   }
 
