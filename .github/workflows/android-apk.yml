@@ -80,10 +80,10 @@ jobs:
       - name: Analyze
         run: flutter analyze
       - name: Build release APK
-        if: inputs.build_apk == true
+        if: github.event_name == 'push' || inputs.build_apk == true
         run: flutter build apk --release --target-platform android-arm64
       - name: Upload APK artifact
-        if: inputs.build_apk == true
+        if: github.event_name == 'push' || inputs.build_apk == true
         uses: actions/upload-artifact@v4
         with:
           name: gas-khorasan-jonoubi-release-apk
