@@ -820,17 +820,81 @@ class _InfoCard extends StatelessWidget {
 class ResultsPage extends StatefulWidget {
   const ResultsPage({super.key});
   @override
-  State<ResultsPage> createState()=>_ResultsPageState();
+  State<ResultsPage> createState() => _ResultsPageState();
 }
+
 class _ResultsPageState extends State<ResultsPage> {
   late Future<List<String>> results;
+
   @override
-  void initState(){super.initState();results=_load();}
-  Future<List<String>> _load() async {final p=await SharedPreferences.getInstance();return p.getStringList('exam_results')??[];}
+  void initState() {
+    super.initState();
+    results = _load();
+  }
+
+  Future<List<String>> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('exam_results') ?? [];
+  }
+
   @override
-  Widget build(BuildContext context)=>FutureBuilder<List<String>>(future:results,builder:(context,s){
-    if(!s.hasData)return const Center(child:CircularProgressIndicator());
-    if(s.data!.isEmpty)return const Center(child:Text('هنوز نتیجه‌ای ثبت نشده است'));
-    return ListView(padding:const EdgeInsets.all(16),children:s.data!.map((v){final x=jsonDecode(v) as Map<String,dynamic>;final d=DateTime.parse(x['date'] as String);return Card(child:ListTile(leading:const Icon(Icons.check_circle,color:blue),title:Text('امتیاز: ${x['score']} از ${x['total']}'),subtitle:Text('${d.year}/${d.month}/${d.day} - ${d.hour}:${d.minute}')));}).toList());
-  });
+  Widget build(BuildContext context) => FutureBuilder<List<String>>(
+        future: results,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return const Center(child: Text('خواندن سوابق آزمون ناموفق بود.'));
+          }
+          final records = snapshot.data ?? [];
+          if (records.isEmpty) {
+            return const Center(child: Text('هنوز نتیجه‌ای ثبت نشده است'));
+          }
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: records.map((value) {
+              final record = jsonDecode(value) as Map<String, dynamic>;
+              final total = record['total'] as int? ?? 0;
+              final correct = record['correctCount'] as int? ??
+                  record['score'] as int? ??
+                  0;
+              final wrong = record['wrongCount'] as int? ?? (total - correct);
+              final unanswered = record['unansweredCount'] as int? ?? 0;
+              final date = DateTime.tryParse(record['date'] as String? ?? '');
+              final dateLabel = date == null
+                  ? 'تاریخ نامشخص'
+                  : '\${date.year}/\${date.month}/\${date.day} - \${date.hour}:\${date.minute.toString().padLeft(2, '0')}';
+              final hasDetails = record['questions'] is List;
+              return Card(
+                child: ListTile(
+                  leading: const Icon(Icons.assessment_outlined, color: blue),
+                  title: Text(
+                    'صحیح: $correct  |  غلط: $wrong  |  بی‌پاسخ: $unanswered',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text('$dateLabel  •  مجموع: $total پرسش'),
+                  trailing: hasDetails
+                      ? const Icon(Icons.chevron_left)
+                      : const Icon(Icons.history),
+                  onTap: hasDetails
+                      ? () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => Scaffold(
+                                appBar: AppBar(title: const Text('مرور نتیجه آزمون')),
+                                body: _ExamFinishedView(
+                                  record: Map<String, Object>.from(record),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                      : null,
+                ),
+              );
+            }).toList(),
+          );
+        },
+      );
 }
