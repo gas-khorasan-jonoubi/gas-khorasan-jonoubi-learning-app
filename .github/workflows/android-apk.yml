@@ -87,7 +87,7 @@ jobs:
         run: |
           expected='ir.gas.khorasanjonoubi.gas_khorasan_jonoubi_learning_app'
           grep -R --fixed-strings "$expected" android/app
-          sdk="\${ANDROID_HOME:-\${ANDROID_SDK_ROOT:-}}"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           test -n "$sdk"
           apksigner="$(find "$sdk/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           test -x "$apksigner"
