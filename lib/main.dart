@@ -331,9 +331,9 @@ class TrainingPage extends StatelessWidget {
     SearchPanel(entries:allSearchEntries.where((e)=>e.section=='training').toList(),hint:'جستجو در آموزش‌ها...',onSelected:(entry)=>Navigator.of(context).push(MaterialPageRoute<void>(builder:(_)=>SearchResultPage(entry:entry)))),
     const SizedBox(height:12),
     const Text('محتوای آموزشی', style: TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
-    _InfoCard(icon:Icons.health_and_safety,title:'اصول ایمنی و بهداشت',body:'آشنایی با اصول عمومی ایمنی، شناسایی خطرها و گزارش شرایط ناایمن.'),
-    _InfoCard(icon:Icons.local_fire_department,title:'آشنایی با گاز طبیعی',body:'مفاهیم پایه درباره گاز طبیعی و نکات عمومی استفاده ایمن.'),
-    _InfoCard(icon:Icons.warning_amber,title:'اقدام در شرایط اضطراری',body:'حفظ خونسردی، رعایت دستورالعمل‌های سازمانی و اطلاع‌رسانی به مسئول مربوط.'),
+    const _InfoCard(icon:Icons.health_and_safety,title:'اصول ایمنی و بهداشت',body:'آشنایی با اصول عمومی ایمنی، شناسایی خطرها و گزارش شرایط ناایمن.'),
+    const _InfoCard(icon:Icons.local_fire_department,title:'آشنایی با گاز طبیعی',body:'مفاهیم پایه درباره گاز طبیعی و نکات عمومی استفاده ایمن.'),
+    const _InfoCard(icon:Icons.warning_amber,title:'اقدام در شرایط اضطراری',body:'حفظ خونسردی، رعایت دستورالعمل‌های سازمانی و اطلاع‌رسانی به مسئول مربوط.'),
   ]);
 }
 class LibraryPage extends StatelessWidget {
@@ -365,8 +365,8 @@ class LibraryPage extends StatelessWidget {
         margin: const EdgeInsets.only(top: 14),
         child: ListTile(
           leading: const CircleAvatar(backgroundColor: paleBlue, child: Icon(Icons.quiz, color: navy)),
-          title: Text('۱. آزمون‌ها و سؤالات', style: TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text('مجموعه آزمون‌های شماره‌گذاری‌شده و پرسش‌های چهارگزینه‌ای'),
+          title: const Text('۱. آزمون‌ها و سؤالات', style: TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: const Text('مجموعه آزمون‌های شماره‌گذاری‌شده و پرسش‌های چهارگزینه‌ای'),
           onTap: () => context.findAncestorStateOfType<_HomePageState>()?.navigateTo(1),
         ),
       ),
@@ -374,8 +374,8 @@ class LibraryPage extends StatelessWidget {
         margin: const EdgeInsets.only(top: 10),
         child: ListTile(
           leading: const CircleAvatar(backgroundColor: paleBlue, child: Icon(Icons.menu_book, color: navy)),
-          title: Text('۲. جزوه‌ها و دستورالعمل‌ها', style: TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text('جزوه‌ها، آیین‌نامه‌ها، دستورالعمل‌ها و فایل‌های مرجع'),
+          title: const Text('۲. جزوه‌ها و دستورالعمل‌ها', style: TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: const Text('جزوه‌ها، آیین‌نامه‌ها، دستورالعمل‌ها و فایل‌های مرجع'),
           onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SearchResultPage(entry: SearchEntry(title: 'جزوه‌ها و دستورالعمل‌ها', subtitle: 'کتابخانه دیجیتال', content: 'فهرست جزوه‌ها و دستورالعمل‌ها پس از افزودن فایل‌های اصلی نمایش داده می‌شود.', section: 'library', kind: SearchKind.topic)))),
         ),
       ),
