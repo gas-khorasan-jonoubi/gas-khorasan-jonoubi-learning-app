@@ -1,6 +1,20 @@
 name: Build Android APK
 
 on:
+  push:
+    branches: [main, fix/splash-three-seconds-nigc-icon]
+    paths:
+      - 'lib/**'
+      - 'test/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/android-apk.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'test/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/android-apk.yml'
   workflow_dispatch:
     inputs:
       build_apk:
