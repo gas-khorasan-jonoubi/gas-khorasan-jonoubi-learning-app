@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
 
@@ -7,7 +6,7 @@ void main() {
 
   testWidgets('the splash screen opens the dashboard after three seconds',
       (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: SplashPage()));
+    await tester.pumpWidget(const GasLearningApp());
 
     expect(find.text('داشبورد'), findsNothing);
 
@@ -19,11 +18,15 @@ void main() {
 
   testWidgets('exam keeps a selected answer when navigating between questions',
       (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: ExamPage()),
-      ),
-    );
+    await tester.pumpWidget(const GasLearningApp());
+
+    // The app must first complete its normal three-second splash transition.
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+
+    // Open the exam through the actual bottom navigation used by the app.
+    await tester.tap(find.text('آزمون'));
+    await tester.pump();
 
     expect(
       find.text('هدف اصلی آموزش ایمنی در محیط کار چیست؟'),
