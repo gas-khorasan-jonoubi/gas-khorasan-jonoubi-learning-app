@@ -44,6 +44,6 @@ workflows:
       - name: Analyze Flutter code
         script: flutter analyze
       - name: Build release APK
-        script: flutter build apk --release
+        script: flutter build apk --release --target-platform android-arm64
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
