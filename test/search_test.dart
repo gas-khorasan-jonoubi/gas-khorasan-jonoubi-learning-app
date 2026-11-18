@@ -19,6 +19,11 @@ void main() {
       expect(searchEntries(examEntries, 'ایمنی'), isNotEmpty);
     });
 
+    test('matches a partial word in the content as well as the title', () {
+      final results = searchEntries(allSearchEntries, 'خطرها');
+      expect(results.any((entry) => entry.title == 'اصول ایمنی و بهداشت'), isTrue);
+    });
+
     test('empty query returns no search results', () {
       expect(searchEntries(allSearchEntries, '   '), isEmpty);
     });
