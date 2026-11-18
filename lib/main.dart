@@ -214,7 +214,7 @@ class _ExamPageState extends State<ExamPage> {
   int? selected;
   bool finished = false;
   @override
-  void initState(){super.initState();question=widget.initialQuestion.clamp(0,questions.length-1);}
+  void initState(){super.initState();question=widget.initialQuestion.clamp(0,questions.length-1).toInt();}
   @override
   Widget build(BuildContext context) {
     if (finished) {
@@ -236,7 +236,7 @@ class _ExamPageState extends State<ExamPage> {
     final q = questions[question];
     final answers = q['a'] as List<String>;
     return ListView(padding: const EdgeInsets.all(18), children: [
-      SearchPanel(entries:List.generate(questions.length,(i)=>SearchEntry(title:questions[i]['q'] as String,subtitle:'سؤال ${i+1} از آزمون شماره ۱',content:(questions[i]['a'] as List<String>).join('، '),section:'exam',kind:SearchKind.exam,index:i)),hint:'جستجو در همین آزمون...',onSelected:(entry)=>setState(()=>{question=entry.index;selected=null;})),
+      SearchPanel(entries:List.generate(questions.length,(i)=>SearchEntry(title:questions[i]['q'] as String,subtitle:'سؤال ${i+1} از آزمون شماره ۱',content:(questions[i]['a'] as List<String>).join('، '),section:'exam',kind:SearchKind.exam,index:i)),hint:'جستجو در همین آزمون...',onSelected:(entry){setState((){question=entry.index;selected=null;});}),
       const SizedBox(height:12),
       LinearProgressIndicator(value: (question+1)/questions.length),
       const SizedBox(height: 18),
