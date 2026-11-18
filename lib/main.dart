@@ -138,11 +138,22 @@ class _ExamPageState extends State<ExamPage> {
   bool finished = false;
   @override
   Widget build(BuildContext context) {
-    if (finished) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(Icons.emoji_events, color: blue, size: 64),
-      Text('نتیجه آزمون: $score از ${questions.length}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 16), FilledButton(onPressed: () => setState(() { question=0; score=0; selected=null; finished=false; }), child: const Text('آزمون مجدد')),
-    ]));
+    if (finished) {
+      return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const Icon(Icons.emoji_events, color: blue, size: 64),
+        Text('نتیجه آزمون: $score از ${questions.length}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 16),
+        FilledButton(
+          onPressed: () => setState(() {
+            question = 0;
+            score = 0;
+            selected = null;
+            finished = false;
+          }),
+          child: const Text('آزمون مجدد'),
+        ),
+      ]));
+    }
     final q = questions[question];
     final answers = q['a'] as List<String>;
     return ListView(padding: const EdgeInsets.all(18), children: [
