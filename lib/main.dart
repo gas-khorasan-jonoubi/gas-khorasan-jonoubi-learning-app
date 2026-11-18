@@ -217,12 +217,59 @@ class TrainingPage extends StatelessWidget {
 }
 class LibraryPage extends StatelessWidget {
   const LibraryPage({super.key});
+
+  static const knowledgeAreas = <String>[
+    'امور مشترکین',
+    'وصول مطالبات',
+    'تعمیرات',
+    'HSE و ایمنی',
+    'مدیریت و ریاست اداره',
+    'امداد و گازبان',
+    'سایر دانستنی‌ها و آموزش‌های تخصصی',
+  ];
+
   @override
-  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(18), children: const [
-    Text('کتابخانه دیجیتال', style: TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
-    _InfoCard(icon:Icons.picture_as_pdf,title:'جزوه‌های آموزشی',body:'محل نمایش و افزودن فایل‌های آموزشی تأییدشده در نسخه‌های بعدی.'),
-    _InfoCard(icon:Icons.book,title:'دستورالعمل‌ها و منابع',body:'منابع و دستورالعمل‌های موردنیاز کارکنان در یک بخش متمرکز.'),
-  ]);
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(18),
+    children: [
+      const Text('کتابخانه دیجیتال', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 6),
+      const Text('مطالب این کتابخانه در سه دسته اصلی و به‌صورت آفلاین در برنامه قرار می‌گیرند.'),
+      Card(
+        margin: const EdgeInsets.only(top: 14),
+        child: const ListTile(
+          leading: CircleAvatar(backgroundColor: paleBlue, child: Icon(Icons.quiz, color: navy)),
+          title: Text('۱. آزمون‌ها و سؤالات', style: TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: Text('مجموعه آزمون‌های شماره‌گذاری‌شده و پرسش‌های چهارگزینه‌ای'),
+        ),
+      ),
+      Card(
+        margin: const EdgeInsets.only(top: 10),
+        child: const ListTile(
+          leading: CircleAvatar(backgroundColor: paleBlue, child: Icon(Icons.menu_book, color: navy)),
+          title: Text('۲. جزوه‌ها و دستورالعمل‌ها', style: TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: Text('جزوه‌ها، آیین‌نامه‌ها، دستورالعمل‌ها و فایل‌های مرجع'),
+        ),
+      ),
+      Card(
+        margin: const EdgeInsets.only(top: 10),
+        child: ExpansionTile(
+          leading: const CircleAvatar(backgroundColor: paleBlue, child: Icon(Icons.lightbulb_outline, color: navy)),
+          title: const Text('۳. دانستنی‌ها و آموزش‌های تخصصی', style: TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: const Text('موضوعات تخصصی موردنیاز کارکنان شرکت گاز'),
+          initiallyExpanded: true,
+          children: knowledgeAreas.map((area) => ListTile(
+            leading: const Icon(Icons.folder_outlined, color: blue),
+            title: Text(area),
+            dense: true,
+            onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('مطالب بخش «$area» پس از دریافت و آماده‌سازی محتوا در این قسمت نمایش داده می‌شود.')),
+            ),
+          )).toList(),
+        ),
+      ),
+    ],
+  );
 }
 class _InfoCard extends StatelessWidget {
   final IconData icon; final String title,body;
