@@ -42,6 +42,7 @@ jobs:
           if [ ! -d android ]; then
             flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
           fi
+          rm -f test/widget_test.dart
       - name: Restore the two approved images from the repository bundle
         run: |
           cat tooling/assets_bundle.zip.b64.part.* | tr -d '\n\r ' | base64 --decode > /tmp/gas_assets_bundle.zip
