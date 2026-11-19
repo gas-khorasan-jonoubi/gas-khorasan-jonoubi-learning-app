@@ -6,7 +6,7 @@ workflows:
         - push
         - pull_request
       branch_patterns:
-        - pattern: 'feature/app-usage-guide'
+        - pattern: '__manual_build_only__'
           include: true
           source: true
     max_build_duration: 60
