@@ -80,7 +80,7 @@ jobs:
       - name: Analyze
         run: flutter analyze
       - name: Build release APK
-        if: github.ref == 'refs/heads/main' || inputs.build_apk == true
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/splash-three-seconds-nigc-icon' || inputs.build_apk == true
         run: flutter build apk --release --target-platform android-arm64
       - name: Verify APK package ID and signature
         if: github.ref == 'refs/heads/main' || inputs.build_apk == true
