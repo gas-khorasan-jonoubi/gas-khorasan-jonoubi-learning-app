@@ -1,13 +1,14 @@
 name: Flutter checks
 
 on:
-  push:
-    branches:
-      - feature/app-usage-guide
   pull_request:
     branches:
       - feature/fix-exam-and-results
       - main
+
+concurrency:
+  group: flutter-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
