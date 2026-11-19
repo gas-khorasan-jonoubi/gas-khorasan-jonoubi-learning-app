@@ -1,19 +1,89 @@
-
 workflows:
   android-release:
-    name: Gas Khorasan Jonoubi - Android APK
+    name: Gas Khorasan Jonoubi - Signed Android APK
     max_build_duration: 60
     environment:
       flutter: stable
+      android_signing:
+        - gas_learning_release
     scripts:
       - name: Generate Android platform files
         script: |
           if [ ! -d android ]; then
             flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
           fi
+      - name: Configure Android release signing
+        script: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          kts = Path("android/app/build.gradle.kts")
+          groovy = Path("android/app/build.gradle")
+
+          if kts.exists():
+              path = kts
+              content = path.read_text()
+              signing_block = """    signingConfigs {
+                  create("release") {
+                      storeFile = file(System.getenv("CM_KEYSTORE_PATH") ?: error("CM_KEYSTORE_PATH is missing"))
+                      storePassword = System.getenv("CM_KEYSTORE_PASSWORD")
+                      keyAlias = System.getenv("CM_KEY_ALIAS")
+                      keyPassword = System.getenv("CM_KEY_PASSWORD")
+                  }
+              }
+
+          """
+              if "signingConfigs {" not in content:
+                  content, count = re.subn(r"(?m)^(\\s*)buildTypes\\s*\\{", signing_block + r"\\1buildTypes {", content, count=1)
+                  if count != 1:
+                      raise SystemExit("Could not locate buildTypes in build.gradle.kts")
+              content, count = re.subn(
+                  r'signingConfig\\s*=\\s*signingConfigs\\.getByName\\("debug"\\)',
+                  'signingConfig = signingConfigs.getByName("release")',
+                  content,
+                  count=1
+              )
+              if count == 0:
+                  content, count = re.subn(r'(?m)^(\\s*)release\\s*\\{', r'\\1release {\\n\\1    signingConfig = signingConfigs.getByName("release")', content, count=1)
+              if count == 0:
+                  raise SystemExit("Could not configure release signing in build.gradle.kts")
+              path.write_text(content)
+          elif groovy.exists():
+              path = groovy
+              content = path.read_text()
+              signing_block = """    signingConfigs {
+                  release {
+                      storeFile file(System.getenv("CM_KEYSTORE_PATH"))
+                      storePassword System.getenv("CM_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("CM_KEY_ALIAS")
+                      keyPassword System.getenv("CM_KEY_PASSWORD")
+                  }
+              }
+
+          """
+              if "signingConfigs {" not in content:
+                  content, count = re.subn(r"(?m)^(\\s*)buildTypes\\s*\\{", signing_block + r"\\1buildTypes {", content, count=1)
+                  if count != 1:
+                      raise SystemExit("Could not locate buildTypes in build.gradle")
+              content, count = re.subn(
+                  r'signingConfig\\s+signingConfigs\\.debug',
+                  'signingConfig signingConfigs.release',
+                  content,
+                  count=1
+              )
+              if count == 0:
+                  content, count = re.subn(r'(?m)^(\\s*)release\\s*\\{', r'\\1release {\\n\\1    signingConfig signingConfigs.release', content, count=1)
+              if count == 0:
+                  raise SystemExit("Could not configure release signing in build.gradle")
+              path.write_text(content)
+          else:
+              raise SystemExit("No Android app Gradle file found")
+          print("Android release signing configured.")
+          PY
       - name: Get Flutter packages
         script: flutter pub get
-      - name: Build release APK
+      - name: Build signed release APK
         script: flutter build apk --release
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
