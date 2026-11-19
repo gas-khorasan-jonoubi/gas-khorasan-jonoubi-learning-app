@@ -1,8 +1,11 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('application home page opens and exposes main destinations',
       (tester) async {
     await tester.pumpWidget(const MaterialApp(home: HomePage()));
