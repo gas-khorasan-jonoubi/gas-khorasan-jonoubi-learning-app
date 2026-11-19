@@ -83,6 +83,10 @@ workflows:
           PY
       - name: Get Flutter packages
         script: flutter pub get
+      - name: Analyze Flutter code
+        script: flutter analyze
+      - name: Run automated tests
+        script: flutter test --reporter expanded
       - name: Build signed release APK
         script: flutter build apk --release
     artifacts:
