@@ -395,6 +395,7 @@ class _ExamPageState extends State<ExamPage> {
       remainingSeconds = questions.length * examDurationPerQuestion;
       started = true;
       finished = false;
+      saving = false;
       lastResult = null;
     });
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -408,7 +409,7 @@ class _ExamPageState extends State<ExamPage> {
   }
 
   void _finishExam({bool timeExpired = false}) {
-    if (finished || saving) return;
+    if (finished) return;
     timer?.cancel();
     final evaluation = ExamEvaluation.calculate(questions, answers);
     final result = <String, Object>{
