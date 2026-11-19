@@ -269,8 +269,7 @@ class ExamQuestion {
     required this.options,
     required this.correctIndex,
     this.explanation = '',
-  })  : assert(options.length == 4),
-        assert(correctIndex >= 0 && correctIndex < 4);
+  });
 
   Map<String, Object> toJson() => {
         'text': text,
