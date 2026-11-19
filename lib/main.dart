@@ -115,7 +115,7 @@ class _HomePageState extends State<HomePage> {
       const LibraryPage(),
       const ResultsPage(),
     ];
-    const titles = ['داشبورد', 'آزمون‌ها', 'آموزش‌ها', 'کتابخانه', 'نتایج'];
+    const titles = ['داشبورد', 'آزمون‌ها', 'راهنمای استفاده', 'کتابخانه دیجیتال', 'نتایج'];
 
     return WillPopScope(
       onWillPop: () async {
@@ -156,7 +156,7 @@ class _HomePageState extends State<HomePage> {
             NavigationDestination(
                 icon: Icon(Icons.quiz_outlined), label: 'آزمون'),
             NavigationDestination(
-                icon: Icon(Icons.play_lesson_outlined), label: 'آموزش'),
+                icon: Icon(Icons.play_lesson_outlined), label: 'راهنما'),
             NavigationDestination(
                 icon: Icon(Icons.local_library_outlined), label: 'کتابخانه'),
             NavigationDestination(
@@ -209,8 +209,8 @@ class DashboardPage extends StatelessWidget {
           ),
           _MenuTile(
             icon: Icons.menu_book,
-            title: 'آموزش‌ها',
-            subtitle: 'مطالعه محتوای آموزشی',
+            title: 'راهنمای استفاده از برنامه',
+            subtitle: 'آشنایی مرحله‌به‌مرحله با امکانات برنامه',
             onTap: () => onNavigate(2),
           ),
           _MenuTile(
@@ -839,32 +839,94 @@ class _QuestionReviewPage extends StatelessWidget {
 class TrainingPage extends StatelessWidget {
   const TrainingPage({super.key});
 
+  static const guides = <_GuideSection>[
+    _GuideSection(
+      title: 'آشنایی با صفحه اصلی',
+      icon: Icons.dashboard_outlined,
+      summary: 'از نوار پایین صفحه برای رفتن به داشبورد، آزمون‌ها، راهنما، کتابخانه و نتایج استفاده کنید.',
+      example: 'مثال: برای شروع آزمون، گزینه «آزمون» را از نوار پایین انتخاب کنید؛ برای برگشت به صفحه اول، «خانه» را بزنید.',
+    ),
+    _GuideSection(
+      title: 'استفاده از کتابخانه دیجیتال',
+      icon: Icons.local_library_outlined,
+      summary: 'کتابخانه محل مراجعه به اسناد، فایل‌ها، فرم‌ها و دستورالعمل‌های تأییدشده است.',
+      example: 'مثال: وارد «کتابخانه دیجیتال» شوید، دسته موردنظر مثل HSE را انتخاب و نام سند را جست‌وجو کنید. پس از افزودن اسناد رسمی، از همین بخش قابل دسترسی خواهند بود.',
+    ),
+    _GuideSection(
+      title: 'شرکت در آزمون',
+      icon: Icons.quiz_outlined,
+      summary: 'پیش از شروع، تعداد سؤال‌ها و زمان آزمون نمایش داده می‌شود. برای هر سؤال ۳۰ ثانیه در نظر گرفته شده است.',
+      example: 'مثال: گزینه پاسخ را لمس کنید؛ با «بعدی» به سؤال بعد بروید یا از شماره سؤال‌ها برای جابه‌جایی استفاده کنید. تا پایان آزمون می‌توانید پاسخ را تغییر دهید.',
+    ),
+    _GuideSection(
+      title: 'پایان آزمون و مشاهده نتیجه',
+      icon: Icons.assessment_outlined,
+      summary: 'پس از پایان زمان یا ثبت نهایی، تعداد پاسخ‌های صحیح، غلط و بی‌پاسخ نمایش داده می‌شود.',
+      example: 'مثال: روی «پاسخ‌های غلط» بزنید تا سؤال‌ها، گزینه انتخابی شما و پاسخ صحیح را ببینید. نتیجه‌های ذخیره‌شده در بخش «نتایج» قابل مرور هستند.',
+    ),
+    _GuideSection(
+      title: 'استفاده آفلاین',
+      icon: Icons.wifi_off_outlined,
+      summary: 'امکانات و فایل‌هایی که داخل نسخه نصب‌شده برنامه قرار گرفته‌اند، بدون اینترنت در دسترس‌اند.',
+      example: 'مثال: اینترنت گوشی را خاموش و برنامه را باز کنید. محتوای داخلی و سوابق ذخیره‌شده روی همان دستگاه در دسترس می‌مانند؛ دریافت به‌روزرسانی یا محتوای جدید به اینترنت نیاز دارد.',
+    ),
+    _GuideSection(
+      title: 'خرید و بازیابی دسترسی',
+      icon: Icons.shopping_bag_outlined,
+      summary: 'در نسخه‌ای که خرید یک‌باره فعال شود، دسترسی دائمی با حساب فروشگاه و قابلیت بازیابی خرید مدیریت خواهد شد.',
+      example: 'مثال: پس از تعویض گوشی، با همان حساب فروشگاه گزینه بازیابی خرید را می‌زنید. این قابلیت تا زمان پیاده‌سازی و تأیید نهایی پرداخت، فعال‌شده محسوب نمی‌شود.',
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.all(18),
-        children: const [
-          Text('محتوای آموزشی',
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text('راهنمای استفاده از برنامه',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          _InfoCard(
-            icon: Icons.health_and_safety,
-            title: 'اصول ایمنی و بهداشت',
-            body:
-                'بخش آماده درج محتوای آموزشی تأییدشده درباره شناسایی خطرها، کنترل ریسک و گزارش شرایط ناایمن است.',
-          ),
-          _InfoCard(
-            icon: Icons.local_fire_department,
-            title: 'آشنایی با گاز طبیعی',
-            body:
-                'مطالب تخصصی این بخش باید بر اساس منابع رسمی و دستورالعمل‌های معتبر شرکت تکمیل شوند.',
-          ),
-          _InfoCard(
-            icon: Icons.warning_amber,
-            title: 'اقدام در شرایط اضطراری',
-            body:
-                'رویه‌های اضطراری فقط پس از دریافت و تأیید دستورالعمل‌های رسمی سازمان در برنامه درج می‌شوند.',
-          ),
+          const SizedBox(height: 8),
+          const Text('راهنمای گام‌به‌گام امکانات برنامه همراه با مثال‌های ساده. برای دیدن توضیحات هر بخش، آن را باز کنید.'),
+          const SizedBox(height: 10),
+          ...guides.map((guide) => Card(
+                clipBehavior: Clip.antiAlias,
+                child: ExpansionTile(
+                  leading: CircleAvatar(
+                    backgroundColor: paleBlue,
+                    child: Icon(guide.icon, color: navy),
+                  ),
+                  title: Text(guide.title,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(guide.summary, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: paleBlue,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(guide.example),
+                    ),
+                  ],
+                ),
+              )),
         ],
       );
+}
+
+class _GuideSection {
+  final String title;
+  final IconData icon;
+  final String summary;
+  final String example;
+
+  const _GuideSection({
+    required this.title,
+    required this.icon,
+    required this.summary,
+    required this.example,
+  });
 }
 
 class LibraryPage extends StatelessWidget {
