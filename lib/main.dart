@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -106,6 +106,33 @@ class _HomePageState extends State<HomePage> {
 
   void goTo(int value) => setState(() => index = value);
 
+  Future<void> _handleBack(BuildContext context) async {
+    if (index != 0) {
+      goTo(0);
+      return;
+    }
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('خروج از برنامه'),
+        content: const Text('آیا می‌خواهید از برنامه خارج شوید؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('انصراف'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('خروج'),
+          ),
+        ],
+      ),
+    );
+    if (shouldExit == true && context.mounted) {
+      await SystemNavigator.pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
@@ -117,30 +144,10 @@ class _HomePageState extends State<HomePage> {
     ];
     const titles = ['داشبورد', 'آزمون‌ها', 'راهنمای استفاده', 'کتابخانه دیجیتال', 'نتایج'];
 
-    return WillPopScope(
-      onWillPop: () async {
-        if (index != 0) {
-          goTo(0);
-          return false;
-        }
-        final shouldExit = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('خروج از برنامه'),
-            content: const Text('آیا می‌خواهید از برنامه خارج شوید؟'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('انصراف'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('خروج'),
-              ),
-            ],
-          ),
-        );
-        return shouldExit ?? false;
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) unawaited(_handleBack(context));
       },
       child: Scaffold(
         appBar: AppBar(title: Text(titles[index])),
@@ -550,17 +557,21 @@ class _ExamPageState extends State<ExamPage> {
         Text(question.text,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 14),
-        ...List<Widget>.generate(
-          question.options.length,
-          (index) => Card(
-            child: RadioListTile<int>(
-              value: index,
-              groupValue: selected,
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() => answers[currentQuestion] = value);
-              },
-              title: Text(question.options[index]),
+        RadioGroup<int>(
+          groupValue: selected,
+          onChanged: (value) {
+            if (value == null) return;
+            setState(() => answers[currentQuestion] = value);
+          },
+          child: Column(
+            children: List<Widget>.generate(
+              question.options.length,
+              (index) => Card(
+                child: RadioListTile<int>(
+                  value: index,
+                  title: Text(question.options[index]),
+                ),
+              ),
             ),
           ),
         ),
