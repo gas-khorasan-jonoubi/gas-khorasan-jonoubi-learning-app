@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -63,18 +64,18 @@ class _SplashPageState extends State<SplashPage> {
             fit: StackFit.expand,
             children: [
               ImageFiltered(
-                imageFilter: const ColorFilter.mode(
-                  Colors.transparent,
-                  BlendMode.dst,
-                ),
-                child: Image.asset(
-                  'assets/splash.webp',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const ColoredBox(
-                    color: Color(0xFF073B86),
-                    child: Center(
-                      child: Icon(Icons.local_fire_department,
-                          color: Colors.white, size: 72),
+                imageFilter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                child: Transform.scale(
+                  scale: 1.12,
+                  child: Image.asset(
+                    'assets/splash.webp',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const ColoredBox(
+                      color: Color(0xFF073B86),
+                      child: Center(
+                        child: Icon(Icons.local_fire_department,
+                            color: Colors.white, size: 72),
+                      ),
                     ),
                   ),
                 ),
