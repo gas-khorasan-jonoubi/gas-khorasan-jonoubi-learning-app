@@ -34,3 +34,26 @@ jobs:
 
       - name: Run tests
         run: flutter test --reporter expanded
+
+  android-emulator:
+    name: Android emulator smoke test
+    runs-on: ubuntu-latest
+    needs: flutter
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Get packages
+        run: flutter pub get
+      - name: Run app on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: flutter test integration_test/app_smoke_test.dart -d emulator-5554
