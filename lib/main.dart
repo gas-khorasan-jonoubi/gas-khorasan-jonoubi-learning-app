@@ -457,9 +457,7 @@ class _ExamPageState extends State<ExamPage> {
   String _formatTime(int seconds) {
     final minutes = seconds ~/ 60;
     final rest = seconds % 60;
-    return minutes.toString().padLeft(2, '0') +
-        ':' +
-        rest.toString().padLeft(2, '0');
+    return '${minutes.toString().padLeft(2, '0')}:${rest.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -485,9 +483,7 @@ class _ExamPageState extends State<ExamPage> {
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text(
-                questions.length.toString() +
-                    ' سؤال • زمان: ' +
-                    _formatTime(totalSeconds),
+                '${questions.length} سؤال • زمان: ${_formatTime(totalSeconds)}',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -516,10 +512,7 @@ class _ExamPageState extends State<ExamPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('سؤال ' +
-                (currentQuestion + 1).toString() +
-                ' از ' +
-                questions.length.toString()),
+            Text('سؤال ${currentQuestion + 1} از ${questions.length}'),
             Chip(
               avatar: const Icon(Icons.timer_outlined, size: 18),
               label: Text(_formatTime(remainingSeconds)),
@@ -609,10 +602,7 @@ class _ExamPageState extends State<ExamPage> {
           child: const Text('پایان دادن به آزمون'),
         ),
         Text(
-          'پاسخ داده‌شده: ' +
-              answers.where((answer) => answer != null).length.toString() +
-              '  |  بی‌پاسخ: ' +
-              answers.where((answer) => answer == null).length.toString(),
+           'پاسخ داده‌شده: ${answers.where((answer) => answer != null).length}  |  بی‌پاسخ: ${answers.where((answer) => answer == null).length}',
           textAlign: TextAlign.center,
           style: const TextStyle(color: Colors.black54),
         ),
@@ -628,8 +618,7 @@ class _ExamPageState extends State<ExamPage> {
         title: const Text('پایان آزمون'),
         content: Text(unanswered == 0
             ? 'آیا از ثبت نهایی پاسخ‌ها مطمئن هستید؟'
-            : unanswered.toString() +
-                ' سؤال بی‌پاسخ مانده است. آیا آزمون پایان یابد؟'),
+            : '$unanswered سؤال بی‌پاسخ مانده است. آیا آزمون پایان یابد؟'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -800,7 +789,7 @@ class _QuestionReviewPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('سؤال ' + (index + 1).toString(),
+                          Text('سؤال ${index + 1}',
                               style: const TextStyle(
                                   fontWeight: FontWeight.bold, color: navy)),
                           const SizedBox(height: 8),
@@ -835,7 +824,7 @@ class _QuestionReviewPage extends StatelessWidget {
                           if (question.explanation.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 8),
-                              child: Text('توضیح: ' + question.explanation),
+                              child: Text('توضیح: ${question.explanation}'),
                             ),
                         ],
                       ),
@@ -1040,21 +1029,9 @@ class ResultsPage extends StatelessWidget {
               return Card(
                 child: ListTile(
                   leading: const Icon(Icons.assessment, color: blue),
-                  title: Text('صحیح: ' +
-                      (result['correct'] ?? 0).toString() +
-                      '  |  غلط: ' +
-                      (result['wrong'] ?? 0).toString()),
+                  title: Text('صحیح: ${result['correct'] ?? 0}  |  غلط: ${result['wrong'] ?? 0}'),
                   subtitle: Text(
-                    'بی‌پاسخ: ' +
-                        (result['unanswered'] ?? 0).toString() +
-                        (date == null
-                            ? ''
-                            : '  •  ' +
-                                date.year.toString() +
-                                '/' +
-                                date.month.toString().padLeft(2, '0') +
-                                '/' +
-                                date.day.toString().padLeft(2, '0')),
+                    'بی‌پاسخ: ${result['unanswered'] ?? 0}${date == null ? '' : '  •  ${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}'}',
                   ),
                   trailing: const Icon(Icons.chevron_left),
                   onTap: () {
