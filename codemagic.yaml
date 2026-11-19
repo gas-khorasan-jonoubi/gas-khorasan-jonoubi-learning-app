@@ -35,17 +35,17 @@ workflows:
 
           """
               if "signingConfigs {" not in content:
-                  content, count = re.subn(r"(?m)^(\\s*)buildTypes\\s*\\{", signing_block + r"\\1buildTypes {", content, count=1)
+                  content, count = re.subn(r"(?m)^(\s*)buildTypes\s*\{", signing_block + r"\1buildTypes {", content, count=1)
                   if count != 1:
                       raise SystemExit("Could not locate buildTypes in build.gradle.kts")
               content, count = re.subn(
-                  r'signingConfig\\s*=\\s*signingConfigs\\.getByName\\("debug"\\)',
+                  r'signingConfig\s*=\s*signingConfigs\.getByName\("debug"\)',
                   'signingConfig = signingConfigs.getByName("release")',
                   content,
                   count=1
               )
               if count == 0:
-                  content, count = re.subn(r'(?m)^(\\s*)release\\s*\\{', r'\\1release {\\n\\1    signingConfig = signingConfigs.getByName("release")', content, count=1)
+                  content, count = re.subn(r'(?m)^(\s*)release\s*\{', r'\1release {\n\1    signingConfig = signingConfigs.getByName("release")', content, count=1)
               if count == 0:
                   raise SystemExit("Could not configure release signing in build.gradle.kts")
               path.write_text(content)
@@ -63,17 +63,17 @@ workflows:
 
           """
               if "signingConfigs {" not in content:
-                  content, count = re.subn(r"(?m)^(\\s*)buildTypes\\s*\\{", signing_block + r"\\1buildTypes {", content, count=1)
+                  content, count = re.subn(r"(?m)^(\s*)buildTypes\s*\{", signing_block + r"\1buildTypes {", content, count=1)
                   if count != 1:
                       raise SystemExit("Could not locate buildTypes in build.gradle")
               content, count = re.subn(
-                  r'signingConfig\\s+signingConfigs\\.debug',
+                  r'signingConfig\s+signingConfigs\.debug',
                   'signingConfig signingConfigs.release',
                   content,
                   count=1
               )
               if count == 0:
-                  content, count = re.subn(r'(?m)^(\\s*)release\\s*\\{', r'\\1release {\\n\\1    signingConfig signingConfigs.release', content, count=1)
+                  content, count = re.subn(r'(?m)^(\s*)release\s*\{', r'\1release {\n\1    signingConfig signingConfigs.release', content, count=1)
               if count == 0:
                   raise SystemExit("Could not configure release signing in build.gradle")
               path.write_text(content)
