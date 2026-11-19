@@ -13,6 +13,19 @@ permissions:
   contents: read
 
 jobs:
+  python-quality:
+    name: Python project quality checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run Python quality tests
+        run: python -m unittest discover -s tools/tests -v
+
   flutter:
     name: Analyze and test Flutter app
     runs-on: ubuntu-latest
