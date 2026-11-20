@@ -15,6 +15,11 @@ Future<void> _openExam(
   String appBarTitle,
 ) async {
   await tester.pumpWidget(_examHost());
+  await tester.scrollUntilVisible(
+    find.text(examTitle),
+    250,
+    scrollable: find.byType(Scrollable).first,
+  );
   expect(find.text(examTitle), findsOneWidget);
   await tester.tap(find.text(examTitle));
   await tester.pump(const Duration(milliseconds: 400));
