@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'knowledge_pages.dart';
+import 'data/quiz_content.dart';
 
 const navy = Color(0xFF123B66);
 const blue = Color(0xFF1976D2);
@@ -226,12 +227,6 @@ class _MenuTile extends StatelessWidget {
   Widget build(BuildContext context) => Card(child: ListTile(leading: CircleAvatar(backgroundColor: paleBlue, child: Icon(icon, color: navy)), title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: Text(subtitle), trailing: const Icon(Icons.chevron_left), onTap: onTap));
 }
 
-const questions = <Map<String, Object>>[
-  {'q':'هدف اصلی آموزش ایمنی در محیط کار چیست؟','a':['افزایش سرعت کار','پیشگیری از حادثه و کاهش خطر','افزایش هزینه‌ها','حذف دستورالعمل‌ها'],'correct':1},
-  {'q':'در صورت مشاهده وضعیت ناایمن چه باید کرد؟','a':['بی‌توجهی کرد','موضوع را گزارش و طبق دستورالعمل اقدام کرد','کار را پنهانی ادامه داد','تجهیزات حفاظتی را کنار گذاشت'],'correct':1},
-  {'q':'پیش از استفاده از تجهیزات باید چه کاری انجام داد؟','a':['بررسی سلامت و ایمنی تجهیزات','تغییر خودسرانه تنظیمات','حذف حفاظ‌ها','استفاده بدون بررسی'],'correct':0},
-];
-
 Duration quizDurationFor(int questionCount) {
   if (questionCount < 0) {
     throw ArgumentError.value(questionCount, 'questionCount', 'Must not be negative.');
@@ -287,8 +282,8 @@ class ExamPage extends StatelessWidget {
         children: [
           const _InfoCard(
             icon: Icons.health_and_safety,
-            title: 'آزمون نمونه ایمنی و HSE',
-            body: 'این بانک فعلاً شامل چند پرسش نمایشی است. زمان هر پرسش ۳۰ ثانیه در نظر گرفته شده و پاسخ‌ها تا پایان زمان قابل تغییر هستند.',
+            title: hseQuizTitle,
+            body: '$hseQuizDescription زمان کل آزمون ۲۰ دقیقه است؛ پاسخ‌ها تا پایان آزمون قابل تغییر هستند.',
           ),
           const SizedBox(height: 14),
           FilledButton.icon(
@@ -296,7 +291,7 @@ class ExamPage extends StatelessWidget {
               MaterialPageRoute<void>(builder: (_) => const QuizPage()),
             ),
             icon: const Icon(Icons.play_arrow),
-            label: const Text('شروع آزمون نمونه'),
+            label: const Text('شروع آزمون ۴۰ سؤالی'),
           ),
         ],
       );
@@ -358,6 +353,7 @@ class _QuizPageState extends State<QuizPage> {
 
     final record = <String, dynamic>{
       'date': DateTime.now().toIso8601String(),
+      'examTitle': hseQuizTitle,
       'correct': summary.correct,
       'wrong': summary.wrong,
       'unanswered': summary.unanswered,
