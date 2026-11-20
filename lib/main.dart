@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,7 +14,7 @@ class GasLearningApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
-    title: 'آموزش شرکت گاز خراسان جنوبی',
+    title: 'دانستنی‌های گاز',
     theme: ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(seedColor: blue, primary: navy),
@@ -38,35 +37,44 @@ class _SplashPageState extends State<SplashPage> {
   void initState() {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    Future.delayed(const Duration(seconds: 3), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // ابتدا تصویر کامل بارگذاری می‌شود؛ سپس زمان سه‌ثانیه‌ای آغاز می‌شود.
+      try {
+        await precacheImage(const AssetImage('assets/splash.webp'), context);
+      } catch (_) {
+        // اگر بارگذاری تصویر به هر علت شکست خورد، برنامه همچنان قابل ورود است.
+      }
+      if (!mounted) return;
+      await Future<void>.delayed(const Duration(seconds: 3));
       if (!mounted) return;
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder<void>(
+          pageBuilder: (_, __, ___) => const HomePage(),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
       );
     });
   }
 
   @override
+  void dispose() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: const Color(0xFF073B86),
+        backgroundColor: navy,
         body: SizedBox.expand(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ImageFiltered(
-                imageFilter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                child: Transform.scale(
-                  scale: 1.12,
-                  child: Image.asset('assets/splash.webp', fit: BoxFit.cover),
-                ),
-              ),
-              const ColoredBox(color: Color(0x18002A70)),
-              Center(
-                child: Image.asset('assets/splash.webp', fit: BoxFit.contain),
-              ),
-            ],
+          child: Center(
+            child: Image.asset(
+              'assets/splash.webp',
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+              alignment: Alignment.center,
+            ),
           ),
         ),
       );
