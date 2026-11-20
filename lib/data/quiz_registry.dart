@@ -18,6 +18,7 @@ import 'digital_skills_quiz.dart';
 import 'resource_procurement_quiz.dart';
 import 'customer_experience_quiz.dart';
 import 'risk_management_quiz.dart';
+import 'change_management_quiz.dart';
 
 const List<QuizPack> quizPacks = [
   hseQuizPack,
@@ -39,4 +40,5 @@ const List<QuizPack> quizPacks = [
   resourceProcurementQuizPack,
   customerExperienceQuizPack,
   riskManagementQuizPack,
+  changeManagementQuizPack,
 ];
