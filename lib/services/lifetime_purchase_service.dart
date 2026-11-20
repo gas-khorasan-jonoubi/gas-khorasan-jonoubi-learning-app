@@ -1,4 +1,5 @@
 import 'package:iran_iap/iran_iap.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// These values are supplied by the Android release configuration.
 /// The public key is used only for local receipt-signature verification.
@@ -67,13 +68,31 @@ class LifetimePurchaseService {
         );
   }
 
+  static const String _cachedOwnershipKey = 'bazaar_lifetime_access_verified';
+
   Future<bool> restoreAccess() async {
-    final client = _billingClient;
-    await client.initialize();
-    final owned = await client.queryPurchases(
-      type: IapProductType.inApp,
-    );
-    return ownsLifetimeAccess(owned, productId: productId);
+    final preferences = await SharedPreferences.getInstance();
+    final cachedOwnership = preferences.getBool(_cachedOwnershipKey) ?? false;
+
+    try {
+      final client = _billingClient;
+      await client.initialize();
+      final owned = await client.queryPurchases(
+        type: IapProductType.inApp,
+      );
+      final isOwned = ownsLifetimeAccess(owned, productId: productId);
+
+      // A positive cache is written only after the Bazaar inventory has
+      // returned a matching, locally signature-verified purchase.
+      await preferences.setBool(_cachedOwnershipKey, isOwned);
+      return isOwned;
+    } catch (_) {
+      // Preserve previously verified access for offline use. A successful
+      // later store query can still revoke this cache if the purchase is
+      // refunded or no longer owned.
+      if (cachedOwnership) return true;
+      rethrow;
+    }
   }
 
   Future<LifetimePurchaseResult> purchaseLifetimeAccess() async {
