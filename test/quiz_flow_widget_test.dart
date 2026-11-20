@@ -149,7 +149,12 @@ void main() {
     );
     expect(find.text('00:30'), findsOneWidget);
 
-    await tester.pump(const Duration(seconds: 30));
+    // زمان را تا یک ثانیه مانده به پایان جلو می‌بریم و تیک آخر را جداگانه اجرا می‌کنیم.
+    await tester.pump(const Duration(seconds: 29));
+    expect(find.text('00:01'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
     await tester.pumpAndSettle();
 
     expect(find.text('جزئیات نتیجه آزمون'), findsOneWidget);
