@@ -1,10 +1,13 @@
 import 'package:iran_iap/iran_iap.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// The permanent, non-consumable product ID is supplied by the release
-/// configuration created in the Cafe Bazaar developer panel.
+/// The permanent product ID and Bazaar's public signature-verification key
+/// are supplied by the release configuration. The public key is not a secret.
 const bazaarLifetimeProductId = String.fromEnvironment(
   'BAZAAR_LIFETIME_PRODUCT_ID',
+);
+const bazaarRsaPublicKey = String.fromEnvironment(
+  'BAZAAR_RSA_PUBLIC_KEY',
 );
 
 enum LifetimePurchaseResult {
@@ -36,26 +39,30 @@ bool ownsLifetimeAccess(
 class LifetimePurchaseService {
   LifetimePurchaseService({
     String productId = bazaarLifetimeProductId,
+    String publicKey = bazaarRsaPublicKey,
     IranIapClient? client,
   })  : productId = productId.trim(),
+        _publicKey = publicKey.trim(),
         _injectedClient = client;
 
   final String productId;
+  final String _publicKey;
   final IranIapClient? _injectedClient;
   IranIapClient? _client;
 
-  bool get isConfigured => productId.isNotEmpty;
+  bool get isConfigured => productId.isNotEmpty && _publicKey.isNotEmpty;
 
   IranIapClient get _billingClient {
     if (!isConfigured) {
       throw StateError(
-        'شناسه محصول دائمی کافه‌بازار هنوز پیکربندی نشده است.',
+        'شناسه محصول و کلید عمومی تأیید خرید کافه‌بازار هنوز پیکربندی نشده‌اند.',
       );
     }
     return _client ??= _injectedClient ??
         IranIap(
-          config: const IranIapConfig(
-            bazaarSecurityMode: BazaarSecurityMode.serverVerification,
+          config: IranIapConfig(
+            storePublicKey: _publicKey,
+            bazaarSecurityMode: BazaarSecurityMode.localVerification,
             enableSubscriptions: false,
           ),
         );
@@ -75,8 +82,8 @@ class LifetimePurchaseService {
       );
       final isOwned = ownsLifetimeAccess(owned, productId: productId);
 
-      // A positive cache is written only after the Bazaar inventory has
-      // returned a matching purchase under its configured verification mode.
+      // A positive cache is written only after the Bazaar inventory returns
+      // a matching purchase whose signature was checked locally.
       await preferences.setBool(_cachedOwnershipKey, isOwned);
       return isOwned;
     } catch (_) {
