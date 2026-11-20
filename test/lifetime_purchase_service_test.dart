@@ -249,6 +249,35 @@ void main() {
       expect(client.consumeCalls, 0);
     });
 
+    test('returns the matching one-time product metadata for price display', () async {
+      final client = _FakeIranIapClient()
+        ..products = [
+          IapProduct(
+            id: sku,
+            type: IapProductType.inApp,
+            title: 'دسترسی دائمی',
+            description: 'خرید یک‌باره',
+            price: '۱۲۰٬۰۰۰ تومان',
+          ),
+          IapProduct(
+            id: 'another_product',
+            type: IapProductType.inApp,
+            title: 'محصول دیگر',
+            description: '',
+            price: 'رایگان',
+          ),
+        ];
+      final service = LifetimePurchaseService(
+        productId: sku,
+        publicKey: publicKey,
+        client: client,
+      );
+
+      final product = await service.queryLifetimeProduct();
+      expect(product?.id, sku);
+      expect(product?.price, '۱۲۰٬۰۰۰ تومان');
+    });
+
     test('does not start purchase when the product is not returned by Bazaar', () async {
       final client = _FakeIranIapClient();
       final service = LifetimePurchaseService(
