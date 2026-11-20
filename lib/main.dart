@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ui' as ui;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -19,7 +18,7 @@ class GasLearningApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'آموزش شرکت گاز خراسان جنوبی',
+        title: 'دانستنی‌های گاز',
         theme: ThemeData(
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: blue, primary: navy),
@@ -59,42 +58,129 @@ class _SplashPageState extends State<SplashPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: const Color(0xFF073B86),
-        body: SizedBox.expand(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ImageFiltered(
-                imageFilter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                child: Transform.scale(
-                  scale: 1.12,
-                  child: Image.asset(
-                    'assets/splash.webp',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const ColoredBox(
-                      color: Color(0xFF073B86),
-                      child: Center(
-                        child: Icon(Icons.local_fire_department,
-                            color: Colors.white, size: 72),
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final widthByScreen = constraints.maxWidth * 0.88;
+              final widthByHeight = constraints.maxHeight * 0.86 * 2 / 3;
+              final posterWidth = widthByScreen < widthByHeight
+                  ? widthByScreen
+                  : widthByHeight;
+              final posterHeight = posterWidth * 1.5;
+
+              return Center(
+                child: SizedBox(
+                  width: posterWidth,
+                  height: posterHeight,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        'assets/splash.webp',
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const ColoredBox(
+                          color: Color(0xFF073B86),
+                          child: Center(
+                            child: Icon(Icons.local_fire_department,
+                                color: Colors.white, size: 72),
+                          ),
+                        ),
                       ),
-                    ),
+                      Positioned(
+                        left: posterWidth * 0.045,
+                        top: posterHeight * 0.39,
+                        width: posterWidth * 0.91,
+                        height: posterHeight * 0.23,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5FAFF),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: const Color(0xFF1976D2), width: 1.2),
+                          ),
+                          child: const Directionality(
+                            textDirection: TextDirection.rtl,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _SplashSymbolLine(
+                                  number: '۱',
+                                  text:
+                                      '«لا»: نفی وابستگی به شرق و غرب و بیانگر ملی بودن صنعت نفت.',
+                                ),
+                                _SplashSymbolLine(
+                                  number: '۲',
+                                  text:
+                                      'فرم‌های اسلیمی: بیانگر رشد و شکوفایی صنایع عظیم نفت و گاز ایران.',
+                                ),
+                                _SplashSymbolLine(
+                                  number: '۳',
+                                  text:
+                                      'مشعل: نشان سوخت و بیانگر نقش نفت در حیات صنایع است.',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const ColoredBox(color: Color(0x18002A70)),
-              Center(
-                child: Image.asset(
-                  'assets/splash.webp',
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       );
 }
 
-class HomePage extends StatefulWidget {
+class _SplashSymbolLine extends StatelessWidget {
+  final String number;
+  final String text;
+
+  const _SplashSymbolLine({required this.number, required this.text});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Container(
+            width: 19,
+            height: 19,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: Color(0xFF123B66),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              number,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              text,
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF102C4B),
+                fontSize: 11.5,
+                height: 1.15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      );
+}
+
+class HomePageclass HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
