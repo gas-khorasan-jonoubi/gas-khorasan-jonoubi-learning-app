@@ -6,6 +6,7 @@ import 'maintenance_quiz.dart';
 import 'management_quiz.dart';
 import 'gas_industry_quiz.dart';
 import 'environmental_quiz.dart';
+import 'information_security_quiz.dart';
 
 const List<QuizPack> quizPacks = [
   hseQuizPack,
@@ -15,4 +16,5 @@ const List<QuizPack> quizPacks = [
   managementQuizPack,
   gasIndustryQuizPack,
   environmentalQuizPack,
+  informationSecurityQuizPack,
 ];
