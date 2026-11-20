@@ -76,10 +76,11 @@ jobs:
 
       - name: Prepare reproducible dependency and splash review files
         run: |
-          python3 -m pip install --disable-pip-version-check --quiet Pillow
+          python3 -m venv build/image-tools
+          build/image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
           mkdir -p build/release-readiness/splash
           cp pubspec.lock build/release-readiness/pubspec.lock
-          python3 - <<'PY'
+          build/image-tools/bin/python - <<'PY'
           from hashlib import sha256
           from pathlib import Path
           from PIL import Image
