@@ -15,6 +15,17 @@ void main() {
     expect(find.text('آشنایی با مأموریت خدمات گازرسانی'), findsOneWidget);
   });
 
+  testWidgets('help explains quiz timing, library search and purchase restore', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HelpPage()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('راهنمای استفاده از برنامه'), findsOneWidget);
+    expect(find.text('۲۰ آزمون مستقل'), findsOneWidget);
+    expect(find.text('آموزش و کتابخانه دیجیتال'), findsOneWidget);
+    expect(find.text('خرید دائمی و بازیابی خرید'), findsOneWidget);
+    expect(find.textContaining('همان حساب قبلی'), findsOneWidget);
+  });
+
   testWidgets('app opens dashboard only after lifetime access is confirmed', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
