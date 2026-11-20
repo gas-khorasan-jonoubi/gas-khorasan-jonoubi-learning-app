@@ -3,8 +3,8 @@ import 'package:gas_khorasan_jonoubi_learning_app/data/quiz_registry.dart';
 
 void main() {
   group('independent offline quiz packs', () {
-    test('registers ten separate exams for core work areas', () {
-      expect(quizPacks, hasLength(10));
+    test('registers eleven separate exams for core work areas', () {
+      expect(quizPacks, hasLength(11));
       expect(
         quizPacks.map((pack) => pack.id).toSet().length,
         quizPacks.length,
@@ -22,6 +22,7 @@ void main() {
           'آزمون امنیت اطلاعات و محرمانگی',
           'آزمون اخلاق حرفه‌ای و سلامت اداری',
           'آزمون مدیریت بحران و تداوم خدمت',
+          'آزمون مدیریت زمان و بهره‌وری',
         ]),
       );
     });
