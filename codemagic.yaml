@@ -1,5 +1,23 @@
 
 workflows:
+  quality-checks:
+    name: Danestaniha-ye Gaz - Code Quality Checks
+    max_build_duration: 45
+    environment:
+      flutter: stable
+    scripts:
+      - name: Generate Android platform files
+        script: |
+          if [ ! -d android ]; then
+            flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
+          fi
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Analyze Dart code
+        script: flutter analyze
+      - name: Run automated tests
+        script: flutter test --reporter expanded
+
   android-release:
     name: Gas Khorasan Jonoubi - Android APK
     max_build_duration: 60
@@ -30,6 +48,10 @@ workflows:
           PY
       - name: Get Flutter packages
         script: flutter pub get
+      - name: Analyze Dart code
+        script: flutter analyze
+      - name: Run automated tests
+        script: flutter test --reporter expanded
       - name: Build release APK
         script: flutter build apk --release
     artifacts:
