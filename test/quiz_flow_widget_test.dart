@@ -181,6 +181,14 @@ void main() {
     );
   });
 
+  testWidgets('risk management exam opens independently with 40 questions', (tester) async {
+    await _openExam(
+      tester,
+      'آزمون مدیریت ریسک و تصمیم‌گیری مبتنی بر شواهد',
+      'آزمون مدیریت ریسک و تصمیم‌گیری مبتنی بر شواهد - 1 از 40',
+    );
+  });
+
   testWidgets('answers can be changed and result is saved for the selected exam', (tester) async {
     SharedPreferences.setMockInitialValues({});
 
