@@ -56,6 +56,14 @@ void main() {
     );
   });
 
+  testWidgets('management exam opens independently with 40 questions', (tester) async {
+    await _openExam(
+      tester,
+      'آزمون مبانی مدیریت و اداره',
+      'آزمون مبانی مدیریت و اداره - 1 از 40',
+    );
+  });
+
   testWidgets('answers can be changed and result is saved for the selected exam', (tester) async {
     SharedPreferences.setMockInitialValues({});
 
