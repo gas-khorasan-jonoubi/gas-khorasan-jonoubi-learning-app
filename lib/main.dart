@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -87,8 +88,8 @@ class HomePage extends StatefulWidget {
 }
 class _HomePageState extends State<HomePage> {
   int index = 0;
-  final pages = const [DashboardPage(), ExamPage(), TrainingPage(), LibraryPage(), ResultsPage()];
-  final titles = const ['داشبورد', 'آزمون‌ها', 'آموزش‌ها', 'کتابخانه', 'نتایج'];
+  final pages = const [DashboardPage(), ExamPage(), TrainingPage(), LibraryPage(), ResultsPage(), HelpPage()];
+  final titles = const ['داشبورد', 'آزمون‌ها', 'آموزش‌ها', 'کتابخانه', 'نتایج', 'راهنما'];
   @override
   Widget build(BuildContext context) => WillPopScope(
     onWillPop: () async {
@@ -130,6 +131,7 @@ class _HomePageState extends State<HomePage> {
           NavigationDestination(icon: Icon(Icons.play_lesson_outlined), label: 'آموزش'),
           NavigationDestination(icon: Icon(Icons.local_library_outlined), label: 'کتابخانه'),
           NavigationDestination(icon: Icon(Icons.bar_chart_outlined), label: 'نتایج'),
+          NavigationDestination(icon: Icon(Icons.help_outline), label: 'راهنما'),
         ],
       ),
     ),
@@ -151,6 +153,7 @@ class DashboardPage extends StatelessWidget {
     _MenuTile(icon: Icons.menu_book, title: 'آموزش‌ها', subtitle: 'مطالعه محتوای آموزشی', onTap: () => _go(context, 2)),
     _MenuTile(icon: Icons.local_library, title: 'کتابخانه دیجیتال', subtitle: 'دسترسی به منابع و جزوه‌ها', onTap: () => _go(context, 3)),
     _MenuTile(icon: Icons.assessment, title: 'سوابق آزمون', subtitle: 'مشاهده نتایج ذخیره‌شده', onTap: () => _go(context, 4)),
+    _MenuTile(icon: Icons.help_outline, title: 'راهنمای استفاده', subtitle: 'آشنایی با بخش‌ها و مثال کاربردی', onTap: () => _go(context, 5)),
   ]);
   void _go(BuildContext context, int i) {
     final state = context.findAncestorStateOfType<_HomePageState>();
@@ -170,47 +173,288 @@ const questions = <Map<String, Object>>[
   {'q':'پیش از استفاده از تجهیزات باید چه کاری انجام داد؟','a':['بررسی سلامت و ایمنی تجهیزات','تغییر خودسرانه تنظیمات','حذف حفاظ‌ها','استفاده بدون بررسی'],'correct':0},
 ];
 
-class ExamPage extends StatefulWidget {
+class ExamPage extends StatelessWidget {
   const ExamPage({super.key});
+
   @override
-  State<ExamPage> createState() => _ExamPageState();
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          const _InfoCard(
+            icon: Icons.health_and_safety,
+            title: 'آزمون نمونه ایمنی و HSE',
+            body: 'این بانک فعلاً شامل چند پرسش نمایشی است. زمان هر پرسش ۳۰ ثانیه در نظر گرفته شده و پاسخ‌ها تا پایان زمان قابل تغییر هستند.',
+          ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const QuizPage()),
+            ),
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('شروع آزمون نمونه'),
+          ),
+        ],
+      );
 }
-class _ExamPageState extends State<ExamPage> {
-  int question = 0, score = 0;
-  int? selected;
-  bool finished = false;
+
+class QuizPage extends StatefulWidget {
+  const QuizPage({super.key});
+
+  @override
+  State<QuizPage> createState() => _QuizPageState();
+}
+
+class _QuizPageState extends State<QuizPage> {
+  late final List<int?> _answers =
+      List<int?>.filled(questions.length, null);
+  int _current = 0;
+  late int _remainingSeconds = questions.length * 30;
+  Timer? _timer;
+  bool _finishing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted || _finishing) return;
+      if (_remainingSeconds <= 1) {
+        setState(() => _remainingSeconds = 0);
+        _finish();
+      } else {
+        setState(() => _remainingSeconds--);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String get _timeLabel {
+    final minutes = _remainingSeconds ~/ 60;
+    final seconds = _remainingSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _finish() async {
+    if (_finishing) return;
+    _finishing = true;
+    _timer?.cancel();
+
+    var correct = 0;
+    var wrong = 0;
+    var unanswered = 0;
+    for (var i = 0; i < questions.length; i++) {
+      final answer = _answers[i];
+      if (answer == null) {
+        unanswered++;
+      } else if (answer == questions[i]['correct']) {
+        correct++;
+      } else {
+        wrong++;
+      }
+    }
+
+    final record = <String, dynamic>{
+      'date': DateTime.now().toIso8601String(),
+      'correct': correct,
+      'wrong': wrong,
+      'unanswered': unanswered,
+      'total': questions.length,
+      'answers': _answers.map((answer) => answer ?? -1).toList(),
+      'questions': questions
+          .map((q) => <String, Object>{
+                'q': q['q'] as String,
+                'a': List<String>.from(q['a'] as List<String>),
+                'correct': q['correct'] as int,
+              })
+          .toList(),
+    };
+
+    final prefs = await SharedPreferences.getInstance();
+    final old = prefs.getStringList('exam_results') ?? <String>[];
+    old.insert(0, jsonEncode(record));
+    await prefs.setStringList('exam_results', old.take(100).toList());
+
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => ResultDetailPage(record: record),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (finished) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(Icons.emoji_events, color: blue, size: 64),
-      Text('نتیجه آزمون: $score از ${questions.length}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 16), FilledButton(onPressed: () => setState(() { question=0; score=0; selected=null; finished=false; }), child: const Text('آزمون مجدد')),
-    ]));
-    final q = questions[question];
+    final q = questions[_current];
     final answers = q['a'] as List<String>;
-    return ListView(padding: const EdgeInsets.all(18), children: [
-      LinearProgressIndicator(value: (question+1)/questions.length),
-      const SizedBox(height: 18),
-      Text('پرسش ${question+1} از ${questions.length}', style: const TextStyle(color: navy, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 12),
-      Text(q['q'] as String, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 16),
-      ...List.generate(answers.length, (i) => Card(child: RadioListTile<int>(value:i, groupValue:selected, onChanged:(v)=>setState(()=>selected=v), title:Text(answers[i])))),
-      const SizedBox(height: 14),
-      FilledButton(onPressed: selected==null ? null : () {
-        if (selected == q['correct']) score++;
-        if (question == questions.length-1) {
-          setState(()=>finished=true);
-          _saveResult();
-        } else { setState(() { question++; selected=null; }); }
-      }, child: Text(question==questions.length-1 ? 'پایان آزمون' : 'پرسش بعدی')),
-    ]);
+    final selected = _answers[_current];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('پرسش ${_current + 1} از ${questions.length}'),
+        actions: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: 16),
+            child: Center(
+              child: Text(
+                _timeLabel,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: _remainingSeconds <= 10 ? Colors.red : Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          LinearProgressIndicator(
+            value: (_current + 1) / questions.length,
+          ),
+          const SizedBox(height: 18),
+          Text(
+            q['q'] as String,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 14),
+          ...List.generate(
+            answers.length,
+            (i) => Card(
+              child: RadioListTile<int>(
+                value: i,
+                groupValue: selected,
+                onChanged: (value) {
+                  if (value == null || _finishing) return;
+                  setState(() => _answers[_current] = value);
+                },
+                title: Text(answers[i]),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _current == 0
+                      ? null
+                      : () => setState(() => _current--),
+                  icon: const Icon(Icons.chevron_right),
+                  label: const Text('قبلی'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _current == questions.length - 1
+                      ? null
+                      : () => setState(() => _current++),
+                  icon: const Icon(Icons.chevron_left),
+                  label: const Text('بعدی'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: _finishing ? null : _finish,
+            child: const Text('پایان آزمون و ثبت نتیجه'),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'پاسخ داده‌شده: ${_answers.where((a) => a != null).length} از ${questions.length}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.black54),
+          ),
+        ],
+      ),
+    );
   }
-  Future<void> _saveResult() async {
-    final prefs = await SharedPreferences.getInstance();
-    final old = prefs.getStringList('exam_results') ?? [];
-    old.insert(0, jsonEncode({'score':score,'total':questions.length,'date':DateTime.now().toIso8601String()}));
-    await prefs.setStringList('exam_results', old.take(100).toList());
+}
+
+class ResultDetailPage extends StatelessWidget {
+  final Map<String, dynamic> record;
+  const ResultDetailPage({super.key, required this.record});
+
+  @override
+  Widget build(BuildContext context) {
+    final correct = record['correct'] as int;
+    final wrong = record['wrong'] as int;
+    final unanswered = record['unanswered'] as int;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('جزئیات نتیجه آزمون')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  const Text('خلاصه نتیجه', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  Text('درست: $correct   |   نادرست: $wrong   |   بی‌پاسخ: $unanswered'),
+                  Text('مجموع پرسش‌ها: ${record['total']}'),
+                ],
+              ),
+            ),
+          ),
+          _resultGroup('پاسخ‌های درست', 0, correct),
+          _resultGroup('پاسخ‌های نادرست و پاسخ صحیح', 1, wrong),
+          _resultGroup('پرسش‌های بی‌پاسخ و پاسخ صحیح', 2, unanswered),
+        ],
+      ),
+    );
+  }
+
+  Widget _resultGroup(String title, int mode, int count) {
+    final savedQuestions = (record['questions'] as List).cast<Map>();
+    final answers = (record['answers'] as List).cast<int>();
+    final children = <Widget>[];
+    for (var i = 0; i < savedQuestions.length; i++) {
+      final q = savedQuestions[i];
+      final options = (q['a'] as List).cast<String>();
+      final correctIndex = q['correct'] as int;
+      final userAnswer = answers[i];
+      final isUnanswered = userAnswer < 0;
+      final isCorrect = userAnswer == correctIndex;
+      final include = mode == 0
+          ? isCorrect
+          : mode == 1
+              ? !isUnanswered && !isCorrect
+              : isUnanswered;
+      if (!include) continue;
+      children.add(
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          title: Text(q['q'] as String),
+          subtitle: Text(
+            'پاسخ شما: ${isUnanswered ? 'بدون پاسخ' : options[userAnswer]}\n'
+            'پاسخ صحیح: ${options[correctIndex]}',
+          ),
+          isThreeLine: true,
+        ),
+      );
+    }
+
+    return Card(
+      child: ExpansionTile(
+        title: Text(title),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [Text('$count'), const SizedBox(width: 8), const Icon(Icons.expand_more)],
+        ),
+        children: children.isEmpty
+            ? const [ListTile(title: Text('موردی برای نمایش وجود ندارد'))]
+            : children,
+      ),
+    );
   }
 }
 
@@ -239,20 +483,82 @@ class _InfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card(margin:const EdgeInsets.only(top:12), child: Padding(padding:const EdgeInsets.all(16), child: Row(crossAxisAlignment:CrossAxisAlignment.start, children:[Icon(icon,color:blue,size:30),const SizedBox(width:14),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:const TextStyle(fontWeight:FontWeight.bold,fontSize:16)),const SizedBox(height:6),Text(body)]))])));
 }
-class ResultsPage extends StatefulWidget {
-  const ResultsPage({super.key});
+class HelpPage extends StatelessWidget {
+  const HelpPage({super.key});
+
   @override
-  State<ResultsPage> createState()=>_ResultsPageState();
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.all(18),
+        children: const [
+          Text('راهنمای استفاده از برنامه', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          _InfoCard(
+            icon: Icons.home,
+            title: 'داشبورد',
+            body: 'از داشبورد می‌توانید با انتخاب هر کارت مستقیماً وارد آزمون‌ها، آموزش‌ها، کتابخانه یا سوابق شوید.',
+          ),
+          _InfoCard(
+            icon: Icons.quiz,
+            title: 'شرکت در آزمون',
+            body: 'آزمون را شروع کنید، گزینهٔ هر سؤال را انتخاب کنید و با دکمه‌های قبلی و بعدی بین سؤال‌ها جابه‌جا شوید. زمان هر سؤال ۳۰ ثانیه محاسبه می‌شود و می‌توانید تا پایان زمان پاسخ را تغییر دهید.',
+          ),
+          _InfoCard(
+            icon: Icons.assessment,
+            title: 'دیدن نتیجه',
+            body: 'پس از پایان یا اتمام زمان، تعداد پاسخ‌های درست، نادرست و بی‌پاسخ نمایش داده می‌شود. هر گروه را باز کنید تا سؤال‌ها و پاسخ صحیح را ببینید.',
+          ),
+          _InfoCard(
+            icon: Icons.menu_book,
+            title: 'مثال',
+            body: 'برای نمونه، در آزمون ایمنی یک سؤال را پاسخ دهید، به سؤال بعد بروید، دوباره به سؤال قبل برگردید و پاسخ را اصلاح کنید؛ سپس آزمون را پایان دهید تا گزارش نتیجه ذخیره شود.',
+          ),
+          _InfoCard(
+            icon: Icons.wifi_off,
+            title: 'استفاده آفلاین',
+            body: 'پس از نصب، بخش‌هایی که محتوایشان داخل برنامه قرار گرفته باشد بدون اینترنت قابل استفاده‌اند. محتوای رسمی و فایل‌های آموزشی باید در نسخهٔ نهایی به برنامه افزوده شوند.',
+          ),
+        ],
+      );
 }
-class _ResultsPageState extends State<ResultsPage> {
-  late Future<List<String>> results;
+
+class ResultsPage extends StatelessWidget {
+  const ResultsPage({super.key});
+
+  Future<List<String>> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('exam_results') ?? <String>[];
+  }
+
   @override
-  void initState(){super.initState();results=_load();}
-  Future<List<String>> _load() async {final p=await SharedPreferences.getInstance();return p.getStringList('exam_results')??[];}
-  @override
-  Widget build(BuildContext context)=>FutureBuilder<List<String>>(future:results,builder:(context,s){
-    if(!s.hasData)return const Center(child:CircularProgressIndicator());
-    if(s.data!.isEmpty)return const Center(child:Text('هنوز نتیجه‌ای ثبت نشده است'));
-    return ListView(padding:const EdgeInsets.all(16),children:s.data!.map((v){final x=jsonDecode(v) as Map<String,dynamic>;final d=DateTime.parse(x['date'] as String);return Card(child:ListTile(leading:const Icon(Icons.check_circle,color:blue),title:Text('امتیاز: ${x['score']} از ${x['total']}'),subtitle:Text('${d.year}/${d.month}/${d.day} - ${d.hour}:${d.minute}')));}).toList());
-  });
+  Widget build(BuildContext context) => FutureBuilder<List<String>>(
+        future: _load(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final values = snapshot.data ?? <String>[];
+          if (values.isEmpty) {
+            return const Center(child: Text('هنوز نتیجه‌ای ثبت نشده است'));
+          }
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: values.map((value) {
+              final record = jsonDecode(value) as Map<String, dynamic>;
+              final date = DateTime.parse(record['date'] as String);
+              return Card(
+                child: ListTile(
+                  leading: const Icon(Icons.assessment, color: blue),
+                  title: Text('درست: ${record['correct']}  |  نادرست: ${record['wrong']}'),
+                  subtitle: Text('${date.year}/${date.month}/${date.day} - ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}'),
+                  trailing: const Icon(Icons.chevron_left),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ResultDetailPage(record: record),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          );
+        },
+      );
 }
