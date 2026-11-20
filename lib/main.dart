@@ -271,7 +271,7 @@ class _QuizPageState extends State<QuizPage> {
       final remaining = _deadline.difference(DateTime.now()).inSeconds;
       if (remaining <= 0) {
         setState(() => _remainingSeconds = 0);
-        _finish();
+        unawaited(_finish());
       } else if (remaining != _remainingSeconds) {
         setState(() => _remainingSeconds = remaining);
       }
