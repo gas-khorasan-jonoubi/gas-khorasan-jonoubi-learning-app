@@ -180,7 +180,7 @@ class _SplashSymbolLine extends StatelessWidget {
       );
 }
 
-class HomePageclass HomePage extends StatefulWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
