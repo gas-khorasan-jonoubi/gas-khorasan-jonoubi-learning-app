@@ -7,6 +7,7 @@ build an APK. It is intentionally idempotent so CI and Codemagic can both run it
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -135,22 +136,79 @@ def _configure_min_sdk(android: Path) -> None:
     gradle_file.write_text(updated, encoding="utf-8")
 
 
-def configure_android(android_directory: Path) -> None:
+def _configure_application_id(android: Path, application_id: str | None) -> None:
+    if not application_id:
+        return
+
+    package_pattern = r"[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+"
+    if not re.fullmatch(package_pattern, application_id):
+        raise RuntimeError(
+            "BAZAAR_APPLICATION_ID must be a valid Android application ID "
+            "with at least two dot-separated segments."
+        )
+
+    kotlin_gradle = android / "app" / "build.gradle.kts"
+    groovy_gradle = android / "app" / "build.gradle"
+    gradle_file = kotlin_gradle if kotlin_gradle.is_file() else groovy_gradle
+    if not gradle_file.is_file():
+        raise RuntimeError("Android app Gradle file was not generated.")
+
+    source = gradle_file.read_text(encoding="utf-8")
+    if gradle_file.suffix == ".kts":
+        assignment = f'applicationId = "{application_id}"'
+        pattern = r'(?m)^(\\s*)applicationId\\s*=\\s*"[^"]+"'
+    else:
+        assignment = f'applicationId "{application_id}"'
+        pattern = r'(?m)^(\\s*)applicationId\\s+["\\'][^"\\']+["\\']'
+
+    existing, count = re.subn(
+        pattern,
+        lambda match: match.group(1) + assignment,
+        source,
+        count=1,
+    )
+    if count == 0:
+        default_config = re.search(r'(?m)^(\\s*)defaultConfig\\s*\\{', source)
+        if default_config is None:
+            raise RuntimeError("Could not find defaultConfig to set applicationId.")
+        indent = default_config.group(1) + "    "
+        existing = (
+            source[:default_config.end()]
+            + "\\n"
+            + indent
+            + assignment
+            + source[default_config.end():]
+        )
+
+    gradle_file.write_text(existing, encoding="utf-8")
+
+
+def configure_android(
+    android_directory: Path,
+    application_id: str | None = None,
+) -> None:
     if not android_directory.is_dir():
         raise RuntimeError(f"Android directory does not exist: {android_directory}")
     _configure_jitpack(android_directory)
     _configure_activity(android_directory)
     _configure_min_sdk(android_directory)
+    _configure_application_id(android_directory, application_id)
 
 
 def main() -> int:
     android_directory = Path(__file__).resolve().parents[1] / "android"
+    application_id = os.environ.get("BAZAAR_APPLICATION_ID", "").strip() or None
     try:
-        configure_android(android_directory)
+        configure_android(android_directory, application_id=application_id)
     except (OSError, RuntimeError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
-    print("OK: Cafe Bazaar Android host configured (JitPack, FragmentActivity, minSdk 24).")
+    print(
+        "OK: Cafe Bazaar Android host configured "
+        "(JitPack, FragmentActivity, minSdk 24"
+        + (", registered application ID" if application_id else "")
+        + ")."
+    )
     return 0
 
 
