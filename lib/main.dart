@@ -61,7 +61,7 @@ class _SplashPageState extends State<SplashPage> {
           await preparePoster(context);
         } else {
           await precacheImage(
-            const AssetImage('assets/approved_splash.png'),
+            const AssetImage('assets/approved_splash.webp'),
             context,
           );
         }
@@ -94,7 +94,7 @@ class _SplashPageState extends State<SplashPage> {
         body: SizedBox.expand(
           child: Center(
             child: Image.asset(
-              'assets/approved_splash.png',
+              'assets/approved_splash.webp',
               fit: BoxFit.contain,
               filterQuality: FilterQuality.high,
               alignment: Alignment.center,
