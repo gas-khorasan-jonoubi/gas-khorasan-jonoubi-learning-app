@@ -3,8 +3,8 @@ import 'package:gas_khorasan_jonoubi_learning_app/data/quiz_registry.dart';
 
 void main() {
   group('independent offline quiz packs', () {
-    test('registers eighteen separate exams for core work areas', () {
-      expect(quizPacks, hasLength(18));
+    test('registers nineteen separate exams for core work areas', () {
+      expect(quizPacks, hasLength(19));
       expect(
         quizPacks.map((pack) => pack.id).toSet().length,
         quizPacks.length,
@@ -30,6 +30,7 @@ void main() {
           'آزمون مهارت‌های دیجیتال و ابزارهای اداری',
           'آزمون مدیریت منابع، تدارکات و انبار',
           'آزمون مشتری‌مداری و رسیدگی به شکایات',
+          'آزمون مدیریت ریسک و تصمیم‌گیری مبتنی بر شواهد',
         ]),
       );
     });
