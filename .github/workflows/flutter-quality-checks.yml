@@ -1,0 +1,41 @@
+name: Flutter quality checks
+
+on:
+  push:
+    branches:
+      - feature/approved-splash-screen
+  pull_request:
+    branches:
+      - main
+      - feature/approved-splash-screen
+
+permissions:
+  contents: read
+
+jobs:
+  analyze-and-test:
+    name: Analyze and test (no APK)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install Flutter stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Show tool versions
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Analyze Dart code
+        run: flutter analyze
+
+      - name: Run automated tests
+        run: flutter test --reporter expanded
