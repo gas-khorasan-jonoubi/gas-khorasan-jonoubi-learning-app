@@ -3,6 +3,33 @@ import 'package:material_ui/material_ui.dart';
 import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
 
 void main() {
+
+  testWidgets('splash remains visible for three seconds before opening dashboard', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: SplashPage(displayDuration: Duration(seconds: 3)),
+      ),
+    );
+    await tester.pump();
+
+    final posterFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is Image &&
+          widget.image is AssetImage &&
+          (widget.image as AssetImage).assetName == 'assets/approved_splash.png',
+    );
+    expect(posterFinder, findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 2999));
+    expect(posterFinder, findsOneWidget);
+    expect(find.text('داشبورد'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pumpAndSettle();
+
+    expect(find.text('داشبورد'), findsOneWidget);
+  });
+
   testWidgets('splash displays the approved offline poster without cropping', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(home: SplashPage()),
