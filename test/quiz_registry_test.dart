@@ -3,8 +3,8 @@ import 'package:gas_khorasan_jonoubi_learning_app/data/quiz_registry.dart';
 
 void main() {
   group('independent offline quiz packs', () {
-    test('registers fourteen separate exams for core work areas', () {
-      expect(quizPacks, hasLength(14));
+    test('registers fifteen separate exams for core work areas', () {
+      expect(quizPacks, hasLength(15));
       expect(
         quizPacks.map((pack) => pack.id).toSet().length,
         quizPacks.length,
@@ -26,6 +26,7 @@ void main() {
           'آزمون مدیریت اسناد و مکاتبات اداری',
           'آزمون مدیریت کیفیت و بهبود فرایند',
           'آزمون کار تیمی و ارتباطات سازمانی',
+          'آزمون مبانی مدیریت پروژه و برنامه‌ریزی',
         ]),
       );
     });
