@@ -161,12 +161,12 @@ void main() {
       expect(await service.restoreAccess(), isTrue);
 
       final preferences = await SharedPreferences.getInstance();
-      expect(preferences.getBool('bazaar_lifetime_access_verified'), isTrue);
+      expect(preferences.getBool('bazaar_lifetime_access_verified_$sku'), isTrue);
     });
 
     test('keeps previously verified access during a temporary store outage', () async {
       final preferences = await SharedPreferences.getInstance();
-      await preferences.setBool('bazaar_lifetime_access_verified', true);
+      await preferences.setBool('bazaar_lifetime_access_verified_$sku', true);
 
       final client = _FakeIranIapClient()..failPurchaseQuery = true;
       final service = LifetimePurchaseService(
@@ -180,7 +180,7 @@ void main() {
 
     test('clears the cached access after a successful query reports no owned product', () async {
       final preferences = await SharedPreferences.getInstance();
-      await preferences.setBool('bazaar_lifetime_access_verified', true);
+      await preferences.setBool('bazaar_lifetime_access_verified_$sku', true);
 
       final client = _FakeIranIapClient();
       final service = LifetimePurchaseService(
@@ -190,7 +190,24 @@ void main() {
       );
 
       expect(await service.restoreAccess(), isFalse);
-      expect(preferences.getBool('bazaar_lifetime_access_verified'), isFalse);
+      expect(preferences.getBool('bazaar_lifetime_access_verified_$sku'), isFalse);
+    });
+
+    test('does not reuse offline ownership cache from another product ID', () async {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setBool(
+        'bazaar_lifetime_access_verified_old_product',
+        true,
+      );
+
+      final client = _FakeIranIapClient();
+      final service = LifetimePurchaseService(
+        productId: sku,
+        publicKey: publicKey,
+        client: client,
+      );
+
+      expect(await service.restoreAccess(), isFalse);
     });
 
     test('completes a one-time in-app purchase and never consumes it', () async {
