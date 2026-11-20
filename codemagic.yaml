@@ -11,8 +11,14 @@ workflows:
           if [ ! -d android ]; then
             flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
           fi
+      - name: Configure Cafe Bazaar Android host
+        script: python3 tool/configure_bazaar_android.py
+      - name: Test Android host configurator
+        script: python3 tool/test_configure_bazaar_android.py
       - name: Get Flutter packages
         script: flutter pub get
+      - name: Check Cafe Bazaar Android integration
+        script: dart run iran_iap doctor --store bazaar
       - name: Analyze Dart code
         script: flutter analyze
       - name: Run automated tests
@@ -29,90 +35,8 @@ workflows:
           if [ ! -d android ]; then
             flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
           fi
-      - name: Configure Cafe Bazaar billing host
-        script: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          root = Path("android")
-          kts = root / "build.gradle.kts"
-          groovy = root / "build.gradle"
-          gradle = kts if kts.exists() else groovy
-          if not gradle.exists():
-              raise SystemExit("Android root Gradle file was not generated.")
-
-          source = gradle.read_text(encoding="utf-8")
-          if "https://jitpack.io" not in source:
-              if kts.exists():
-                  snippet = '''
-                      maven {
-                          url = uri("https://jitpack.io")
-                          content {
-                              includeGroup("com.github.cafebazaar.Poolakey")
-                              includeGroup("com.github.myketstore")
-                          }
-                      }
-                  '''
-                  pattern = r'(allprojects\s*\{\s*repositories\s*\{)'
-              else:
-                  snippet = '''
-                      maven {
-                          url 'https://jitpack.io'
-                      }
-                  '''
-                  pattern = r'(allprojects\s*\{\s*repositories\s*\{)'
-              source, count = re.subn(pattern, lambda match: match.group(1) + snippet, source, count=1)
-              if count != 1:
-                  raise SystemExit("Could not add JitPack to the Android repositories.")
-              gradle.write_text(source, encoding="utf-8")
-
-          activity_files = list((root / "app" / "src" / "main" / "kotlin").rglob("MainActivity.kt"))
-          if len(activity_files) != 1:
-              raise SystemExit(f"Expected one MainActivity.kt, found {len(activity_files)}.")
-          activity = activity_files[0]
-          source = activity.read_text(encoding="utf-8")
-          source = source.replace(
-              "import io.flutter.embedding.android.FlutterActivity",
-              "import io.flutter.embedding.android.FlutterFragmentActivity",
-          )
-          source, count = re.subn(
-              r'class MainActivity\s*:\s*FlutterActivity\s*\(\s*\)',
-              "class MainActivity : FlutterFragmentActivity()",
-              source,
-              count=1,
-          )
-          if count != 1 or "FlutterFragmentActivity" not in source:
-              raise SystemExit("Could not configure MainActivity for Bazaar Activity Result API.")
-          activity.write_text(source, encoding="utf-8")
-
-          app_kts = root / "app" / "build.gradle.kts"
-          app_groovy = root / "app" / "build.gradle"
-          app_gradle = app_kts if app_kts.exists() else app_groovy
-          if not app_gradle.exists():
-              raise SystemExit("Android app Gradle file was not generated.")
-          source = app_gradle.read_text(encoding="utf-8")
-          if app_kts.exists():
-              source, count = re.subn(
-                  r'minSdk\s*=\s*flutter\.minSdkVersion',
-                  "minSdk = 24",
-                  source,
-                  count=1,
-              )
-              if count == 0 and not re.search(r'minSdk\s*=\s*24\b', source):
-                  raise SystemExit("Could not set Android minSdk to 24.")
-          else:
-              source, count = re.subn(
-                  r'minSdkVersion\s+flutter\.minSdkVersion',
-                  "minSdkVersion 24",
-                  source,
-                  count=1,
-              )
-              if count == 0 and not re.search(r'minSdkVersion\s+24\b', source):
-                  raise SystemExit("Could not set Android minSdkVersion to 24.")
-          app_gradle.write_text(source, encoding="utf-8")
-          PY
+      - name: Configure Cafe Bazaar Android host
+        script: python3 tool/configure_bazaar_android.py
       - name: Validate Cafe Bazaar release configuration
         script: |
           set -euo pipefail
