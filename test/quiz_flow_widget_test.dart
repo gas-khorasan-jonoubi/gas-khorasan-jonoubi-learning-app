@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
 
@@ -37,4 +40,43 @@ void main() {
       'آزمون مبانی امور مشترکین - 1 از 40',
     );
   });
+  testWidgets('answers can be changed and result is saved for the selected exam', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+
+    await tester.pumpWidget(_examHost());
+    await tester.tap(find.text('آزمون مبانی ایمنی و HSE'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+
+    // پاسخ درست سؤال اول را انتخاب می‌کنیم.
+    await tester.tap(find.text('شناخت عوامل بالقوه آسیب پیش از وقوع حادثه'));
+    await tester.pump();
+
+    // به سؤال بعد می‌رویم، برمی‌گردیم و پاسخ را تغییر می‌دهیم.
+    await tester.tap(find.text('بعدی'));
+    await tester.pump();
+    await tester.tap(find.text('قبلی'));
+    await tester.pump();
+    await tester.tap(find.text('افزایش سرعت بدون توجه به ایمنی'));
+    await tester.pump();
+
+    await tester.tap(find.text('پایان آزمون و ثبت نتیجه'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('جزئیات نتیجه آزمون'), findsOneWidget);
+    expect(find.textContaining('نادرست: 1'), findsOneWidget);
+
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList('exam_results');
+    expect(saved, isNotNull);
+    expect(saved, hasLength(1));
+
+    final record = jsonDecode(saved!.single) as Map<String, dynamic>;
+    expect(record['examId'], 'hse-basics');
+    expect(record['examTitle'], 'آزمون مبانی ایمنی و HSE');
+    expect(record['correct'], 0);
+    expect(record['wrong'], 1);
+    expect(record['unanswered'], 39);
+  });
+
 }
