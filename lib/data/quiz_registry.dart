@@ -8,6 +8,7 @@ import 'gas_industry_quiz.dart';
 import 'environmental_quiz.dart';
 import 'information_security_quiz.dart';
 import 'professional_ethics_quiz.dart';
+import 'continuity_quiz.dart';
 
 const List<QuizPack> quizPacks = [
   hseQuizPack,
@@ -19,4 +20,5 @@ const List<QuizPack> quizPacks = [
   environmentalQuizPack,
   informationSecurityQuizPack,
   professionalEthicsQuizPack,
+  continuityQuizPack,
 ];
