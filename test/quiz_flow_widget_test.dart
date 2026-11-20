@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
+import 'package:gas_khorasan_jonoubi_learning_app/data/quiz_models.dart';
 
 Widget _examHost() => const MaterialApp(
       home: Scaffold(body: ExamPage()),
