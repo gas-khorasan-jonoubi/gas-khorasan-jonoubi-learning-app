@@ -219,8 +219,8 @@ class KnowledgeArticlePage extends StatelessWidget {
             const SizedBox(height: 8),
             Text(article.summary, style: const TextStyle(fontSize: 15, color: Colors.black54)),
             const SizedBox(height: 18),
-            Card(
-              key: const ValueKey('article-safety-note'),
+            const Card(
+              key: ValueKey('article-safety-note'),
               child: const Padding(
                 padding: EdgeInsets.all(14),
                 child: Text(
