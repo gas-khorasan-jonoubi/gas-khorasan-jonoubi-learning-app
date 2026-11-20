@@ -23,7 +23,7 @@ workflows:
       - name: Test Android host configurator
         script: python3 tool/test_configure_bazaar_android.py
       - name: Get Flutter packages
-        script: flutter pub get
+        script: flutter pub get --enforce-lockfile
       - name: Verify selected NIGC launcher artwork
         script: |
           test -s assets/app_icon.jpg
@@ -128,7 +128,7 @@ workflows:
           manifest.write_text(updated, encoding="utf-8")
           PY
       - name: Get Flutter packages
-        script: flutter pub get
+        script: flutter pub get --enforce-lockfile
       - name: Verify selected NIGC launcher artwork
         script: |
           test -s assets/app_icon.jpg
