@@ -431,4 +431,4 @@ const knowledgeArticles = <KnowledgeArticle>[
       'نتیجه اقدامات در جلسه بعد مرور شود.',
     ],
   ),
-];\n
+];
