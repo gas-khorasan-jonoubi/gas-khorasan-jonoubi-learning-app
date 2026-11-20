@@ -16,13 +16,20 @@ Future<void> _openExam(
   String appBarTitle,
 ) async {
   await tester.pumpWidget(_examHost());
+  final examTitleFinder = find.text(examTitle);
   await tester.scrollUntilVisible(
-    find.text(examTitle),
+    examTitleFinder,
     250,
     scrollable: find.byType(Scrollable).first,
   );
-  expect(find.text(examTitle), findsOneWidget);
-  await tester.tap(find.text(examTitle));
+  final examTileFinder = find.ancestor(
+    of: examTitleFinder,
+    matching: find.byType(ListTile),
+  );
+  expect(examTileFinder, findsOneWidget);
+  await tester.ensureVisible(examTileFinder);
+  await tester.pumpAndSettle();
+  await tester.tap(examTileFinder);
   await tester.pump(const Duration(milliseconds: 400));
   await tester.pump();
 
