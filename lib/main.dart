@@ -423,9 +423,13 @@ class ResultDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final correct = record['correct'] as int;
-    final wrong = record['wrong'] as int;
-    final unanswered = record['unanswered'] as int;
+    // نتایج ذخیره‌شده در نسخه‌های قبلی نیز پس از به‌روزرسانی قابل مشاهده می‌مانند.
+    final total = (record['total'] as int?) ?? 0;
+    final correct = (record['correct'] as int?) ?? (record['score'] as int?) ?? 0;
+    final wrong = (record['wrong'] as int?) ?? (total - correct).clamp(0, total);
+    final unanswered = (record['unanswered'] as int?) ?? 0;
+    final hasQuestionBreakdown =
+        record['questions'] is List && record['answers'] is List;
 
     return Scaffold(
       appBar: AppBar(title: const Text('جزئیات نتیجه آزمون')),
@@ -445,9 +449,17 @@ class ResultDetailPage extends StatelessWidget {
               ),
             ),
           ),
-          _resultGroup('پاسخ‌های درست', 0, correct),
-          _resultGroup('پاسخ‌های نادرست و پاسخ صحیح', 1, wrong),
-          _resultGroup('پرسش‌های بی‌پاسخ و پاسخ صحیح', 2, unanswered),
+          if (hasQuestionBreakdown) ...[
+            _resultGroup('پاسخ‌های درست', 0, correct),
+            _resultGroup('پاسخ‌های نادرست و پاسخ صحیح', 1, wrong),
+            _resultGroup('پرسش‌های بی‌پاسخ و پاسخ صحیح', 2, unanswered),
+          ] else
+            const Card(
+              child: ListTile(
+                title: Text('این نتیجه در نسخهٔ قبلی برنامه ثبت شده است.'),
+                subtitle: Text('برای حفظ سابقه، امتیاز قبلی نمایش داده می‌شود؛ جزئیات سؤال‌ها در آن نسخه ذخیره نشده بود.'),
+              ),
+            ),
         ],
       ),
     );
@@ -584,10 +596,13 @@ class ResultsPage extends StatelessWidget {
             children: values.map((value) {
               final record = jsonDecode(value) as Map<String, dynamic>;
               final date = DateTime.parse(record['date'] as String);
+              final total = (record['total'] as int?) ?? 0;
+              final correct = (record['correct'] as int?) ?? (record['score'] as int?) ?? 0;
+              final wrong = (record['wrong'] as int?) ?? (total - correct).clamp(0, total);
               return Card(
                 child: ListTile(
                   leading: const Icon(Icons.assessment, color: blue),
-                  title: Text('درست: ${record['correct']}  |  نادرست: ${record['wrong']}'),
+                  title: Text('درست: $correct  |  نادرست: $wrong'),
                   subtitle: Text('${date.year}/${date.month}/${date.day} - ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}'),
                   trailing: const Icon(Icons.chevron_left),
                   onTap: () => Navigator.of(context).push(
