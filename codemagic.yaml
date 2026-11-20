@@ -53,12 +53,10 @@ workflows:
 
           application_id = os.environ.get("BAZAAR_APPLICATION_ID", "").strip()
           product_id = os.environ.get("BAZAAR_LIFETIME_PRODUCT_ID", "").strip()
-          public_key = os.environ.get("BAZAAR_RSA_PUBLIC_KEY", "").strip()
           missing = [
               name for name, value in (
                   ("BAZAAR_APPLICATION_ID", application_id),
                   ("BAZAAR_LIFETIME_PRODUCT_ID", product_id),
-                  ("BAZAAR_RSA_PUBLIC_KEY", public_key),
               )
               if not value
           ]
@@ -74,7 +72,6 @@ workflows:
           defines = {
               "IRAN_IAP_STORE": "bazaar",
               "BAZAAR_LIFETIME_PRODUCT_ID": product_id,
-              "BAZAAR_RSA_PUBLIC_KEY": public_key,
           }
           target = Path("build/ci-iap-defines.json")
           target.parent.mkdir(parents=True, exist_ok=True)
