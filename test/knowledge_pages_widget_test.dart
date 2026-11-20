@@ -39,7 +39,10 @@ void main() {
     await tester.tap(articleTile);
     await tester.pumpAndSettle();
 
-    expect(find.text('نکات کلیدی'), findsOneWidget);
+    expect(
+      find.text('فرهنگ گزارش‌دهی خطر و شبه‌حادثه'),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('article-safety-note')), findsOneWidget);
     expect(
       find.textContaining('این مطلب آموزشی عمومی است'),
