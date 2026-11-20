@@ -40,9 +40,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('نکات کلیدی'), findsOneWidget);
-    expect(
-      find.textContaining('این مطلب آموزشی عمومی است'),
-      findsOneWidget,
+    final safetyNote = find.textContaining('این مطلب آموزشی عمومی است');
+    await tester.scrollUntilVisible(
+      safetyNote,
+      300,
+      scrollable: find.byType(Scrollable).last,
     );
+    expect(safetyNote, findsOneWidget);
   });
 }
