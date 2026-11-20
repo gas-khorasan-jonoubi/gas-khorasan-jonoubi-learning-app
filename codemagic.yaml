@@ -34,6 +34,8 @@ workflows:
     max_build_duration: 60
     environment:
       flutter: stable
+      android_signing:
+        - danestani_gaz_release
     scripts:
       - name: Generate Android platform files
         script: |
@@ -53,10 +55,17 @@ workflows:
 
           application_id = os.environ.get("BAZAAR_APPLICATION_ID", "").strip()
           product_id = os.environ.get("BAZAAR_LIFETIME_PRODUCT_ID", "").strip()
+          signing_names = (
+              "CM_KEYSTORE_PATH",
+              "CM_KEYSTORE_PASSWORD",
+              "CM_KEY_ALIAS",
+              "CM_KEY_PASSWORD",
+          )
           missing = [
               name for name, value in (
                   ("BAZAAR_APPLICATION_ID", application_id),
                   ("BAZAAR_LIFETIME_PRODUCT_ID", product_id),
+                  *[(name, os.environ.get(name, "").strip()) for name in signing_names],
               )
               if not value
           ]
