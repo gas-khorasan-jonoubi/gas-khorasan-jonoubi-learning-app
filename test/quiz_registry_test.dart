@@ -3,8 +3,8 @@ import 'package:gas_khorasan_jonoubi_learning_app/data/quiz_registry.dart';
 
 void main() {
   group('independent offline quiz packs', () {
-    test('registers seven separate exams for core work areas', () {
-      expect(quizPacks, hasLength(7));
+    test('registers eight separate exams for core work areas', () {
+      expect(quizPacks, hasLength(8));
       expect(
         quizPacks.map((pack) => pack.id).toSet().length,
         quizPacks.length,
@@ -19,6 +19,7 @@ void main() {
           'آزمون مبانی مدیریت و اداره',
           'آزمون آشنایی عمومی با صنعت گاز',
           'آزمون محیط‌زیست و توسعه پایدار',
+          'آزمون امنیت اطلاعات و محرمانگی',
         ]),
       );
     });
