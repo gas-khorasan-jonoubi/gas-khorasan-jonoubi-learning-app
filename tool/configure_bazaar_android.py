@@ -183,9 +183,99 @@ def _configure_application_id(android: Path, application_id: str | None) -> None
     gradle_file.write_text(existing, encoding="utf-8")
 
 
+def _configure_release_signing(
+    android: Path,
+    environment: dict[str, str],
+) -> bool:
+    required = (
+        "CM_KEYSTORE_PATH",
+        "CM_KEYSTORE_PASSWORD",
+        "CM_KEY_ALIAS",
+        "CM_KEY_PASSWORD",
+    )
+    values = {name: environment.get(name, "").strip() for name in required}
+    if not any(values.values()):
+        return False
+
+    missing = [name for name, value in values.items() if not value]
+    if missing:
+        raise RuntimeError(
+            "Android release signing is partially configured. Missing: "
+            + ", ".join(missing)
+        )
+
+    kotlin_gradle = android / "app" / "build.gradle.kts"
+    groovy_gradle = android / "app" / "build.gradle"
+    gradle_file = kotlin_gradle if kotlin_gradle.is_file() else groovy_gradle
+    if not gradle_file.is_file():
+        raise RuntimeError("Android app Gradle file was not generated.")
+
+    source = gradle_file.read_text(encoding="utf-8")
+    if gradle_file.suffix == ".kts":
+        signing_block = """
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("CM_KEYSTORE_PATH") ?: error("CM_KEYSTORE_PATH is required"))
+            storePassword = System.getenv("CM_KEYSTORE_PASSWORD") ?: error("CM_KEYSTORE_PASSWORD is required")
+            keyAlias = System.getenv("CM_KEY_ALIAS") ?: error("CM_KEY_ALIAS is required")
+            keyPassword = System.getenv("CM_KEY_PASSWORD") ?: error("CM_KEY_PASSWORD is required")
+        }
+    }
+"""
+        signing_marker = 'create("release")'
+        build_types_pattern = r"(?m)^(\\s*)buildTypes\\s*\\{"
+        debug_assignment = 'signingConfig = signingConfigs.getByName("debug")'
+        release_assignment = 'signingConfig = signingConfigs.getByName("release")'
+        release_header_pattern = r"(?m)^(\\s*)release\\s*\\{"
+    else:
+        signing_block = """
+    signingConfigs {
+        release {
+            storeFile file(System.getenv("CM_KEYSTORE_PATH"))
+            storePassword System.getenv("CM_KEYSTORE_PASSWORD")
+            keyAlias System.getenv("CM_KEY_ALIAS")
+            keyPassword System.getenv("CM_KEY_PASSWORD")
+        }
+    }
+"""
+        signing_marker = "signingConfigs {"
+        build_types_pattern = r"(?m)^(\\s*)buildTypes\\s*\\{"
+        debug_assignment = "signingConfig signingConfigs.debug"
+        release_assignment = "signingConfig signingConfigs.release"
+        release_header_pattern = r"(?m)^(\\s*)release\\s*\\{"
+
+    if signing_marker not in source:
+        match = re.search(build_types_pattern, source)
+        if match is None:
+            raise RuntimeError("Could not find buildTypes to configure release signing.")
+        source = source[:match.start()] + signing_block + source[match.start():]
+
+    build_types = re.search(build_types_pattern, source)
+    if build_types is None:
+        raise RuntimeError("Could not find buildTypes to configure release signing.")
+    release_header = re.search(release_header_pattern, source[build_types.end():])
+    if release_header is None:
+        raise RuntimeError("Could not find the release build type for signing.")
+    absolute_start = build_types.end() + release_header.start()
+    absolute_end = build_types.end() + release_header.end()
+    release_body = source[absolute_end:]
+
+    if debug_assignment in release_body:
+        release_body = release_body.replace(debug_assignment, release_assignment, 1)
+    elif release_assignment not in release_body.split("}", 1)[0]:
+        line_break = "\\n"
+        indent = " " * (len(release_header.group(1)) + 4)
+        release_body = line_break + indent + release_assignment + release_body
+
+    source = source[:absolute_end] + release_body
+    gradle_file.write_text(source, encoding="utf-8")
+    return True
+
+
 def configure_android(
     android_directory: Path,
     application_id: str | None = None,
+    signing_environment: dict[str, str] | None = None,
 ) -> None:
     if not android_directory.is_dir():
         raise RuntimeError(f"Android directory does not exist: {android_directory}")
@@ -193,12 +283,17 @@ def configure_android(
     _configure_activity(android_directory)
     _configure_min_sdk(android_directory)
     _configure_application_id(android_directory, application_id)
+    _configure_release_signing(android_directory, signing_environment or {})
 
 
 def main() -> int:
     android_directory = Path(__file__).resolve().parents[1] / "android"
     application_id = os.environ.get("BAZAAR_APPLICATION_ID", "").strip() or None
     try:
+        signing_configured = _configure_release_signing(
+            android_directory,
+            dict(os.environ),
+        )
         configure_android(android_directory, application_id=application_id)
     except (OSError, RuntimeError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
@@ -207,6 +302,7 @@ def main() -> int:
         "OK: Cafe Bazaar Android host configured "
         "(JitPack, FragmentActivity, minSdk 24"
         + (", registered application ID" if application_id else "")
+        + (", release signing configured" if signing_configured else "")
         + ")."
     )
     return 0
