@@ -29,9 +29,10 @@ void main() {
       }
     });
 
-    test('each pack has complete question choices and valid answer indexes', () {
+    test('each pack has complete choices, unique prompts and balanced answer positions', () {
       for (final pack in quizPacks) {
         final prompts = <String>{};
+        final answerDistribution = List<int>.filled(4, 0);
         for (final question in pack.questions) {
           expect(question['q'], isA<String>());
           expect((question['q'] as String).trim(), isNotEmpty);
@@ -39,9 +40,13 @@ void main() {
           final options = question['a'] as List<String>;
           expect(options, hasLength(4));
           expect(options.every((option) => option.trim().isNotEmpty), isTrue);
-          expect(question['correct'], inInclusiveRange(0, 3));
+          final correctIndex = question['correct'] as int;
+          expect(correctIndex, inInclusiveRange(0, 3));
+          answerDistribution[correctIndex]++;
           expect(prompts.add(question['q'] as String), isTrue);
         }
+        // در هر بانک ۴۰ سؤالی، هر جایگاه پاسخ صحیح دقیقاً ۱۰ بار استفاده می‌شود.
+        expect(answerDistribution, [10, 10, 10, 10], reason: pack.title);
       }
     });
   });
