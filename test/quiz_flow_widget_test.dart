@@ -144,15 +144,20 @@ void main() {
       ],
     );
 
+    var testNow = DateTime.utc(2026, 1, 1);
     await tester.pumpWidget(
-      const MaterialApp(home: QuizPage(pack: pack)),
+      MaterialApp(
+        home: QuizPage(pack: pack, clock: () => testNow),
+      ),
     );
     expect(find.text('00:30'), findsOneWidget);
 
     // زمان را تا یک ثانیه مانده به پایان جلو می‌بریم و تیک آخر را جداگانه اجرا می‌کنیم.
+    testNow = testNow.add(const Duration(seconds: 29));
     await tester.pump(const Duration(seconds: 29));
     expect(find.text('00:01'), findsOneWidget);
 
+    testNow = testNow.add(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
     await tester.pump();
     await tester.pumpAndSettle();
