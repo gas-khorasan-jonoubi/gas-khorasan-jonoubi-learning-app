@@ -1,3 +1,5 @@
+import 'quiz_models.dart';
+
 const hseQuizTitle = 'آزمون مبانی ایمنی و HSE';
 const hseQuizDescription =
     'آزمون اول شامل ۴۰ پرسش عمومی است. برای هر پرسش ۳۰ ثانیه زمان در نظر گرفته شده است.';
@@ -45,3 +47,10 @@ const questions = <Map<String, Object>>[
   {'q': 'بازرسی پیش از استفاده از ابزار و تجهیزات چه فایده‌ای دارد؟', 'a': ['شناسایی نقص آشکار پیش از شروع کار', 'تضمین ایمنی بدون نیاز به سرویس', 'حذف نیاز به آموزش', 'افزایش احتمال استفاده از ابزار معیوب'], 'correct': 0},
   {'q': 'مهم‌ترین ویژگی یک گزارش ایمنی مفید چیست؟', 'a': ['طولانی بودن بدون اطلاعات روشن', 'دقت، بی‌طرفی و قابلیت پیگیری', 'استفاده از اصطلاحات مبهم', 'حذف زمان و محل رویداد'], 'correct': 1},
 ];
+
+const QuizPack hseQuizPack = QuizPack(
+  id: 'hse-basics',
+  title: hseQuizTitle,
+  description: hseQuizDescription,
+  questions: questions,
+);
