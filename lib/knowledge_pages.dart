@@ -221,7 +221,7 @@ class KnowledgeArticlePage extends StatelessWidget {
             const SizedBox(height: 18),
             const Card(
               key: ValueKey('article-safety-note'),
-              child: const Padding(
+              child: Padding(
                 padding: EdgeInsets.all(14),
                 child: Text(
                   'یادآوری: این مطلب آموزشی عمومی است و جایگزین بخشنامه، دستورالعمل فنی، مقررات جاری یا آموزش تخصصی مصوب شرکت گاز نیست. برای اقدام عملی، همیشه آخرین سند رسمی و نظر مسئول ذی‌صلاح را ملاک قرار دهید.',
