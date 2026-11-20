@@ -21,6 +21,7 @@ class _PurchasePageState extends State<PurchasePage> {
       widget.service ?? lifetimePurchaseService;
   bool _busy = true;
   bool _hasAccess = false;
+  String? _productPrice;
   String _message = 'در حال بررسی وضعیت خرید...';
 
   bool get _isAndroid => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
@@ -54,9 +55,22 @@ class _PurchasePageState extends State<PurchasePage> {
     });
     try {
       final owned = await _service.restoreAccess();
+      String? price;
+      if (!owned) {
+        try {
+          final product = await _service.queryLifetimeProduct();
+          price = product?.price.trim().isNotEmpty == true
+              ? product!.price
+              : null;
+        } catch (_) {
+          // A price lookup failure must not discard a previously verified
+          // ownership result or prevent the restore screen from loading.
+        }
+      }
       if (!mounted) return;
       setState(() {
         _hasAccess = owned;
+        _productPrice = price;
         _message = owned
             ? 'دسترسی دائمی این برنامه برای حساب کافه‌بازار شما فعال است.'
             : 'برای فعال‌سازی دائمی، خرید را انجام دهید یا خرید قبلی را بازیابی کنید.';
@@ -148,6 +162,17 @@ class _PurchasePageState extends State<PurchasePage> {
                     const Text(
                       'خرید یک‌باره است و اشتراک ماهانه یا تمدید دوره‌ای ندارد. خرید به حساب کافه‌بازار شما متصل می‌شود و پس از نصب مجدد یا تعویض گوشی، از همین بخش قابل بازیابی خواهد بود.',
                     ),
+                    if (_productPrice != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'قیمت در کافه‌بازار: $_productPrice',
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF123B66),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
