@@ -12,6 +12,7 @@ import 'continuity_quiz.dart';
 import 'productivity_quiz.dart';
 import 'records_management_quiz.dart';
 import 'quality_improvement_quiz.dart';
+import 'teamwork_quiz.dart';
 
 const List<QuizPack> quizPacks = [
   hseQuizPack,
@@ -27,4 +28,5 @@ const List<QuizPack> quizPacks = [
   productivityQuizPack,
   recordsManagementQuizPack,
   qualityImprovementQuizPack,
+  teamworkQuizPack,
 ];
