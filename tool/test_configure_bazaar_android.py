@@ -107,7 +107,6 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         android = self._make_project(kotlin_dsl=True)
         app_gradle_path = android / "app" / "build.gradle.kts"
         source = app_gradle_path.read_text(encoding="utf-8")
-        source = source.replace('        applicationId = "com.example.old_app"\\n', "")
         app_gradle_path.write_text(source, encoding="utf-8")
         configure_android(android, application_id="ir.gas.khorasanjonoubi.danestani_gaz")
         updated = app_gradle_path.read_text(encoding="utf-8")
