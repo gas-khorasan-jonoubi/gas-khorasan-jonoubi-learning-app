@@ -15,6 +15,7 @@ import 'quality_improvement_quiz.dart';
 import 'teamwork_quiz.dart';
 import 'project_management_quiz.dart';
 import 'digital_skills_quiz.dart';
+import 'resource_procurement_quiz.dart';
 
 const List<QuizPack> quizPacks = [
   hseQuizPack,
@@ -33,4 +34,5 @@ const List<QuizPack> quizPacks = [
   teamworkQuizPack,
   projectManagementQuizPack,
   digitalSkillsQuizPack,
+  resourceProcurementQuizPack,
 ];
