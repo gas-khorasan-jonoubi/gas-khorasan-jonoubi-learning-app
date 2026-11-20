@@ -27,6 +27,13 @@ class ProjectQualityTests(unittest.TestCase):
         self.assertTrue(splash.is_file(), "Splash image is missing from the repository")
         self.assertGreater(splash.stat().st_size, 0, "Splash image is empty")
 
+    def test_splash_replaces_local_labels_with_symbol_explanations(self):
+        self.assertNotIn("ImageFiltered(", self.main_dart)
+        self.assertIn("«لا»: نفی وابستگی به شرق و غرب", self.main_dart)
+        self.assertIn("فرم‌های اسلیمی: بیانگر رشد و شکوفایی", self.main_dart)
+        self.assertIn("مشعل: نشان سوخت و بیانگر نقش نفت", self.main_dart)
+        self.assertIn("title: 'دانستنی‌های گاز'", self.main_dart)
+
     def test_splash_duration_is_three_seconds(self):
         self.assertRegex(
             self.main_dart,
