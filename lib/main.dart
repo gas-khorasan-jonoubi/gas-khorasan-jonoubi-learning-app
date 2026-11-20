@@ -91,12 +91,14 @@ class _HomePageState extends State<HomePage> {
   final pages = const [DashboardPage(), ExamPage(), TrainingPage(), LibraryPage(), ResultsPage()];
   final titles = const ['داشبورد', 'آزمون‌ها', 'آموزش‌ها', 'کتابخانه', 'نتایج'];
   @override
-  Widget build(BuildContext context) => WillPopScope(
-    onWillPop: () async {
+  Widget build(BuildContext context) => PopScope<void>(
+    canPop: false,
+    onPopInvokedWithResult: (didPop, result) async {
+      if (didPop) return;
       // در بخش‌های داخلی، دکمه برگشت فقط به داشبورد برمی‌گردد.
       if (index != 0) {
         setState(() => index = 0);
-        return false;
+        return;
       }
 
       // خروج از برنامه در صفحه اصلی فقط با تأیید کاربر انجام می‌شود.
@@ -117,7 +119,9 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       );
-      return shouldExit ?? false;
+      if (shouldExit == true && context.mounted) {
+        SystemNavigator.pop();
+      }
     },
     child: Scaffold(
       appBar: AppBar(title: Text(titles[index])),
