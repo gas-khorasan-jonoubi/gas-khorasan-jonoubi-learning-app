@@ -53,6 +53,8 @@ jobs:
 
       - name: Check Cafe Bazaar Android integration
         run: dart run iran_iap doctor --store bazaar
+      - name: Resolve Cafe Bazaar Android release dependencies (no APK)
+        run: cd android && ./gradlew --no-daemon :app:dependencies --configuration releaseRuntimeClasspath -PiranIapStore=bazaar
 
       - name: Analyze Dart code
         run: flutter analyze
