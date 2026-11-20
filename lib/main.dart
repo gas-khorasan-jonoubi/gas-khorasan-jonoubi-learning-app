@@ -37,10 +37,12 @@ class GasLearningApp extends StatelessWidget {
 
 class SplashPage extends StatefulWidget {
   final Duration displayDuration;
+  final Future<void> Function(BuildContext context)? preparePoster;
 
   const SplashPage({
     super.key,
     this.displayDuration = const Duration(seconds: 3),
+    this.preparePoster,
   });
   @override
   State<SplashPage> createState() => _SplashPageState();
@@ -54,7 +56,15 @@ class _SplashPageState extends State<SplashPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // ابتدا تصویر کامل بارگذاری می‌شود؛ سپس زمان سه‌ثانیه‌ای آغاز می‌شود.
       try {
-        await precacheImage(const AssetImage('assets/approved_splash.png'), context);
+        final preparePoster = widget.preparePoster;
+        if (preparePoster != null) {
+          await preparePoster(context);
+        } else {
+          await precacheImage(
+            const AssetImage('assets/approved_splash.png'),
+            context,
+          );
+        }
       } catch (_) {
         // اگر بارگذاری تصویر به هر علت شکست خورد، برنامه همچنان قابل ورود است.
       }
