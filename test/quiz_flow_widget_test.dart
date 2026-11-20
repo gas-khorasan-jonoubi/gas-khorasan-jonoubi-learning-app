@@ -102,6 +102,14 @@ void main() {
     );
   });
 
+  testWidgets('crisis management exam opens independently with 40 questions', (tester) async {
+    await _openExam(
+      tester,
+      'آزمون مدیریت بحران و تداوم خدمت',
+      'آزمون مدیریت بحران و تداوم خدمت - 1 از 40',
+    );
+  });
+
   testWidgets('answers can be changed and result is saved for the selected exam', (tester) async {
     SharedPreferences.setMockInitialValues({});
 
