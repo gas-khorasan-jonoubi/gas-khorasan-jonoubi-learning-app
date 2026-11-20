@@ -36,8 +36,23 @@ jobs:
           flutter --version
           dart --version
 
+      - name: Generate Android host project (no build)
+        run: |
+          if [ ! -d android ]; then
+            flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
+          fi
+
+      - name: Configure Cafe Bazaar Android host
+        run: python3 tool/configure_bazaar_android.py
+
+      - name: Test Android host configurator
+        run: python3 tool/test_configure_bazaar_android.py
+
       - name: Get dependencies
         run: flutter pub get
+
+      - name: Check Cafe Bazaar Android integration
+        run: dart run iran_iap doctor --store bazaar
 
       - name: Analyze Dart code
         run: flutter analyze
