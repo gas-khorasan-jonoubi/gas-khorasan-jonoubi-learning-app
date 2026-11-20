@@ -9,6 +9,18 @@ void main() {
       expect(areas, containsAll(KnowledgeArea.values));
     });
 
+    test('each work area has four articles', () {
+      for (final area in KnowledgeArea.values) {
+        final articlesForArea =
+            knowledgeArticles.where((article) => article.area == area);
+        expect(
+          articlesForArea,
+          hasLength(4),
+          reason: area.label,
+        );
+      }
+    });
+
     test('article identifiers are unique and content is not empty', () {
       final ids = knowledgeArticles.map((article) => article.id).toList();
       expect(ids.toSet().length, ids.length);
