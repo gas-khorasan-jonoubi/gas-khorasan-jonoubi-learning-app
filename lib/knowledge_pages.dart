@@ -219,6 +219,17 @@ class KnowledgeArticlePage extends StatelessWidget {
             const SizedBox(height: 8),
             Text(article.summary, style: const TextStyle(fontSize: 15, color: Colors.black54)),
             const SizedBox(height: 18),
+            Card(
+              key: const ValueKey('article-safety-note'),
+              child: const Padding(
+                padding: EdgeInsets.all(14),
+                child: Text(
+                  'یادآوری: این مطلب آموزشی عمومی است و جایگزین بخشنامه، دستورالعمل فنی، مقررات جاری یا آموزش تخصصی مصوب شرکت گاز نیست. برای اقدام عملی، همیشه آخرین سند رسمی و نظر مسئول ذی‌صلاح را ملاک قرار دهید.',
+                  style: TextStyle(fontSize: 13, height: 1.6),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
             ...article.sections.map(
               (section) => Padding(
                 padding: const EdgeInsets.only(bottom: 14),
@@ -252,16 +263,7 @@ class KnowledgeArticlePage extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(14),
-                child: Text(
-                  'یادآوری: این مطلب آموزشی عمومی است و جایگزین بخشنامه، دستورالعمل فنی، مقررات جاری یا آموزش تخصصی مصوب شرکت گاز نیست. برای اقدام عملی، همیشه آخرین سند رسمی و نظر مسئول ذی‌صلاح را ملاک قرار دهید.',
-                  style: TextStyle(fontSize: 13, height: 1.6),
-                ),
-              ),
-            ),
+
           ],
         ),
       );
