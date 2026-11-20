@@ -36,7 +36,12 @@ class GasLearningApp extends StatelessWidget {
 }
 
 class SplashPage extends StatefulWidget {
-  const SplashPage({super.key});
+  final Duration displayDuration;
+
+  const SplashPage({
+    super.key,
+    this.displayDuration = const Duration(seconds: 3),
+  });
   @override
   State<SplashPage> createState() => _SplashPageState();
 }
@@ -54,7 +59,7 @@ class _SplashPageState extends State<SplashPage> {
         // اگر بارگذاری تصویر به هر علت شکست خورد، برنامه همچنان قابل ورود است.
       }
       if (!mounted) return;
-      await Future<void>.delayed(const Duration(seconds: 3));
+      await Future<void>.delayed(widget.displayDuration);
       if (!mounted) return;
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       Navigator.of(context).pushReplacement(
