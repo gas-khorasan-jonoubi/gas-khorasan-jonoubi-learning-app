@@ -63,7 +63,7 @@ workflows:
                   + ", ".join(missing)
               )
 
-          if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+", application_id):
+          if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+", application_id):
               raise SystemExit("BAZAAR_APPLICATION_ID is not a valid Android application ID.")
 
           defines = {
