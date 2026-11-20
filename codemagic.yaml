@@ -11,6 +11,23 @@ workflows:
           if [ ! -d android ]; then
             flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
           fi
+      - name: Set installed app label
+        script: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          source = manifest.read_text(encoding="utf-8")
+          updated, count = re.subn(
+              r'android:label="[^"]+"',
+              'android:label="دانستنی‌های گاز"',
+              source,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit("Android app label was not found in the manifest.")
+          manifest.write_text(updated, encoding="utf-8")
+          PY
       - name: Get Flutter packages
         script: flutter pub get
       - name: Build release APK
