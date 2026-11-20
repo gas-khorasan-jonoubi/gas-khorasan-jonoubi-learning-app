@@ -189,6 +189,14 @@ void main() {
     );
   });
 
+  testWidgets('change management exam opens independently with 40 questions', (tester) async {
+    await _openExam(
+      tester,
+      'آزمون مدیریت تغییر و استقرار روش‌های جدید',
+      'آزمون مدیریت تغییر و استقرار روش‌های جدید - 1 از 40',
+    );
+  });
+
   testWidgets('answers can be changed and result is saved for the selected exam', (tester) async {
     SharedPreferences.setMockInitialValues({});
 
