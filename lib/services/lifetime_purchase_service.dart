@@ -1,13 +1,10 @@
 import 'package:iran_iap/iran_iap.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// These values are supplied by the Android release configuration.
-/// The public key is used only for local receipt-signature verification.
+/// The permanent, non-consumable product ID is supplied by the release
+/// configuration created in the Cafe Bazaar developer panel.
 const bazaarLifetimeProductId = String.fromEnvironment(
   'BAZAAR_LIFETIME_PRODUCT_ID',
-);
-const bazaarRsaPublicKey = String.fromEnvironment(
-  'BAZAAR_RSA_PUBLIC_KEY',
 );
 
 enum LifetimePurchaseResult {
@@ -39,30 +36,26 @@ bool ownsLifetimeAccess(
 class LifetimePurchaseService {
   LifetimePurchaseService({
     String productId = bazaarLifetimeProductId,
-    String publicKey = bazaarRsaPublicKey,
     IranIapClient? client,
   })  : productId = productId.trim(),
-        _publicKey = publicKey.trim(),
         _injectedClient = client;
 
   final String productId;
-  final String _publicKey;
   final IranIapClient? _injectedClient;
   IranIapClient? _client;
 
-  bool get isConfigured => productId.isNotEmpty && _publicKey.isNotEmpty;
+  bool get isConfigured => productId.isNotEmpty;
 
   IranIapClient get _billingClient {
     if (!isConfigured) {
       throw StateError(
-        'شناسه محصول و کلید عمومی کافه‌بازار هنوز پیکربندی نشده‌اند.',
+        'شناسه محصول دائمی کافه‌بازار هنوز پیکربندی نشده است.',
       );
     }
     return _client ??= _injectedClient ??
         IranIap(
           config: IranIapConfig(
-            storePublicKey: _publicKey,
-            bazaarSecurityMode: BazaarSecurityMode.localVerification,
+            bazaarSecurityMode: BazaarSecurityMode.serverVerification,
             enableSubscriptions: false,
           ),
         );
@@ -83,7 +76,7 @@ class LifetimePurchaseService {
       final isOwned = ownsLifetimeAccess(owned, productId: productId);
 
       // A positive cache is written only after the Bazaar inventory has
-      // returned a matching, locally signature-verified purchase.
+      // returned a matching purchase under its configured verification mode.
       await preferences.setBool(_cachedOwnershipKey, isOwned);
       return isOwned;
     } catch (_) {
