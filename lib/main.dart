@@ -395,8 +395,13 @@ class ExamPage extends StatelessWidget {
 
 class QuizPage extends StatefulWidget {
   final QuizPack pack;
+  final DateTime Function()? clock;
 
-  const QuizPage({super.key, required this.pack});
+  const QuizPage({
+    super.key,
+    required this.pack,
+    this.clock,
+  });
 
   @override
   State<QuizPage> createState() => _QuizPageState();
@@ -410,15 +415,17 @@ class _QuizPageState extends State<QuizPage> {
   Timer? _timer;
   bool _finishing = false;
 
+  DateTime _now() => widget.clock?.call() ?? DateTime.now();
+
   @override
   void initState() {
     super.initState();
     _answers = List<int?>.filled(widget.pack.questionCount, null);
     _remainingSeconds = quizDurationFor(widget.pack.questionCount).inSeconds;
-    _deadline = DateTime.now().add(quizDurationFor(widget.pack.questionCount));
+    _deadline = _now().add(quizDurationFor(widget.pack.questionCount));
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || _finishing) return;
-      final remaining = _deadline.difference(DateTime.now()).inSeconds;
+      final remaining = _deadline.difference(_now()).inSeconds;
       if (remaining <= 0) {
         setState(() => _remainingSeconds = 0);
         unawaited(_finish());
