@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'knowledge_pages.dart';
 import 'data/quiz_registry.dart';
+import 'data/quiz_models.dart';
 
 const navy = Color(0xFF123B66);
 const blue = Color(0xFF1976D2);
