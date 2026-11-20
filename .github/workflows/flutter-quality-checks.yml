@@ -12,9 +12,10 @@ on:
 permissions:
   contents: read
 
+# هر commit اجرای مستقل کنترل کیفیت خود را دارد تا تست‌ها با push بعدی قطع نشوند.
 concurrency:
-  group: flutter-quality-${{ github.ref }}
-  cancel-in-progress: true
+  group: flutter-quality-${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   analyze-and-test:
