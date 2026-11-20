@@ -5,6 +5,7 @@ import 'receivables_quiz.dart';
 import 'maintenance_quiz.dart';
 import 'management_quiz.dart';
 import 'gas_industry_quiz.dart';
+import 'environmental_quiz.dart';
 
 const List<QuizPack> quizPacks = [
   hseQuizPack,
@@ -13,4 +14,5 @@ const List<QuizPack> quizPacks = [
   maintenanceQuizPack,
   managementQuizPack,
   gasIndustryQuizPack,
+  environmentalQuizPack,
 ];
