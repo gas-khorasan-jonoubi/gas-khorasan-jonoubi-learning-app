@@ -108,6 +108,13 @@ void main() {
     expect(find.text('جزئیات نتیجه آزمون'), findsOneWidget);
     expect(find.textContaining('نادرست: 1'), findsOneWidget);
 
+    // گزارش باید پاسخ انتخاب‌شده و پاسخ صحیح را در گروه مربوط نمایش دهد.
+    await tester.ensureVisible(find.text('پاسخ‌های نادرست و پاسخ صحیح'));
+    await tester.tap(find.text('پاسخ‌های نادرست و پاسخ صحیح'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('افزایش سرعت بدون توجه به ایمنی'), findsOneWidget);
+    expect(find.textContaining('شناخت عوامل بالقوه آسیب پیش از وقوع حادثه'), findsOneWidget);
+
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getStringList('exam_results');
     expect(saved, isNotNull);
@@ -119,6 +126,42 @@ void main() {
     expect(record['correct'], 0);
     expect(record['wrong'], 1);
     expect(record['unanswered'], 39);
+  });
+
+  testWidgets('exam finishes automatically when its total timer reaches zero', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    const pack = QuizPack(
+      id: 'timer-test',
+      title: 'آزمون آزمایشی زمان',
+      description: 'آزمون کوتاه برای کنترل پایان خودکار',
+      questions: [
+        {
+          'q': 'پرسش زمان‌سنج چیست؟',
+          'a': ['گزینه یک', 'گزینه دو', 'گزینه سه', 'گزینه چهار'],
+          'correct': 0,
+        },
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: QuizPage(pack: pack)),
+    );
+    expect(find.text('00:30'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 30));
+    await tester.pumpAndSettle();
+
+    expect(find.text('جزئیات نتیجه آزمون'), findsOneWidget);
+    expect(find.textContaining('بی‌پاسخ: 1'), findsOneWidget);
+
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList('exam_results');
+    expect(saved, hasLength(1));
+    final record = jsonDecode(saved!.single) as Map<String, dynamic>;
+    expect(record['examId'], 'timer-test');
+    expect(record['correct'], 0);
+    expect(record['wrong'], 0);
+    expect(record['unanswered'], 1);
   });
 
 }
