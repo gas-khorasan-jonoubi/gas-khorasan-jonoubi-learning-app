@@ -40,6 +40,14 @@ void main() {
       'آزمون مبانی امور مشترکین - 1 از 40',
     );
   });
+  testWidgets('receivables exam opens independently with 40 questions', (tester) async {
+    await _openExam(
+      tester,
+      'آزمون مبانی وصول مطالبات',
+      'آزمون مبانی وصول مطالبات - 1 از 40',
+    );
+  });
+
   testWidgets('answers can be changed and result is saved for the selected exam', (tester) async {
     SharedPreferences.setMockInitialValues({});
 
