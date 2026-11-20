@@ -12,11 +12,11 @@ workflows:
           fi
       - name: Prepare approved WebP splash asset
         script: |
-          mkdir -p build
-          python3 -m venv build/image-tools
-          build/image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
-          build/image-tools/bin/python tool/prepare_splash_asset.py --quality 92
-          build/image-tools/bin/python tool/test_prepare_splash_asset.py
+          mkdir -p /tmp
+          python3 -m venv /tmp/danestani-image-tools
+          /tmp/danestani-image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
+          /tmp/danestani-image-tools/bin/python tool/prepare_splash_asset.py --quality 92
+          /tmp/danestani-image-tools/bin/python tool/test_prepare_splash_asset.py
           test -s assets/approved_splash.webp
       - name: Configure Cafe Bazaar Android host
         script: python3 tool/configure_bazaar_android.py
@@ -57,11 +57,11 @@ workflows:
           fi
       - name: Prepare approved WebP splash asset
         script: |
-          mkdir -p build
-          python3 -m venv build/image-tools
-          build/image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
-          build/image-tools/bin/python tool/prepare_splash_asset.py --quality 92
-          build/image-tools/bin/python tool/test_prepare_splash_asset.py
+          mkdir -p /tmp
+          python3 -m venv /tmp/danestani-image-tools
+          /tmp/danestani-image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
+          /tmp/danestani-image-tools/bin/python tool/prepare_splash_asset.py --quality 92
+          /tmp/danestani-image-tools/bin/python tool/test_prepare_splash_asset.py
           test -s assets/approved_splash.webp
       - name: Configure Cafe Bazaar Android host
         script: python3 tool/configure_bazaar_android.py
