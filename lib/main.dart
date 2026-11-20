@@ -258,19 +258,22 @@ class _QuizPageState extends State<QuizPage> {
       List<int?>.filled(questions.length, null);
   int _current = 0;
   late int _remainingSeconds = quizDurationFor(questions.length).inSeconds;
+  late DateTime _deadline;
   Timer? _timer;
   bool _finishing = false;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _deadline = DateTime.now().add(quizDurationFor(questions.length));
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || _finishing) return;
-      if (_remainingSeconds <= 1) {
+      final remaining = _deadline.difference(DateTime.now()).inSeconds;
+      if (remaining <= 0) {
         setState(() => _remainingSeconds = 0);
         _finish();
-      } else {
-        setState(() => _remainingSeconds--);
+      } else if (remaining != _remainingSeconds) {
+        setState(() => _remainingSeconds = remaining);
       }
     });
   }
@@ -426,7 +429,7 @@ class ResultDetailPage extends StatelessWidget {
     // نتایج ذخیره‌شده در نسخه‌های قبلی نیز پس از به‌روزرسانی قابل مشاهده می‌مانند.
     final total = (record['total'] as int?) ?? 0;
     final correct = (record['correct'] as int?) ?? (record['score'] as int?) ?? 0;
-    final wrong = (record['wrong'] as int?) ?? (total - correct).clamp(0, total);
+    final wrong = (record['wrong'] as int?) ?? (total - correct).clamp(0, total).toInt();
     final unanswered = (record['unanswered'] as int?) ?? 0;
     final hasQuestionBreakdown =
         record['questions'] is List && record['answers'] is List;
