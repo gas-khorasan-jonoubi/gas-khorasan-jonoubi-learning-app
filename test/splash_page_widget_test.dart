@@ -4,13 +4,20 @@ import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
 
 void main() {
 
-  testWidgets('splash remains visible for three seconds before opening dashboard', (tester) async {
+  testWidgets('splash remains visible for three seconds after poster is ready', (tester) async {
+    var posterPrepared = false;
     await tester.pumpWidget(
-      const MaterialApp(
-        home: SplashPage(displayDuration: Duration(seconds: 3)),
+      MaterialApp(
+        home: SplashPage(
+          displayDuration: const Duration(seconds: 3),
+          preparePoster: (_) async {
+            posterPrepared = true;
+          },
+        ),
       ),
     );
     await tester.pump();
+    expect(posterPrepared, isTrue);
 
     final posterFinder = find.byWidgetPredicate(
       (widget) =>
