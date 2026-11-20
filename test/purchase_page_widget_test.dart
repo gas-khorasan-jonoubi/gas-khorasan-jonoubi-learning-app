@@ -59,7 +59,6 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final service = LifetimePurchaseService(
       productId: 'danestani_gaz_lifetime',
-      publicKey: 'test-public-key',
       client: _PurchasePageClient(),
     );
 
