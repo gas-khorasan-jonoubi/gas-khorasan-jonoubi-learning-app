@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: flutter-quality-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze-and-test:
     name: Analyze and test (no APK)
