@@ -43,6 +43,13 @@ void main() {
       }
     });
 
+    test('question prompts are unique across all twenty exam packs', () {
+      final prompts = quizPacks
+          .expand((pack) => pack.questions.map((question) => question['q']))
+          .toList();
+      expect(prompts.toSet().length, prompts.length);
+    });
+
     test('each pack has complete choices, unique prompts and balanced answer positions', () {
       for (final pack in quizPacks) {
         final prompts = <String>{};
