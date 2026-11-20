@@ -73,3 +73,48 @@ jobs:
 
       - name: Run automated tests
         run: flutter test --reporter expanded
+
+      - name: Prepare reproducible dependency and splash review files
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet Pillow
+          mkdir -p build/release-readiness/splash
+          cp pubspec.lock build/release-readiness/pubspec.lock
+          python3 - <<'PY'
+          from hashlib import sha256
+          from pathlib import Path
+          from PIL import Image
+
+          source_path = Path("assets/approved_splash.png")
+          output_dir = Path("build/release-readiness/splash")
+          original_size = source_path.stat().st_size
+
+          with Image.open(source_path) as source:
+              has_alpha = "A" in source.getbands()
+              image = source.convert("RGBA" if has_alpha else "RGB")
+              print(f"Source poster: {image.width}x{image.height}, {original_size} bytes")
+              for quality in (96, 92, 88, 84):
+                  target = output_dir / f"approved_splash_q{quality}.webp"
+                  image.save(
+                      target,
+                      format="WEBP",
+                      quality=quality,
+                      method=6,
+                      exact=True,
+                  )
+                  data = target.read_bytes()
+                  print(
+                      f"{target.name}: {len(data)} bytes "
+                      f"({len(data) / original_size:.1%} of PNG), "
+                      f"sha256={sha256(data).hexdigest()}"
+                  )
+                  if len(data) >= original_size:
+                      raise SystemExit(f"WebP candidate is not smaller: {target}")
+          PY
+
+      - name: Upload dependency lock and splash review candidates
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-readiness-${{ github.sha }}
+          path: build/release-readiness/
+          if-no-files-found: error
+          retention-days: 3
