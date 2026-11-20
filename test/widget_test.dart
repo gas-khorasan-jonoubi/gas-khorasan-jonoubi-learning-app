@@ -20,10 +20,38 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('راهنمای استفاده از برنامه'), findsOneWidget);
-    expect(find.text('۲۰ آزمون مستقل'), findsOneWidget);
-    expect(find.text('آموزش و کتابخانه دیجیتال'), findsOneWidget);
-    expect(find.text('خرید دائمی و بازیابی خرید'), findsOneWidget);
-    expect(find.textContaining('همان حساب قبلی'), findsOneWidget);
+
+    final quizInfo = find.textContaining('۲۰ آزمون مستقل');
+    await tester.scrollUntilVisible(
+      quizInfo,
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(quizInfo, findsOneWidget);
+
+    final libraryTitle = find.text('آموزش و کتابخانه دیجیتال');
+    await tester.scrollUntilVisible(
+      libraryTitle,
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(libraryTitle, findsOneWidget);
+
+    final purchaseTitle = find.text('خرید دائمی و بازیابی خرید');
+    await tester.scrollUntilVisible(
+      purchaseTitle,
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(purchaseTitle, findsOneWidget);
+
+    final restoreGuidance = find.textContaining('همان حساب قبلی');
+    await tester.scrollUntilVisible(
+      restoreGuidance,
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(restoreGuidance, findsOneWidget);
   });
 
   testWidgets('app opens dashboard only after lifetime access is confirmed', (tester) async {
