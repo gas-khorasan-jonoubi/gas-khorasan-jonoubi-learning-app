@@ -256,7 +256,6 @@ def _configure_release_signing(
     release_header = re.search(release_header_pattern, source[build_types.end():])
     if release_header is None:
         raise RuntimeError("Could not find the release build type for signing.")
-    absolute_start = build_types.end() + release_header.start()
     absolute_end = build_types.end() + release_header.end()
     release_body = source[absolute_end:]
 
@@ -290,11 +289,21 @@ def main() -> int:
     android_directory = Path(__file__).resolve().parents[1] / "android"
     application_id = os.environ.get("BAZAAR_APPLICATION_ID", "").strip() or None
     try:
-        signing_configured = _configure_release_signing(
-            android_directory,
-            dict(os.environ),
+        signing_environment = dict(os.environ)
+        signing_names = (
+            "CM_KEYSTORE_PATH",
+            "CM_KEYSTORE_PASSWORD",
+            "CM_KEY_ALIAS",
+            "CM_KEY_PASSWORD",
         )
-        configure_android(android_directory, application_id=application_id)
+        signing_configured = all(
+            signing_environment.get(name, "").strip() for name in signing_names
+        )
+        configure_android(
+            android_directory,
+            application_id=application_id,
+            signing_environment=signing_environment,
+        )
     except (OSError, RuntimeError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
