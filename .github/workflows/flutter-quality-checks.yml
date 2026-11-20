@@ -12,7 +12,7 @@ on:
 permissions:
   contents: read
 
-# فقط آخرین نسخه هر شاخه بررسی می‌شود تا اجرای قدیمی منابع CI را اشغال نکند.
+# Only the newest revision of each branch is checked.
 concurrency:
   group: flutter-quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -51,8 +51,17 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Verify selected NIGC launcher artwork
+        run: |
+          test -s assets/app_icon.jpg
+          echo 'e0310a00567f7b4877632119ceba87c862dbf67b20b53e29202fe37e84c7094a  assets/app_icon.jpg' | sha256sum --check -
+
+      - name: Generate selected NIGC Android launcher icon
+        run: dart run flutter_launcher_icons
+
       - name: Check Cafe Bazaar Android integration
         run: dart run iran_iap doctor --store bazaar
+
       - name: Resolve Cafe Bazaar Android release dependencies (no APK)
         run: cd android && ./gradlew --no-daemon :app:dependencies --configuration releaseRuntimeClasspath -PiranIapStore=bazaar
 

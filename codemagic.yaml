@@ -1,4 +1,3 @@
-
 workflows:
   quality-checks:
     name: Danestaniha-ye Gaz - Code Quality Checks
@@ -17,6 +16,12 @@ workflows:
         script: python3 tool/test_configure_bazaar_android.py
       - name: Get Flutter packages
         script: flutter pub get
+      - name: Verify selected NIGC launcher artwork
+        script: |
+          test -s assets/app_icon.jpg
+          echo 'e0310a00567f7b4877632119ceba87c862dbf67b20b53e29202fe37e84c7094a  assets/app_icon.jpg' | sha256sum --check -
+      - name: Generate selected NIGC Android launcher icon
+        script: dart run flutter_launcher_icons
       - name: Check Cafe Bazaar Android integration
         script: dart run iran_iap doctor --store bazaar
       - name: Resolve Cafe Bazaar Android release dependencies (no APK)
@@ -108,6 +113,12 @@ workflows:
           PY
       - name: Get Flutter packages
         script: flutter pub get
+      - name: Verify selected NIGC launcher artwork
+        script: |
+          test -s assets/app_icon.jpg
+          echo 'e0310a00567f7b4877632119ceba87c862dbf67b20b53e29202fe37e84c7094a  assets/app_icon.jpg' | sha256sum --check -
+      - name: Generate selected NIGC Android launcher icon
+        script: dart run flutter_launcher_icons
       - name: Check Cafe Bazaar Android integration
         script: dart run iran_iap doctor --store bazaar
       - name: Analyze Dart code
