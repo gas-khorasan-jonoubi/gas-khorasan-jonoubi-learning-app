@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iran_iap/iran_iap.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gas_khorasan_jonoubi_learning_app/services/lifetime_purchase_service.dart';
 
 IapPurchase _purchase({
@@ -16,6 +17,62 @@ IapPurchase _purchase({
     state: state,
     purchaseTime: DateTime.utc(2026, 1, 1),
   );
+}
+
+class _FakeIranIapClient implements IranIapClient {
+  bool initialized = false;
+  bool failPurchaseQuery = false;
+  List<IapProduct> products = [];
+  List<IapPurchase> ownedPurchases = [];
+  PurchaseOutcome outcome = const PurchaseCancelled();
+  IapPurchaseRequest? lastPurchaseRequest;
+  int consumeCalls = 0;
+
+  @override
+  IapStore get store => IapStore.bazaar;
+
+  @override
+  bool get isInitialized => initialized;
+
+  @override
+  IapCapabilities get capabilities => const IapCapabilities();
+
+  @override
+  Future<void> initialize() async {
+    initialized = true;
+  }
+
+  @override
+  Future<List<IapProduct>> queryProducts(
+    Set<String> productIds, {
+    required IapProductType type,
+  }) async {
+    return products
+        .where((product) => productIds.contains(product.id) && product.type == type)
+        .toList();
+  }
+
+  @override
+  Future<List<IapPurchase>> queryPurchases({
+    required IapProductType type,
+  }) async {
+    if (failPurchaseQuery) throw StateError('store temporarily unavailable');
+    return ownedPurchases.where((purchase) => purchase.type == type).toList();
+  }
+
+  @override
+  Future<PurchaseOutcome> purchase(IapPurchaseRequest request) async {
+    lastPurchaseRequest = request;
+    return outcome;
+  }
+
+  @override
+  Future<void> consume(IapPurchase purchase) async {
+    consumeCalls++;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -82,6 +139,129 @@ void main() {
         ),
         isFalse,
       );
+    });
+  });
+
+  group('lifetime purchase service', () {
+    const sku = 'danestani_gaz_lifetime';
+    const publicKey = 'test-public-key';
+
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('caches ownership only after a matching purchase is returned by Bazaar', () async {
+      final client = _FakeIranIapClient()..ownedPurchases = [_purchase()];
+      final service = LifetimePurchaseService(
+        productId: sku,
+        publicKey: publicKey,
+        client: client,
+      );
+
+      expect(await service.restoreAccess(), isTrue);
+
+      final preferences = await SharedPreferences.getInstance();
+      expect(preferences.getBool('bazaar_lifetime_access_verified'), isTrue);
+    });
+
+    test('keeps previously verified access during a temporary store outage', () async {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setBool('bazaar_lifetime_access_verified', true);
+
+      final client = _FakeIranIapClient()..failPurchaseQuery = true;
+      final service = LifetimePurchaseService(
+        productId: sku,
+        publicKey: publicKey,
+        client: client,
+      );
+
+      expect(await service.restoreAccess(), isTrue);
+    });
+
+    test('clears the cached access after a successful query reports no owned product', () async {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setBool('bazaar_lifetime_access_verified', true);
+
+      final client = _FakeIranIapClient();
+      final service = LifetimePurchaseService(
+        productId: sku,
+        publicKey: publicKey,
+        client: client,
+      );
+
+      expect(await service.restoreAccess(), isFalse);
+      expect(preferences.getBool('bazaar_lifetime_access_verified'), isFalse);
+    });
+
+    test('completes a one-time in-app purchase and never consumes it', () async {
+      final purchase = _purchase(productId: sku);
+      final client = _FakeIranIapClient()
+        ..products = [
+          IapProduct(
+            id: sku,
+            type: IapProductType.inApp,
+            title: 'دسترسی دائمی',
+            description: 'خرید یک‌باره',
+            price: 'قیمت آزمایشی',
+          ),
+        ]
+        ..outcome = PurchaseCompleted(purchase)
+        ..ownedPurchases = [purchase];
+
+      final service = LifetimePurchaseService(
+        productId: sku,
+        publicKey: publicKey,
+        client: client,
+      );
+
+      expect(
+        await service.purchaseLifetimeAccess(),
+        LifetimePurchaseResult.purchased,
+      );
+      expect(client.lastPurchaseRequest?.productId, sku);
+      expect(client.lastPurchaseRequest?.type, IapProductType.inApp);
+      expect(client.consumeCalls, 0);
+    });
+
+    test('returns cancellation without granting ownership', () async {
+      final client = _FakeIranIapClient()
+        ..products = [
+          IapProduct(
+            id: sku,
+            type: IapProductType.inApp,
+            title: 'دسترسی دائمی',
+            description: 'خرید یک‌باره',
+            price: 'قیمت آزمایشی',
+          ),
+        ]
+        ..outcome = const PurchaseCancelled();
+
+      final service = LifetimePurchaseService(
+        productId: sku,
+        publicKey: publicKey,
+        client: client,
+      );
+
+      expect(
+        await service.purchaseLifetimeAccess(),
+        LifetimePurchaseResult.cancelled,
+      );
+      expect(client.consumeCalls, 0);
+    });
+
+    test('does not start purchase when the product is not returned by Bazaar', () async {
+      final client = _FakeIranIapClient();
+      final service = LifetimePurchaseService(
+        productId: sku,
+        publicKey: publicKey,
+        client: client,
+      );
+
+      expect(
+        await service.purchaseLifetimeAccess(),
+        LifetimePurchaseResult.productUnavailable,
+      );
+      expect(client.lastPurchaseRequest, isNull);
     });
   });
 }
