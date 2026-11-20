@@ -54,7 +54,7 @@ class LifetimePurchaseService {
     }
     return _client ??= _injectedClient ??
         IranIap(
-          config: IranIapConfig(
+          config: const IranIapConfig(
             bazaarSecurityMode: BazaarSecurityMode.serverVerification,
             enableSubscriptions: false,
           ),
