@@ -88,7 +88,7 @@ class HomePage extends StatefulWidget {
 }
 class _HomePageState extends State<HomePage> {
   int index = 0;
-  final pages = const [DashboardPage(), ExamPage(), TrainingPage(), LibraryPage(), ResultsPage()];
+  final pages = const [SizedBox.shrink(), ExamPage(), TrainingPage(), LibraryPage(), ResultsPage()];
   final titles = const ['داشبورد', 'آزمون‌ها', 'آموزش‌ها', 'کتابخانه', 'نتایج'];
   @override
   Widget build(BuildContext context) => PopScope<void>(
@@ -125,7 +125,9 @@ class _HomePageState extends State<HomePage> {
     },
     child: Scaffold(
       appBar: AppBar(title: Text(titles[index])),
-      body: pages[index],
+      body: index == 0
+          ? DashboardPage(onNavigate: (destination) => setState(() => index = destination))
+          : pages[index],
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (v) => setState(() => index = v),
@@ -142,26 +144,79 @@ class _HomePageState extends State<HomePage> {
 }
 
 class DashboardPage extends StatelessWidget {
-  const DashboardPage({super.key});
+  final ValueChanged<int> onNavigate;
+
+  const DashboardPage({super.key, required this.onNavigate});
+
   @override
-  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(18), children: [
-    Container(padding: const EdgeInsets.all(22), decoration: BoxDecoration(color: navy, borderRadius: BorderRadius.circular(20)), child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('به سامانه آموزش خوش آمدید', style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.bold)),
-      SizedBox(height: 8), Text('یادگیری، مرور مطالب و سنجش آموخته‌ها', style: TextStyle(color: Colors.white70)),
-    ])),
-    const SizedBox(height: 18),
-    const Text('دسترسی سریع', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-    const SizedBox(height: 10),
-    _MenuTile(icon: Icons.quiz, title: 'آزمون‌های چهارگزینه‌ای', subtitle: 'پاسخ به پرسش‌ها و ثبت نتیجه', onTap: () => _go(context, 1)),
-    _MenuTile(icon: Icons.menu_book, title: 'آموزش‌ها', subtitle: 'مطالعه محتوای آموزشی', onTap: () => _go(context, 2)),
-    _MenuTile(icon: Icons.local_library, title: 'کتابخانه دیجیتال', subtitle: 'دسترسی به منابع و جزوه‌ها', onTap: () => _go(context, 3)),
-    _MenuTile(icon: Icons.assessment, title: 'سوابق آزمون', subtitle: 'مشاهده نتایج ذخیره‌شده', onTap: () => _go(context, 4)),
-    _MenuTile(icon: Icons.help_outline, title: 'راهنمای استفاده', subtitle: 'آشنایی با بخش‌ها و مثال کاربردی', onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const HelpPage()))),
-  ]);
-  void _go(BuildContext context, int i) {
-    final state = context.findAncestorStateOfType<_HomePageState>();
-    state?.setState(() => state.index = i);
-  }
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: navy,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'به سامانه آموزش خوش آمدید',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 21,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'یادگیری، مرور مطالب و سنجش آموخته‌ها',
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'دسترسی سریع',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          _MenuTile(
+            icon: Icons.quiz,
+            title: 'آزمون‌های چهارگزینه‌ای',
+            subtitle: 'پاسخ به پرسش‌ها و ثبت نتیجه',
+            onTap: () => onNavigate(1),
+          ),
+          _MenuTile(
+            icon: Icons.menu_book,
+            title: 'آموزش‌ها',
+            subtitle: 'مطالعه محتوای آموزشی',
+            onTap: () => onNavigate(2),
+          ),
+          _MenuTile(
+            icon: Icons.local_library,
+            title: 'کتابخانه دیجیتال',
+            subtitle: 'دسترسی به منابع و جزوه‌ها',
+            onTap: () => onNavigate(3),
+          ),
+          _MenuTile(
+            icon: Icons.assessment,
+            title: 'سوابق آزمون',
+            subtitle: 'مشاهده نتایج ذخیره‌شده',
+            onTap: () => onNavigate(4),
+          ),
+          _MenuTile(
+            icon: Icons.help_outline,
+            title: 'راهنمای استفاده',
+            subtitle: 'آشنایی با بخش‌ها و مثال کاربردی',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const HelpPage()),
+            ),
+          ),
+        ],
+      );
 }
 class _MenuTile extends StatelessWidget {
   final IconData icon; final String title, subtitle; final VoidCallback onTap;
@@ -365,17 +420,21 @@ class _QuizPageState extends State<QuizPage> {
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 14),
-          ...List.generate(
-            answers.length,
-            (i) => Card(
-              child: RadioListTile<int>(
-                value: i,
-                groupValue: selected,
-                onChanged: (value) {
-                  if (value == null || _finishing) return;
-                  setState(() => _answers[_current] = value);
-                },
-                title: Text(answers[i]),
+          RadioGroup<int>(
+            groupValue: selected,
+            onChanged: (value) {
+              if (value == null || _finishing) return;
+              setState(() => _answers[_current] = value);
+            },
+            child: Column(
+              children: List.generate(
+                answers.length,
+                (i) => Card(
+                  child: RadioListTile<int>(
+                    value: i,
+                    title: Text(answers[i]),
+                  ),
+                ),
               ),
             ),
           ),
