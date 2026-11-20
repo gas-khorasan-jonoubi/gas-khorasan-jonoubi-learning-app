@@ -23,7 +23,7 @@ void main() {
       (widget) =>
           widget is Image &&
           widget.image is AssetImage &&
-          (widget.image as AssetImage).assetName == 'assets/approved_splash.png',
+          (widget.image as AssetImage).assetName == 'assets/approved_splash.webp',
     );
     expect(posterFinder, findsOneWidget);
 
@@ -46,7 +46,7 @@ void main() {
       (widget) =>
           widget is Image &&
           widget.image is AssetImage &&
-          (widget.image as AssetImage).assetName == 'assets/approved_splash.png',
+          (widget.image as AssetImage).assetName == 'assets/approved_splash.webp',
     );
 
     expect(posterFinder, findsOneWidget);
