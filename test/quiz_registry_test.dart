@@ -3,8 +3,8 @@ import 'package:gas_khorasan_jonoubi_learning_app/data/quiz_registry.dart';
 
 void main() {
   group('independent offline quiz packs', () {
-    test('registers HSE and customer service as separate exams', () {
-      expect(quizPacks, hasLength(2));
+    test('registers HSE, customer service and receivables as separate exams', () {
+      expect(quizPacks, hasLength(3));
       expect(
         quizPacks.map((pack) => pack.id).toSet().length,
         quizPacks.length,
@@ -14,6 +14,7 @@ void main() {
         containsAll([
           'آزمون مبانی ایمنی و HSE',
           'آزمون مبانی امور مشترکین',
+          'آزمون مبانی وصول مطالبات',
         ]),
       );
     });
