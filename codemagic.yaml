@@ -21,6 +21,9 @@ workflows:
         script: dart run iran_iap doctor --store bazaar
       - name: Resolve Cafe Bazaar Android release dependencies (no APK)
         script: cd android && ./gradlew --no-daemon :app:dependencies --configuration releaseRuntimeClasspath -PiranIapStore=bazaar
+      - name: Compile Android release host (no APK)
+        script: cd android && ./gradlew --no-daemon :app:checkReleaseAarMetadata :app:compileReleaseKotlin
+
       - name: Analyze Dart code
         script: flutter analyze
       - name: Run automated tests
