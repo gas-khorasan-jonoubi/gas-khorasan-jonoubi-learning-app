@@ -88,8 +88,8 @@ class HomePage extends StatefulWidget {
 }
 class _HomePageState extends State<HomePage> {
   int index = 0;
-  final pages = const [DashboardPage(), ExamPage(), TrainingPage(), LibraryPage(), ResultsPage(), HelpPage()];
-  final titles = const ['داشبورد', 'آزمون‌ها', 'آموزش‌ها', 'کتابخانه', 'نتایج', 'راهنما'];
+  final pages = const [DashboardPage(), ExamPage(), TrainingPage(), LibraryPage(), ResultsPage()];
+  final titles = const ['داشبورد', 'آزمون‌ها', 'آموزش‌ها', 'کتابخانه', 'نتایج'];
   @override
   Widget build(BuildContext context) => WillPopScope(
     onWillPop: () async {
@@ -131,7 +131,6 @@ class _HomePageState extends State<HomePage> {
           NavigationDestination(icon: Icon(Icons.play_lesson_outlined), label: 'آموزش'),
           NavigationDestination(icon: Icon(Icons.local_library_outlined), label: 'کتابخانه'),
           NavigationDestination(icon: Icon(Icons.bar_chart_outlined), label: 'نتایج'),
-          NavigationDestination(icon: Icon(Icons.help_outline), label: 'راهنما'),
         ],
       ),
     ),
@@ -153,7 +152,7 @@ class DashboardPage extends StatelessWidget {
     _MenuTile(icon: Icons.menu_book, title: 'آموزش‌ها', subtitle: 'مطالعه محتوای آموزشی', onTap: () => _go(context, 2)),
     _MenuTile(icon: Icons.local_library, title: 'کتابخانه دیجیتال', subtitle: 'دسترسی به منابع و جزوه‌ها', onTap: () => _go(context, 3)),
     _MenuTile(icon: Icons.assessment, title: 'سوابق آزمون', subtitle: 'مشاهده نتایج ذخیره‌شده', onTap: () => _go(context, 4)),
-    _MenuTile(icon: Icons.help_outline, title: 'راهنمای استفاده', subtitle: 'آشنایی با بخش‌ها و مثال کاربردی', onTap: () => _go(context, 5)),
+    _MenuTile(icon: Icons.help_outline, title: 'راهنمای استفاده', subtitle: 'آشنایی با بخش‌ها و مثال کاربردی', onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const HelpPage()))),
   ]);
   void _go(BuildContext context, int i) {
     final state = context.findAncestorStateOfType<_HomePageState>();
