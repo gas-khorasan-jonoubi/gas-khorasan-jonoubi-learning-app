@@ -81,12 +81,16 @@ class _PurchasePageState extends State<PurchasePage> {
             _hasAccess = true;
             _message = 'خرید تأیید شد؛ دسترسی دائمی فعال است.';
           });
+          break;
         case LifetimePurchaseResult.cancelled:
           setState(() => _message = 'خرید توسط شما لغو شد.');
+          break;
         case LifetimePurchaseResult.productUnavailable:
           setState(() => _message = 'محصول خرید در پنل کافه‌بازار پیدا نشد یا هنوز فعال نشده است.');
+          break;
         case LifetimePurchaseResult.purchaseNotConfirmed:
           setState(() => _message = 'خرید هنوز در فهرست خریدهای تأییدشده کافه‌بازار دیده نمی‌شود. از بازیابی خرید استفاده کنید.');
+          break;
       }
     } catch (error) {
       if (!mounted) return;
