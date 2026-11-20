@@ -140,7 +140,7 @@ def _configure_application_id(android: Path, application_id: str | None) -> None
     if not application_id:
         return
 
-    package_pattern = r"[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+"
+    package_pattern = r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+"
     if not re.fullmatch(package_pattern, application_id):
         raise RuntimeError(
             "BAZAAR_APPLICATION_ID must be a valid Android application ID "
@@ -156,10 +156,10 @@ def _configure_application_id(android: Path, application_id: str | None) -> None
     source = gradle_file.read_text(encoding="utf-8")
     if gradle_file.suffix == ".kts":
         assignment = f'applicationId = "{application_id}"'
-        pattern = r'(?m)^(\\s*)applicationId\\s*=\\s*"[^"]+"'
+        pattern = r'(?m)^(\s*)applicationId\s*=\s*"[^"]+"'
     else:
         assignment = f'applicationId "{application_id}"'
-        pattern = r'(?m)^(\\s*)applicationId\\s+["\\'][^"\\']+["\\']'
+        pattern = r"(?m)^(\s*)applicationId\s+['\"][^'\"]+['\"]"
 
     existing, count = re.subn(
         pattern,
@@ -168,13 +168,13 @@ def _configure_application_id(android: Path, application_id: str | None) -> None
         count=1,
     )
     if count == 0:
-        default_config = re.search(r'(?m)^(\\s*)defaultConfig\\s*\\{', source)
+        default_config = re.search(r'(?m)^(\s*)defaultConfig\s*\{', source)
         if default_config is None:
             raise RuntimeError("Could not find defaultConfig to set applicationId.")
         indent = default_config.group(1) + "    "
         existing = (
             source[:default_config.end()]
-            + "\\n"
+            + "\n"
             + indent
             + assignment
             + source[default_config.end():]
