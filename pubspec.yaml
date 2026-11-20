@@ -10,7 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
   shared_preferences: ^2.3.2
   material_ui: ^1.11.1
   iran_iap: ^0.3.1
