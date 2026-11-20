@@ -43,12 +43,15 @@ workflows:
           python3 - <<'PY'
           import json
           import os
+          import re
           from pathlib import Path
 
+          application_id = os.environ.get("BAZAAR_APPLICATION_ID", "").strip()
           product_id = os.environ.get("BAZAAR_LIFETIME_PRODUCT_ID", "").strip()
           public_key = os.environ.get("BAZAAR_RSA_PUBLIC_KEY", "").strip()
           missing = [
               name for name, value in (
+                  ("BAZAAR_APPLICATION_ID", application_id),
                   ("BAZAAR_LIFETIME_PRODUCT_ID", product_id),
                   ("BAZAAR_RSA_PUBLIC_KEY", public_key),
               )
@@ -59,6 +62,9 @@ workflows:
                   "Cafe Bazaar release blocked. Configure these Codemagic environment variables: "
                   + ", ".join(missing)
               )
+
+          if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+", application_id):
+              raise SystemExit("BAZAAR_APPLICATION_ID is not a valid Android application ID.")
 
           defines = {
               "IRAN_IAP_STORE": "bazaar",
