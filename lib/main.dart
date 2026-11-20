@@ -90,7 +90,12 @@ class _SplashPageState extends State<SplashPage> {
 }
 
 class AppStartGate extends StatefulWidget {
-  const AppStartGate({super.key});
+  final Future<bool> Function()? accessCheck;
+
+  const AppStartGate({
+    super.key,
+    this.accessCheck,
+  });
 
   @override
   State<AppStartGate> createState() => _AppStartGateState();
@@ -100,6 +105,15 @@ class _AppStartGateState extends State<AppStartGate> {
   late final Future<bool> _accessCheck = _checkAccess();
 
   Future<bool> _checkAccess() async {
+    final customCheck = widget.accessCheck;
+    if (customCheck != null) {
+      try {
+        return await customCheck();
+      } catch (_) {
+        return false;
+      }
+    }
+
     // During development, the app remains usable until the real Bazaar SKU
     // and public key are supplied to the release build.
     if (!lifetimePurchaseService.isConfigured) return true;
