@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'knowledge_pages.dart';
-import 'data/quiz_content.dart';
+import 'data/quiz_registry.dart';
 
 const navy = Color(0xFF123B66);
 const blue = Color(0xFF1976D2);
@@ -284,34 +284,61 @@ class ExamPage extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         children: [
           const _InfoCard(
-            icon: Icons.health_and_safety,
-            title: hseQuizTitle,
-            body: '$hseQuizDescription زمان کل آزمون ۲۰ دقیقه است؛ پاسخ‌ها تا پایان آزمون قابل تغییر هستند.',
+            icon: Icons.quiz_outlined,
+            title: 'آزمون‌های آفلاین',
+            body: 'هر آزمون به‌صورت مستقل طراحی شده است. برای هر سؤال ۳۰ ثانیه در زمان کل آزمون محاسبه می‌شود و می‌توانید تا پایان زمان، پاسخ‌ها را تغییر دهید.',
           ),
-          const SizedBox(height: 14),
-          FilledButton.icon(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const QuizPage()),
-            ),
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('شروع آزمون ۴۰ سؤالی'),
-          ),
+          const SizedBox(height: 10),
+          ...quizPacks.map((pack) {
+            final minutes = pack.durationSeconds ~/ 60;
+            final seconds = pack.durationSeconds % 60;
+            final durationLabel = seconds == 0
+                ? '$minutes دقیقه'
+                : '$minutes دقیقه و $seconds ثانیه';
+            return Card(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                leading: const CircleAvatar(
+                  backgroundColor: paleBlue,
+                  child: Icon(Icons.quiz, color: navy),
+                ),
+                title: Text(
+                  pack.title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 7),
+                  child: Text(
+                    '${pack.description}\nتعداد پرسش‌ها: ${pack.questionCount}  |  زمان کل: $durationLabel',
+                  ),
+                ),
+                isThreeLine: true,
+                trailing: const Icon(Icons.chevron_left),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => QuizPage(pack: pack),
+                  ),
+                ),
+              ),
+            );
+          }),
         ],
       );
 }
 
 class QuizPage extends StatefulWidget {
-  const QuizPage({super.key});
+  final QuizPack pack;
+
+  const QuizPage({super.key, required this.pack});
 
   @override
   State<QuizPage> createState() => _QuizPageState();
 }
 
 class _QuizPageState extends State<QuizPage> {
-  late final List<int?> _answers =
-      List<int?>.filled(questions.length, null);
+  late final List<int?> _answers;
   int _current = 0;
-  late int _remainingSeconds = quizDurationFor(questions.length).inSeconds;
+  late int _remainingSeconds;
   late DateTime _deadline;
   Timer? _timer;
   bool _finishing = false;
@@ -319,7 +346,9 @@ class _QuizPageState extends State<QuizPage> {
   @override
   void initState() {
     super.initState();
-    _deadline = DateTime.now().add(quizDurationFor(questions.length));
+    _answers = List<int?>.filled(widget.pack.questionCount, null);
+    _remainingSeconds = quizDurationFor(widget.pack.questionCount).inSeconds;
+    _deadline = DateTime.now().add(quizDurationFor(widget.pack.questionCount));
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || _finishing) return;
       final remaining = _deadline.difference(DateTime.now()).inSeconds;
@@ -349,24 +378,26 @@ class _QuizPageState extends State<QuizPage> {
     _finishing = true;
     _timer?.cancel();
 
+    final packQuestions = widget.pack.questions;
     final summary = evaluateQuizAnswers(
       _answers,
-      questions.map((q) => q['correct'] as int).toList(),
+      packQuestions.map((question) => question['correct'] as int).toList(),
     );
 
     final record = <String, dynamic>{
       'date': DateTime.now().toIso8601String(),
-      'examTitle': hseQuizTitle,
+      'examId': widget.pack.id,
+      'examTitle': widget.pack.title,
       'correct': summary.correct,
       'wrong': summary.wrong,
       'unanswered': summary.unanswered,
-      'total': questions.length,
+      'total': packQuestions.length,
       'answers': _answers.map((answer) => answer ?? -1).toList(),
-      'questions': questions
-          .map((q) => <String, Object>{
-                'q': q['q'] as String,
-                'a': List<String>.from(q['a'] as List<String>),
-                'correct': q['correct'] as int,
+      'questions': packQuestions
+          .map((question) => <String, Object>{
+                'q': question['q'] as String,
+                'a': List<String>.from(question['a'] as List<String>),
+                'correct': question['correct'] as int,
               })
           .toList(),
     };
@@ -386,13 +417,14 @@ class _QuizPageState extends State<QuizPage> {
 
   @override
   Widget build(BuildContext context) {
-    final q = questions[_current];
-    final answers = q['a'] as List<String>;
+    final packQuestions = widget.pack.questions;
+    final question = packQuestions[_current];
+    final options = question['a'] as List<String>;
     final selected = _answers[_current];
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('پرسش ${_current + 1} از ${questions.length}'),
+        title: Text('${widget.pack.title} - ${_current + 1} از ${packQuestions.length}'),
         actions: [
           Padding(
             padding: const EdgeInsetsDirectional.only(end: 16),
@@ -412,11 +444,11 @@ class _QuizPageState extends State<QuizPage> {
         padding: const EdgeInsets.all(18),
         children: [
           LinearProgressIndicator(
-            value: (_current + 1) / questions.length,
+            value: (_current + 1) / packQuestions.length,
           ),
           const SizedBox(height: 18),
           Text(
-            q['q'] as String,
+            question['q'] as String,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 14),
@@ -428,11 +460,11 @@ class _QuizPageState extends State<QuizPage> {
             },
             child: Column(
               children: List.generate(
-                answers.length,
-                (i) => Card(
+                options.length,
+                (index) => Card(
                   child: RadioListTile<int>(
-                    value: i,
-                    title: Text(answers[i]),
+                    value: index,
+                    title: Text(options[index]),
                   ),
                 ),
               ),
@@ -453,7 +485,7 @@ class _QuizPageState extends State<QuizPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: _current == questions.length - 1
+                  onPressed: _current == packQuestions.length - 1
                       ? null
                       : () => setState(() => _current++),
                   icon: const Icon(Icons.chevron_left),
@@ -469,7 +501,7 @@ class _QuizPageState extends State<QuizPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'پاسخ داده‌شده: ${_answers.where((a) => a != null).length} از ${questions.length}',
+            'پاسخ داده‌شده: ${_answers.where((answer) => answer != null).length} از ${packQuestions.length}',
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.black54),
           ),
@@ -652,7 +684,7 @@ class _ResultsPageState extends State<ResultsPage> {
               return Card(
                 child: ListTile(
                   leading: const Icon(Icons.assessment, color: blue),
-                  title: Text('درست: $correct  |  نادرست: $wrong'),
+                  title: Text('${record['examTitle'] ?? 'آزمون'} - درست: $correct  |  نادرست: $wrong'),
                   subtitle: Text('${date.year}/${date.month}/${date.day} - ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}'),
                   trailing: const Icon(Icons.chevron_left),
                   onTap: () => Navigator.of(context).push(
