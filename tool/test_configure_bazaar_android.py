@@ -131,7 +131,7 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         self.assertIn("signingConfigs {", app_gradle)
         self.assertIn("signingConfig signingConfigs.release", app_gradle)
         self.assertNotIn("signingConfig signingConfigs.debug", app_gradle)
-        self.assertIn("System.getenv('CM_KEYSTORE_PASSWORD')", app_gradle)
+        self.assertIn('System.getenv("CM_KEYSTORE_PASSWORD")', app_gradle)
         self.assertNotIn("not-a-real-password", app_gradle)
 
     def test_partial_signing_environment_fails_closed(self) -> None:
@@ -144,10 +144,17 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
 
     def test_configuration_is_idempotent(self) -> None:
         android = self._make_project(kotlin_dsl=True)
-        configure_android(android)
-        configure_android(android)
+        signing_environment = self._signing_environment()
+        configure_android(android, signing_environment=signing_environment)
+        configure_android(android, signing_environment=signing_environment)
         root_gradle = (android / "build.gradle.kts").read_text(encoding="utf-8")
+        app_gradle = (android / "app" / "build.gradle.kts").read_text(encoding="utf-8")
         self.assertEqual(root_gradle.count("https://jitpack.io"), 1)
+        self.assertEqual(app_gradle.count('create("release")'), 1)
+        self.assertEqual(
+            app_gradle.count('signingConfig = signingConfigs.getByName("release")'),
+            1,
+        )
 
     def test_invalid_application_id_fails_clearly(self) -> None:
         android = self._make_project(kotlin_dsl=True)
