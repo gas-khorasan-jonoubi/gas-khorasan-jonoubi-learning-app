@@ -575,8 +575,15 @@ class HelpPage extends StatelessWidget {
       );
 }
 
-class ResultsPage extends StatelessWidget {
+class ResultsPage extends StatefulWidget {
   const ResultsPage({super.key});
+
+  @override
+  State<ResultsPage> createState() => _ResultsPageState();
+}
+
+class _ResultsPageState extends State<ResultsPage> {
+  late final Future<List<String>> _results = _load();
 
   Future<List<String>> _load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -585,7 +592,7 @@ class ResultsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => FutureBuilder<List<String>>(
-        future: _load(),
+        future: _results,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
@@ -601,7 +608,7 @@ class ResultsPage extends StatelessWidget {
               final date = DateTime.parse(record['date'] as String);
               final total = (record['total'] as int?) ?? 0;
               final correct = (record['correct'] as int?) ?? (record['score'] as int?) ?? 0;
-              final wrong = (record['wrong'] as int?) ?? (total - correct).clamp(0, total);
+              final wrong = (record['wrong'] as int?) ?? (total - correct).clamp(0, total).toInt();
               return Card(
                 child: ListTile(
                   leading: const Icon(Icons.assessment, color: blue),
