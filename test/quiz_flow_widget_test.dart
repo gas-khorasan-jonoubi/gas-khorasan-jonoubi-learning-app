@@ -110,6 +110,14 @@ void main() {
     );
   });
 
+  testWidgets('productivity exam opens independently with 40 questions', (tester) async {
+    await _openExam(
+      tester,
+      'آزمون مدیریت زمان و بهره‌وری',
+      'آزمون مدیریت زمان و بهره‌وری - 1 از 40',
+    );
+  });
+
   testWidgets('answers can be changed and result is saved for the selected exam', (tester) async {
     SharedPreferences.setMockInitialValues({});
 
