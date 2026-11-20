@@ -25,6 +25,19 @@ void main() {
     expect(find.text('آشنایی با مأموریت خدمات گازرسانی'), findsNothing);
   });
 
+
+  testWidgets('search finds a newly added shift handover article', (tester) async {
+    await tester.pumpWidget(_testHost());
+
+    await tester.enterText(
+      find.byKey(const ValueKey('knowledge-search')),
+      'تحویل شیفت',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('تحویل شیفت و انتقال وضعیت کار'), findsOneWidget);
+  });
+
   testWidgets('opening an article shows its full text and safety note', (tester) async {
     await tester.pumpWidget(_testHost());
 
