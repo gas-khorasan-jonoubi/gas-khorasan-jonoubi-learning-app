@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/main.dart';
+import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
 
 void main() {
   group('quizDurationFor', () {
