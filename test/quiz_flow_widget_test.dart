@@ -56,12 +56,12 @@ void main() {
     await tester.ensureVisible(find.text('بعدی'));
     await tester.tap(find.text('بعدی'));
     await tester.pump();
-    expect(find.text('پرسش 2 از 40'), findsOneWidget);
+    expect(find.text('آزمون مبانی ایمنی و HSE - 2 از 40'), findsOneWidget);
 
     await tester.ensureVisible(find.text('قبلی'));
     await tester.tap(find.text('قبلی'));
     await tester.pump();
-    expect(find.text('پرسش 1 از 40'), findsOneWidget);
+    expect(find.text('آزمون مبانی ایمنی و HSE - 1 از 40'), findsOneWidget);
     await tester.tap(find.text('افزایش سرعت بدون توجه به ایمنی'));
     await tester.pump();
 
