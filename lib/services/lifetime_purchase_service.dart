@@ -68,7 +68,7 @@ class LifetimePurchaseService {
         );
   }
 
-  static const String _cachedOwnershipKey = 'bazaar_lifetime_access_verified';
+  String get _cachedOwnershipKey => 'bazaar_lifetime_access_verified_$productId';
 
   Future<bool> restoreAccess() async {
     final preferences = await SharedPreferences.getInstance();
