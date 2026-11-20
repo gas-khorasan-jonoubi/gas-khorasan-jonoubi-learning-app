@@ -144,7 +144,6 @@ void main() {
 
   group('lifetime purchase service', () {
     const sku = 'danestani_gaz_lifetime';
-    const publicKey = 'test-public-key';
 
     setUp(() {
       SharedPreferences.setMockInitialValues({});
@@ -154,7 +153,6 @@ void main() {
       final client = _FakeIranIapClient()..ownedPurchases = [_purchase()];
       final service = LifetimePurchaseService(
         productId: sku,
-        publicKey: publicKey,
         client: client,
       );
 
@@ -171,7 +169,6 @@ void main() {
       final client = _FakeIranIapClient()..failPurchaseQuery = true;
       final service = LifetimePurchaseService(
         productId: sku,
-        publicKey: publicKey,
         client: client,
       );
 
@@ -185,7 +182,6 @@ void main() {
       final client = _FakeIranIapClient();
       final service = LifetimePurchaseService(
         productId: sku,
-        publicKey: publicKey,
         client: client,
       );
 
@@ -203,7 +199,6 @@ void main() {
       final client = _FakeIranIapClient();
       final service = LifetimePurchaseService(
         productId: sku,
-        publicKey: publicKey,
         client: client,
       );
 
@@ -227,7 +222,6 @@ void main() {
 
       final service = LifetimePurchaseService(
         productId: sku,
-        publicKey: publicKey,
         client: client,
       );
 
@@ -255,7 +249,6 @@ void main() {
 
       final service = LifetimePurchaseService(
         productId: sku,
-        publicKey: publicKey,
         client: client,
       );
 
@@ -286,7 +279,6 @@ void main() {
         ];
       final service = LifetimePurchaseService(
         productId: sku,
-        publicKey: publicKey,
         client: client,
       );
 
@@ -299,7 +291,6 @@ void main() {
       final client = _FakeIranIapClient();
       final service = LifetimePurchaseService(
         productId: sku,
-        publicKey: publicKey,
         client: client,
       );
 
