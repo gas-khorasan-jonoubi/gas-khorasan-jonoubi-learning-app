@@ -18,6 +18,9 @@ class GasLearningApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
     title: 'دانستنی‌های گاز',
+    locale: const Locale('fa', 'IR'),
+    supportedLocales: const [Locale('fa', 'IR')],
+    localizationsDelegates: GlobalMaterialLocalizations.delegates,
     theme: ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(seedColor: blue, primary: navy),
@@ -591,7 +594,7 @@ class HelpPage extends StatelessWidget {
           _InfoCard(
             icon: Icons.quiz,
             title: 'شرکت در آزمون',
-            body: 'آزمون را شروع کنید، گزینهٔ هر سؤال را انتخاب کنید و با دکمه‌های قبلی و بعدی بین سؤال‌ها جابه‌جا شوید. زمان هر سؤال ۳۰ ثانیه محاسبه می‌شود و می‌توانید تا پایان زمان پاسخ را تغییر دهید.',
+            body: 'آزمون را شروع کنید، گزینهٔ هر سؤال را انتخاب کنید و با دکمه‌های قبلی و بعدی بین سؤال‌ها جابه‌جا شوید. زمان کل آزمون برابر تعداد سؤال‌ها ضربدر ۳۰ ثانیه است؛ تا پایان زمان کل می‌توانید پاسخ‌ها را تغییر دهید.',
           ),
           _InfoCard(
             icon: Icons.assessment,
