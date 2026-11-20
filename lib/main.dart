@@ -7,6 +7,7 @@ import 'knowledge_pages.dart';
 import 'data/quiz_registry.dart';
 import 'data/quiz_models.dart';
 import 'purchase_page.dart';
+import 'services/lifetime_purchase_service.dart';
 
 const navy = Color(0xFF123B66);
 const blue = Color(0xFF1976D2);
@@ -58,7 +59,7 @@ class _SplashPageState extends State<SplashPage> {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       Navigator.of(context).pushReplacement(
         PageRouteBuilder<void>(
-          pageBuilder: (_, __, ___) => const HomePage(),
+          pageBuilder: (_, __, ___) => const AppStartGate(),
           transitionDuration: Duration.zero,
           reverseTransitionDuration: Duration.zero,
         ),
@@ -85,6 +86,48 @@ class _SplashPageState extends State<SplashPage> {
             ),
           ),
         ),
+      );
+}
+
+class AppStartGate extends StatefulWidget {
+  const AppStartGate({super.key});
+
+  @override
+  State<AppStartGate> createState() => _AppStartGateState();
+}
+
+class _AppStartGateState extends State<AppStartGate> {
+  late final Future<bool> _accessCheck = _checkAccess();
+
+  Future<bool> _checkAccess() async {
+    // During development, the app remains usable until the real Bazaar SKU
+    // and public key are supplied to the release build.
+    if (!lifetimePurchaseService.isConfigured) return true;
+    try {
+      return await lifetimePurchaseService.restoreAccess();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _enterApp() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(builder: (_) => const HomePage()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<bool>(
+        future: _accessCheck,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snapshot.data == true) return const HomePage();
+          return PurchasePage(onAccessGranted: _enterApp);
+        },
       );
 }
 
