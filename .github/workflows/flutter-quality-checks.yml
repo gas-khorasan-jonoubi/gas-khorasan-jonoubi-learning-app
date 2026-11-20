@@ -3,11 +3,10 @@ name: Flutter quality checks
 on:
   push:
     branches:
-      - feature/approved-splash-screen
+      - main
   pull_request:
     branches:
       - main
-      - feature/approved-splash-screen
 
 permissions:
   contents: read
