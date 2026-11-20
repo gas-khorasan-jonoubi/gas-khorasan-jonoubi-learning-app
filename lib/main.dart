@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'knowledge_pages.dart';
 import 'data/quiz_registry.dart';
 import 'data/quiz_models.dart';
+import 'purchase_page.dart';
 
 const navy = Color(0xFF123B66);
 const blue = Color(0xFF1976D2);
@@ -212,6 +213,14 @@ class DashboardPage extends StatelessWidget {
             title: 'سوابق آزمون',
             subtitle: 'مشاهده نتایج ذخیره‌شده',
             onTap: () => onNavigate(4),
+          ),
+          _MenuTile(
+            icon: Icons.workspace_premium_outlined,
+            title: 'خرید و بازیابی دسترسی دائمی',
+            subtitle: 'خرید یک‌باره و بازیابی با حساب کافه‌بازار',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const PurchasePage()),
+            ),
           ),
           _MenuTile(
             icon: Icons.help_outline,
