@@ -95,15 +95,27 @@ class LifetimePurchaseService {
     }
   }
 
-  Future<LifetimePurchaseResult> purchaseLifetimeAccess() async {
+  Future<IapProduct?> queryLifetimeProduct() async {
     final client = _billingClient;
     await client.initialize();
-
     final products = await client.queryProducts(
       {productId},
       type: IapProductType.inApp,
     );
-    if (products.isEmpty) {
+    for (final product in products) {
+      if (product.id == productId && product.type == IapProductType.inApp) {
+        return product;
+      }
+    }
+    return null;
+  }
+
+  Future<LifetimePurchaseResult> purchaseLifetimeAccess() async {
+    final client = _billingClient;
+    await client.initialize();
+
+    final product = await queryLifetimeProduct();
+    if (product == null) {
       return LifetimePurchaseResult.productUnavailable;
     }
 
