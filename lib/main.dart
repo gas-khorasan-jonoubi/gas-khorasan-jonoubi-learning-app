@@ -172,6 +172,52 @@ const questions = <Map<String, Object>>[
   {'q':'پیش از استفاده از تجهیزات باید چه کاری انجام داد؟','a':['بررسی سلامت و ایمنی تجهیزات','تغییر خودسرانه تنظیمات','حذف حفاظ‌ها','استفاده بدون بررسی'],'correct':0},
 ];
 
+Duration quizDurationFor(int questionCount) {
+  if (questionCount < 0) {
+    throw ArgumentError.value(questionCount, 'questionCount', 'Must not be negative.');
+  }
+  return Duration(seconds: questionCount * 30);
+}
+
+class QuizSummary {
+  final int correct;
+  final int wrong;
+  final int unanswered;
+
+  const QuizSummary({
+    required this.correct,
+    required this.wrong,
+    required this.unanswered,
+  });
+}
+
+QuizSummary evaluateQuizAnswers(
+  List<int?> selectedAnswers,
+  List<int> correctAnswers,
+) {
+  if (selectedAnswers.length != correctAnswers.length) {
+    throw ArgumentError('Selected answers and correct answers must have equal lengths.');
+  }
+  var correct = 0;
+  var wrong = 0;
+  var unanswered = 0;
+  for (var i = 0; i < correctAnswers.length; i++) {
+    final answer = selectedAnswers[i];
+    if (answer == null) {
+      unanswered++;
+    } else if (answer == correctAnswers[i]) {
+      correct++;
+    } else {
+      wrong++;
+    }
+  }
+  return QuizSummary(
+    correct: correct,
+    wrong: wrong,
+    unanswered: unanswered,
+  );
+}
+
 class ExamPage extends StatelessWidget {
   const ExamPage({super.key});
 
@@ -207,7 +253,7 @@ class _QuizPageState extends State<QuizPage> {
   late final List<int?> _answers =
       List<int?>.filled(questions.length, null);
   int _current = 0;
-  late int _remainingSeconds = questions.length * 30;
+  late int _remainingSeconds = quizDurationFor(questions.length).inSeconds;
   Timer? _timer;
   bool _finishing = false;
 
@@ -242,25 +288,16 @@ class _QuizPageState extends State<QuizPage> {
     _finishing = true;
     _timer?.cancel();
 
-    var correct = 0;
-    var wrong = 0;
-    var unanswered = 0;
-    for (var i = 0; i < questions.length; i++) {
-      final answer = _answers[i];
-      if (answer == null) {
-        unanswered++;
-      } else if (answer == questions[i]['correct']) {
-        correct++;
-      } else {
-        wrong++;
-      }
-    }
+    final summary = evaluateQuizAnswers(
+      _answers,
+      questions.map((q) => q['correct'] as int).toList(),
+    );
 
     final record = <String, dynamic>{
       'date': DateTime.now().toIso8601String(),
-      'correct': correct,
-      'wrong': wrong,
-      'unanswered': unanswered,
+      'correct': summary.correct,
+      'wrong': summary.wrong,
+      'unanswered': summary.unanswered,
       'total': questions.length,
       'answers': _answers.map((answer) => answer ?? -1).toList(),
       'questions': questions
