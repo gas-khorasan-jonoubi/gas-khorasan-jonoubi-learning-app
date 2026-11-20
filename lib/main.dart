@@ -472,26 +472,21 @@ class _QuizPageState extends State<QuizPage> {
             ),
           ),
           const SizedBox(height: 14),
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _current == 0
-                      ? null
-                      : () => setState(() => _current--),
-                  icon: const Icon(Icons.chevron_right),
-                  label: const Text('قبلی'),
-                ),
+              OutlinedButton(
+                onPressed: _current == 0
+                    ? null
+                    : () => setState(() => _current--),
+                child: const Text('قبلی'),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _current == packQuestions.length - 1
-                      ? null
-                      : () => setState(() => _current++),
-                  icon: const Icon(Icons.chevron_left),
-                  label: const Text('بعدی'),
-                ),
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: _current == packQuestions.length - 1
+                    ? null
+                    : () => setState(() => _current++),
+                child: const Text('بعدی'),
               ),
             ],
           ),
