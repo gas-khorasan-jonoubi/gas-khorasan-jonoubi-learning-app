@@ -41,7 +41,7 @@ class _SplashPageState extends State<SplashPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // ابتدا تصویر کامل بارگذاری می‌شود؛ سپس زمان سه‌ثانیه‌ای آغاز می‌شود.
       try {
-        await precacheImage(const AssetImage('assets/splash.webp'), context);
+        await precacheImage(const AssetImage('assets/splash.png'), context);
       } catch (_) {
         // اگر بارگذاری تصویر به هر علت شکست خورد، برنامه همچنان قابل ورود است.
       }
@@ -71,7 +71,7 @@ class _SplashPageState extends State<SplashPage> {
         body: SizedBox.expand(
           child: Center(
             child: Image.asset(
-              'assets/splash.webp',
+              'assets/splash.png',
               fit: BoxFit.contain,
               filterQuality: FilterQuality.high,
               alignment: Alignment.center,
