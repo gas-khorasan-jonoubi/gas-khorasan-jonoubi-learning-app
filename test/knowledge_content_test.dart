@@ -3,7 +3,8 @@ import 'package:gas_khorasan_jonoubi_learning_app/data/knowledge_content.dart';
 
 void main() {
   group('offline knowledge content', () {
-    test('contains articles for all requested work areas', () {
+    test('contains 24 offline articles for all requested work areas', () {
+      expect(knowledgeArticles, hasLength(24));
       final areas = knowledgeArticles.map((article) => article.area).toSet();
       expect(areas, containsAll(KnowledgeArea.values));
     });
