@@ -10,6 +10,14 @@ workflows:
           if [ ! -d android ]; then
             flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
           fi
+      - name: Prepare approved WebP splash asset
+        script: |
+          mkdir -p build
+          python3 -m venv build/image-tools
+          build/image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
+          build/image-tools/bin/python tool/prepare_splash_asset.py --quality 92
+          build/image-tools/bin/python tool/test_prepare_splash_asset.py
+          test -s assets/approved_splash.webp
       - name: Configure Cafe Bazaar Android host
         script: python3 tool/configure_bazaar_android.py
       - name: Test Android host configurator
@@ -47,6 +55,14 @@ workflows:
           if [ ! -d android ]; then
             flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
           fi
+      - name: Prepare approved WebP splash asset
+        script: |
+          mkdir -p build
+          python3 -m venv build/image-tools
+          build/image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
+          build/image-tools/bin/python tool/prepare_splash_asset.py --quality 92
+          build/image-tools/bin/python tool/test_prepare_splash_asset.py
+          test -s assets/approved_splash.webp
       - name: Configure Cafe Bazaar Android host
         script: python3 tool/configure_bazaar_android.py
       - name: Validate Cafe Bazaar release configuration
