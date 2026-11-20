@@ -3,8 +3,8 @@ import 'package:gas_khorasan_jonoubi_learning_app/data/quiz_registry.dart';
 
 void main() {
   group('independent offline quiz packs', () {
-    test('registers four separate exams for core work areas', () {
-      expect(quizPacks, hasLength(4));
+    test('registers five separate exams for core work areas', () {
+      expect(quizPacks, hasLength(5));
       expect(
         quizPacks.map((pack) => pack.id).toSet().length,
         quizPacks.length,
@@ -16,6 +16,7 @@ void main() {
           'آزمون مبانی امور مشترکین',
           'آزمون مبانی وصول مطالبات',
           'آزمون مبانی تعمیرات و نگهداری',
+          'آزمون مبانی مدیریت و اداره',
         ]),
       );
     });
