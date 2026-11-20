@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,7 +18,7 @@ class GasLearningApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'آموزش شرکت گاز خراسان جنوبی',
+        title: 'دانستنی‌های گاز',
         theme: ThemeData(
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: blue, primary: navy),
@@ -59,38 +58,125 @@ class _SplashPageState extends State<SplashPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: const Color(0xFF073B86),
-        body: SizedBox.expand(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ImageFiltered(
-                imageFilter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                child: Transform.scale(
-                  scale: 1.12,
-                  child: Image.asset(
-                    'assets/splash.webp',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const ColoredBox(
-                      color: Color(0xFF073B86),
-                      child: Center(
-                        child: Icon(Icons.local_fire_department,
-                            color: Colors.white, size: 72),
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final widthByScreen = constraints.maxWidth * 0.88;
+              final widthByHeight = constraints.maxHeight * 0.86 * 2 / 3;
+              final posterWidth = widthByScreen < widthByHeight
+                  ? widthByScreen
+                  : widthByHeight;
+              final posterHeight = posterWidth * 1.5;
+
+              return Center(
+                child: SizedBox(
+                  width: posterWidth,
+                  height: posterHeight,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        'assets/splash.webp',
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const ColoredBox(
+                          color: Color(0xFF073B86),
+                          child: Center(
+                            child: Icon(Icons.local_fire_department,
+                                color: Colors.white, size: 72),
+                          ),
+                        ),
                       ),
-                    ),
+                      Positioned(
+                        left: posterWidth * 0.045,
+                        top: posterHeight * 0.39,
+                        width: posterWidth * 0.91,
+                        height: posterHeight * 0.23,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5FAFF),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: const Color(0xFF1976D2), width: 1.2),
+                          ),
+                          child: const Directionality(
+                            textDirection: TextDirection.rtl,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _SplashSymbolLine(
+                                  number: '۱',
+                                  text:
+                                      '«لا»: نفی وابستگی به شرق و غرب و بیانگر ملی بودن صنعت نفت.',
+                                ),
+                                _SplashSymbolLine(
+                                  number: '۲',
+                                  text:
+                                      'فرم‌های اسلیمی: بیانگر رشد و شکوفایی صنایع عظیم نفت و گاز ایران.',
+                                ),
+                                _SplashSymbolLine(
+                                  number: '۳',
+                                  text:
+                                      'مشعل: نشان سوخت و بیانگر نقش نفت در حیات صنایع است.',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const ColoredBox(color: Color(0x18002A70)),
-              Center(
-                child: Image.asset(
-                  'assets/splash.webp',
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                ),
-              ),
-            ],
+              );
+            },
           ),
         ),
+      );
+}
+
+class _SplashSymbolLine extends StatelessWidget {
+  final String number;
+  final String text;
+
+  const _SplashSymbolLine({required this.number, required this.text});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Container(
+            width: 19,
+            height: 19,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: Color(0xFF123B66),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              number,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              text,
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF102C4B),
+                fontSize: 11.5,
+                height: 1.15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       );
 }
 
@@ -106,6 +192,33 @@ class _HomePageState extends State<HomePage> {
 
   void goTo(int value) => setState(() => index = value);
 
+  Future<void> _handleBack(BuildContext context) async {
+    if (index != 0) {
+      goTo(0);
+      return;
+    }
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('خروج از برنامه'),
+        content: const Text('آیا می‌خواهید از برنامه خارج شوید؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('انصراف'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('خروج'),
+          ),
+        ],
+      ),
+    );
+    if (shouldExit == true && context.mounted) {
+      await SystemNavigator.pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
@@ -115,32 +228,12 @@ class _HomePageState extends State<HomePage> {
       const LibraryPage(),
       const ResultsPage(),
     ];
-    const titles = ['داشبورد', 'آزمون‌ها', 'آموزش‌ها', 'کتابخانه', 'نتایج'];
+    const titles = ['داشبورد', 'آزمون‌ها', 'راهنمای استفاده', 'کتابخانه دیجیتال', 'نتایج'];
 
-    return WillPopScope(
-      onWillPop: () async {
-        if (index != 0) {
-          goTo(0);
-          return false;
-        }
-        final shouldExit = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('خروج از برنامه'),
-            content: const Text('آیا می‌خواهید از برنامه خارج شوید؟'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('انصراف'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('خروج'),
-              ),
-            ],
-          ),
-        );
-        return shouldExit ?? false;
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) unawaited(_handleBack(context));
       },
       child: Scaffold(
         appBar: AppBar(title: Text(titles[index])),
@@ -156,7 +249,7 @@ class _HomePageState extends State<HomePage> {
             NavigationDestination(
                 icon: Icon(Icons.quiz_outlined), label: 'آزمون'),
             NavigationDestination(
-                icon: Icon(Icons.play_lesson_outlined), label: 'آموزش'),
+                icon: Icon(Icons.play_lesson_outlined), label: 'راهنما'),
             NavigationDestination(
                 icon: Icon(Icons.local_library_outlined), label: 'کتابخانه'),
             NavigationDestination(
@@ -209,8 +302,8 @@ class DashboardPage extends StatelessWidget {
           ),
           _MenuTile(
             icon: Icons.menu_book,
-            title: 'آموزش‌ها',
-            subtitle: 'مطالعه محتوای آموزشی',
+            title: 'راهنمای استفاده از برنامه',
+            subtitle: 'آشنایی مرحله‌به‌مرحله با امکانات برنامه',
             onTap: () => onNavigate(2),
           ),
           _MenuTile(
@@ -269,8 +362,7 @@ class ExamQuestion {
     required this.options,
     required this.correctIndex,
     this.explanation = '',
-  })  : assert(options.length == 4),
-        assert(correctIndex >= 0 && correctIndex < 4);
+  });
 
   Map<String, Object> toJson() => {
         'text': text,
@@ -451,9 +543,7 @@ class _ExamPageState extends State<ExamPage> {
   String _formatTime(int seconds) {
     final minutes = seconds ~/ 60;
     final rest = seconds % 60;
-    return minutes.toString().padLeft(2, '0') +
-        ':' +
-        rest.toString().padLeft(2, '0');
+    return '${minutes.toString().padLeft(2, '0')}:${rest.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -479,9 +569,7 @@ class _ExamPageState extends State<ExamPage> {
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text(
-                questions.length.toString() +
-                    ' سؤال • زمان: ' +
-                    _formatTime(totalSeconds),
+                '${questions.length} سؤال • زمان: ${_formatTime(totalSeconds)}',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -510,10 +598,7 @@ class _ExamPageState extends State<ExamPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('سؤال ' +
-                (currentQuestion + 1).toString() +
-                ' از ' +
-                questions.length.toString()),
+            Text('سؤال ${currentQuestion + 1} از ${questions.length}'),
             Chip(
               avatar: const Icon(Icons.timer_outlined, size: 18),
               label: Text(_formatTime(remainingSeconds)),
@@ -551,17 +636,21 @@ class _ExamPageState extends State<ExamPage> {
         Text(question.text,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 14),
-        ...List<Widget>.generate(
-          question.options.length,
-          (index) => Card(
-            child: RadioListTile<int>(
-              value: index,
-              groupValue: selected,
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() => answers[currentQuestion] = value);
-              },
-              title: Text(question.options[index]),
+        RadioGroup<int>(
+          groupValue: selected,
+          onChanged: (value) {
+            if (value == null) return;
+            setState(() => answers[currentQuestion] = value);
+          },
+          child: Column(
+            children: List<Widget>.generate(
+              question.options.length,
+              (index) => Card(
+                child: RadioListTile<int>(
+                  value: index,
+                  title: Text(question.options[index]),
+                ),
+              ),
             ),
           ),
         ),
@@ -599,10 +688,7 @@ class _ExamPageState extends State<ExamPage> {
           child: const Text('پایان دادن به آزمون'),
         ),
         Text(
-          'پاسخ داده‌شده: ' +
-              answers.where((answer) => answer != null).length.toString() +
-              '  |  بی‌پاسخ: ' +
-              answers.where((answer) => answer == null).length.toString(),
+           'پاسخ داده‌شده: ${answers.where((answer) => answer != null).length}  |  بی‌پاسخ: ${answers.where((answer) => answer == null).length}',
           textAlign: TextAlign.center,
           style: const TextStyle(color: Colors.black54),
         ),
@@ -618,8 +704,7 @@ class _ExamPageState extends State<ExamPage> {
         title: const Text('پایان آزمون'),
         content: Text(unanswered == 0
             ? 'آیا از ثبت نهایی پاسخ‌ها مطمئن هستید؟'
-            : unanswered.toString() +
-                ' سؤال بی‌پاسخ مانده است. آیا آزمون پایان یابد؟'),
+            : '$unanswered سؤال بی‌پاسخ مانده است. آیا آزمون پایان یابد؟'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -790,7 +875,7 @@ class _QuestionReviewPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('سؤال ' + (index + 1).toString(),
+                          Text('سؤال ${index + 1}',
                               style: const TextStyle(
                                   fontWeight: FontWeight.bold, color: navy)),
                           const SizedBox(height: 8),
@@ -825,7 +910,7 @@ class _QuestionReviewPage extends StatelessWidget {
                           if (question.explanation.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 8),
-                              child: Text('توضیح: ' + question.explanation),
+                              child: Text('توضیح: ${question.explanation}'),
                             ),
                         ],
                       ),
@@ -839,32 +924,94 @@ class _QuestionReviewPage extends StatelessWidget {
 class TrainingPage extends StatelessWidget {
   const TrainingPage({super.key});
 
+  static const guides = <_GuideSection>[
+    _GuideSection(
+      title: 'آشنایی با صفحه اصلی',
+      icon: Icons.dashboard_outlined,
+      summary: 'از نوار پایین صفحه برای رفتن به داشبورد، آزمون‌ها، راهنما، کتابخانه و نتایج استفاده کنید.',
+      example: 'مثال: برای شروع آزمون، گزینه «آزمون» را از نوار پایین انتخاب کنید؛ برای برگشت به صفحه اول، «خانه» را بزنید.',
+    ),
+    _GuideSection(
+      title: 'استفاده از کتابخانه دیجیتال',
+      icon: Icons.local_library_outlined,
+      summary: 'کتابخانه محل مراجعه به اسناد، فایل‌ها، فرم‌ها و دستورالعمل‌های تأییدشده است.',
+      example: 'مثال: وارد «کتابخانه دیجیتال» شوید، دسته موردنظر مثل HSE را انتخاب و نام سند را جست‌وجو کنید. پس از افزودن اسناد رسمی، از همین بخش قابل دسترسی خواهند بود.',
+    ),
+    _GuideSection(
+      title: 'شرکت در آزمون',
+      icon: Icons.quiz_outlined,
+      summary: 'پیش از شروع، تعداد سؤال‌ها و زمان آزمون نمایش داده می‌شود. برای هر سؤال ۳۰ ثانیه در نظر گرفته شده است.',
+      example: 'مثال: گزینه پاسخ را لمس کنید؛ با «بعدی» به سؤال بعد بروید یا از شماره سؤال‌ها برای جابه‌جایی استفاده کنید. تا پایان آزمون می‌توانید پاسخ را تغییر دهید.',
+    ),
+    _GuideSection(
+      title: 'پایان آزمون و مشاهده نتیجه',
+      icon: Icons.assessment_outlined,
+      summary: 'پس از پایان زمان یا ثبت نهایی، تعداد پاسخ‌های صحیح، غلط و بی‌پاسخ نمایش داده می‌شود.',
+      example: 'مثال: روی «پاسخ‌های غلط» بزنید تا سؤال‌ها، گزینه انتخابی شما و پاسخ صحیح را ببینید. نتیجه‌های ذخیره‌شده در بخش «نتایج» قابل مرور هستند.',
+    ),
+    _GuideSection(
+      title: 'استفاده آفلاین',
+      icon: Icons.wifi_off_outlined,
+      summary: 'امکانات و فایل‌هایی که داخل نسخه نصب‌شده برنامه قرار گرفته‌اند، بدون اینترنت در دسترس‌اند.',
+      example: 'مثال: اینترنت گوشی را خاموش و برنامه را باز کنید. محتوای داخلی و سوابق ذخیره‌شده روی همان دستگاه در دسترس می‌مانند؛ دریافت به‌روزرسانی یا محتوای جدید به اینترنت نیاز دارد.',
+    ),
+    _GuideSection(
+      title: 'خرید و بازیابی دسترسی',
+      icon: Icons.shopping_bag_outlined,
+      summary: 'در نسخه‌ای که خرید یک‌باره فعال شود، دسترسی دائمی با حساب فروشگاه و قابلیت بازیابی خرید مدیریت خواهد شد.',
+      example: 'مثال: پس از تعویض گوشی، با همان حساب فروشگاه گزینه بازیابی خرید را می‌زنید. این قابلیت تا زمان پیاده‌سازی و تأیید نهایی پرداخت، فعال‌شده محسوب نمی‌شود.',
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.all(18),
-        children: const [
-          Text('محتوای آموزشی',
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text('راهنمای استفاده از برنامه',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          _InfoCard(
-            icon: Icons.health_and_safety,
-            title: 'اصول ایمنی و بهداشت',
-            body:
-                'بخش آماده درج محتوای آموزشی تأییدشده درباره شناسایی خطرها، کنترل ریسک و گزارش شرایط ناایمن است.',
-          ),
-          _InfoCard(
-            icon: Icons.local_fire_department,
-            title: 'آشنایی با گاز طبیعی',
-            body:
-                'مطالب تخصصی این بخش باید بر اساس منابع رسمی و دستورالعمل‌های معتبر شرکت تکمیل شوند.',
-          ),
-          _InfoCard(
-            icon: Icons.warning_amber,
-            title: 'اقدام در شرایط اضطراری',
-            body:
-                'رویه‌های اضطراری فقط پس از دریافت و تأیید دستورالعمل‌های رسمی سازمان در برنامه درج می‌شوند.',
-          ),
+          const SizedBox(height: 8),
+          const Text('راهنمای گام‌به‌گام امکانات برنامه همراه با مثال‌های ساده. برای دیدن توضیحات هر بخش، آن را باز کنید.'),
+          const SizedBox(height: 10),
+          ...guides.map((guide) => Card(
+                clipBehavior: Clip.antiAlias,
+                child: ExpansionTile(
+                  leading: CircleAvatar(
+                    backgroundColor: paleBlue,
+                    child: Icon(guide.icon, color: navy),
+                  ),
+                  title: Text(guide.title,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(guide.summary, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: paleBlue,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(guide.example),
+                    ),
+                  ],
+                ),
+              )),
         ],
       );
+}
+
+class _GuideSection {
+  final String title;
+  final IconData icon;
+  final String summary;
+  final String example;
+
+  const _GuideSection({
+    required this.title,
+    required this.icon,
+    required this.summary,
+    required this.example,
+  });
 }
 
 class LibraryPage extends StatelessWidget {
@@ -968,21 +1115,9 @@ class ResultsPage extends StatelessWidget {
               return Card(
                 child: ListTile(
                   leading: const Icon(Icons.assessment, color: blue),
-                  title: Text('صحیح: ' +
-                      (result['correct'] ?? 0).toString() +
-                      '  |  غلط: ' +
-                      (result['wrong'] ?? 0).toString()),
+                  title: Text('صحیح: ${result['correct'] ?? 0}  |  غلط: ${result['wrong'] ?? 0}'),
                   subtitle: Text(
-                    'بی‌پاسخ: ' +
-                        (result['unanswered'] ?? 0).toString() +
-                        (date == null
-                            ? ''
-                            : '  •  ' +
-                                date.year.toString() +
-                                '/' +
-                                date.month.toString().padLeft(2, '0') +
-                                '/' +
-                                date.day.toString().padLeft(2, '0')),
+                    'بی‌پاسخ: ${result['unanswered'] ?? 0}${date == null ? '' : '  •  ${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}'}',
                   ),
                   trailing: const Icon(Icons.chevron_left),
                   onTap: () {
