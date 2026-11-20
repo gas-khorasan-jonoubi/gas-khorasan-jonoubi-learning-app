@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'knowledge_pages.dart';
 
 const navy = Color(0xFF123B66);
 const blue = Color(0xFF1976D2);
@@ -572,25 +573,6 @@ class ResultDetailPage extends StatelessWidget {
   }
 }
 
-class TrainingPage extends StatelessWidget {
-  const TrainingPage({super.key});
-  @override
-  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(18), children: const [
-    Text('محتوای آموزشی', style: TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
-    _InfoCard(icon:Icons.health_and_safety,title:'اصول ایمنی و بهداشت',body:'آشنایی با اصول عمومی ایمنی، شناسایی خطرها و گزارش شرایط ناایمن.'),
-    _InfoCard(icon:Icons.local_fire_department,title:'آشنایی با گاز طبیعی',body:'مفاهیم پایه درباره گاز طبیعی و نکات عمومی استفاده ایمن.'),
-    _InfoCard(icon:Icons.warning_amber,title:'اقدام در شرایط اضطراری',body:'حفظ خونسردی، رعایت دستورالعمل‌های سازمانی و اطلاع‌رسانی به مسئول مربوط.'),
-  ]);
-}
-class LibraryPage extends StatelessWidget {
-  const LibraryPage({super.key});
-  @override
-  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(18), children: const [
-    Text('کتابخانه دیجیتال', style: TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
-    _InfoCard(icon:Icons.picture_as_pdf,title:'جزوه‌های آموزشی',body:'محل نمایش و افزودن فایل‌های آموزشی تأییدشده در نسخه‌های بعدی.'),
-    _InfoCard(icon:Icons.book,title:'دستورالعمل‌ها و منابع',body:'منابع و دستورالعمل‌های موردنیاز کارکنان در یک بخش متمرکز.'),
-  ]);
-}
 class _InfoCard extends StatelessWidget {
   final IconData icon; final String title,body;
   const _InfoCard({required this.icon,required this.title,required this.body});
