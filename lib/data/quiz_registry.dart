@@ -10,6 +10,7 @@ import 'information_security_quiz.dart';
 import 'professional_ethics_quiz.dart';
 import 'continuity_quiz.dart';
 import 'productivity_quiz.dart';
+import 'records_management_quiz.dart';
 
 const List<QuizPack> quizPacks = [
   hseQuizPack,
@@ -23,4 +24,5 @@ const List<QuizPack> quizPacks = [
   professionalEthicsQuizPack,
   continuityQuizPack,
   productivityQuizPack,
+  recordsManagementQuizPack,
 ];
