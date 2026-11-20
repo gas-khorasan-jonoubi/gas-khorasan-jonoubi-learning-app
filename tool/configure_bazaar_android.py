@@ -223,10 +223,10 @@ def _configure_release_signing(
     }
 """
         signing_marker = 'create("release")'
-        build_types_pattern = r"(?m)^(\\s*)buildTypes\\s*\\{"
+        build_types_pattern = r"(?m)^([ \t]*)buildTypes[ \t]*\{"
         debug_assignment = 'signingConfig = signingConfigs.getByName("debug")'
         release_assignment = 'signingConfig = signingConfigs.getByName("release")'
-        release_header_pattern = r"(?m)^(\\s*)release\\s*\\{"
+        release_header_pattern = r"(?m)^([ \t]*)release[ \t]*\{"
     else:
         signing_block = """
     signingConfigs {
@@ -239,10 +239,10 @@ def _configure_release_signing(
     }
 """
         signing_marker = "signingConfigs {"
-        build_types_pattern = r"(?m)^(\\s*)buildTypes\\s*\\{"
+        build_types_pattern = r"(?m)^([ \t]*)buildTypes[ \t]*\{"
         debug_assignment = "signingConfig signingConfigs.debug"
         release_assignment = "signingConfig signingConfigs.release"
-        release_header_pattern = r"(?m)^(\\s*)release\\s*\\{"
+        release_header_pattern = r"(?m)^([ \t]*)release[ \t]*\{"
 
     if signing_marker not in source:
         match = re.search(build_types_pattern, source)
@@ -263,7 +263,7 @@ def _configure_release_signing(
     if debug_assignment in release_body:
         release_body = release_body.replace(debug_assignment, release_assignment, 1)
     elif release_assignment not in release_body.split("}", 1)[0]:
-        line_break = "\\n"
+        line_break = "\n"
         indent = " " * (len(release_header.group(1)) + 4)
         release_body = line_break + indent + release_assignment + release_body
 
