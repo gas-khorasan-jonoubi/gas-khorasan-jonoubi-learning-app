@@ -145,7 +145,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      const MaterialApp(home: const QuizPage(pack: pack)),
+      const MaterialApp(home: QuizPage(pack: pack)),
     );
     expect(find.text('00:30'), findsOneWidget);
 
