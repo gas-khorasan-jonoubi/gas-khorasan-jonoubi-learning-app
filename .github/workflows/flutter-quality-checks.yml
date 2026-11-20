@@ -42,6 +42,14 @@ jobs:
             flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
           fi
 
+      - name: Prepare approved WebP splash asset
+        run: |
+          python3 -m venv /tmp/danestani-image-tools
+          /tmp/danestani-image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
+          /tmp/danestani-image-tools/bin/python tool/prepare_splash_asset.py --quality 92
+          /tmp/danestani-image-tools/bin/python tool/test_prepare_splash_asset.py
+          test -s assets/approved_splash.webp
+
       - name: Configure Cafe Bazaar Android host
         run: python3 tool/configure_bazaar_android.py
 
@@ -76,11 +84,10 @@ jobs:
 
       - name: Prepare reproducible dependency and splash review files
         run: |
-          python3 -m venv build/image-tools
-          build/image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
           mkdir -p build/release-readiness/splash
           cp pubspec.lock build/release-readiness/pubspec.lock
-          build/image-tools/bin/python - <<'PY'
+          cp assets/approved_splash.webp build/release-readiness/splash/approved_splash_bundle.webp
+          /tmp/danestani-image-tools/bin/python - <<'PY'
           from hashlib import sha256
           from pathlib import Path
           from PIL import Image
