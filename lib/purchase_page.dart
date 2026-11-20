@@ -4,8 +4,13 @@ import 'services/lifetime_purchase_service.dart';
 
 class PurchasePage extends StatefulWidget {
   final LifetimePurchaseService? service;
+  final VoidCallback? onAccessGranted;
 
-  const PurchasePage({super.key, this.service});
+  const PurchasePage({
+    super.key,
+    this.service,
+    this.onAccessGranted,
+  });
 
   @override
   State<PurchasePage> createState() => _PurchasePageState();
@@ -56,6 +61,7 @@ class _PurchasePageState extends State<PurchasePage> {
             ? 'دسترسی دائمی این برنامه برای حساب کافه‌بازار شما فعال است.'
             : 'برای فعال‌سازی دائمی، خرید را انجام دهید یا خرید قبلی را بازیابی کنید.';
       });
+      if (owned) _notifyAccessGranted();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -81,6 +87,7 @@ class _PurchasePageState extends State<PurchasePage> {
             _hasAccess = true;
             _message = 'خرید تأیید شد؛ دسترسی دائمی فعال است.';
           });
+          _notifyAccessGranted();
           break;
         case LifetimePurchaseResult.cancelled:
           setState(() => _message = 'خرید توسط شما لغو شد.');
@@ -98,6 +105,14 @@ class _PurchasePageState extends State<PurchasePage> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _notifyAccessGranted() {
+    final callback = widget.onAccessGranted;
+    if (callback == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) callback();
+    });
   }
 
   String _friendlyError(Object error) {
