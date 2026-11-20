@@ -1,0 +1,35 @@
+# Dart / Flutter generated files
+.dart_tool/
+.packages
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+build/
+coverage/
+
+# Local IDE and machine settings
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+android/local.properties
+
+# Android signing material and local signing configuration
+android/key.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
+
+# Environment files and private credentials
+.env
+.env.*
+*.env
+*credentials*.txt
+*secrets*.txt
+
+# Build artifacts
+*.apk
+*.aab
+*.ipa
