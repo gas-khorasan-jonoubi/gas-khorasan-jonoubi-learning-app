@@ -104,24 +104,10 @@ jobs:
           script: |
             set -euo pipefail
             flutter build apk --debug
-            app_id="$(python3 - <<'PY'
-            import re
-            from pathlib import Path
-
-            candidates = (
-                Path("android/app/build.gradle.kts"),
-                Path("android/app/build.gradle"),
-            )
-            source = next(
-                (path.read_text(encoding="utf-8") for path in candidates if path.is_file()),
-                "",
-            )
-            match = re.search(r"""applicationId\s*(?:=\s*)?["']([^"']+)["']""", source)
-            if match is None:
-                raise SystemExit("Generated Android applicationId was not found.")
-            print(match.group(1))
-            PY
-            )"
+            aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n 1)"
+            test -n "$aapt"
+            app_id="$("$aapt" dump badging build/app/outputs/flutter-apk/app-debug.apk | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p")"
+            test -n "$app_id"
 
             mkdir -p build/emulator-review
             adb install -r build/app/outputs/flutter-apk/app-debug.apk
