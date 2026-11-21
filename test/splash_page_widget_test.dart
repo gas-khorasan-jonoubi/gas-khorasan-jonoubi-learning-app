@@ -1,8 +1,14 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
 
 void main() {
+  testWidgets('the optimized approved WebP poster is included in the offline bundle', (tester) async {
+    final poster = await rootBundle.load('assets/approved_splash.webp');
+    expect(poster.lengthInBytes, greaterThan(0));
+  });
+
 
   testWidgets('splash remains visible for three seconds after poster is ready', (tester) async {
     var posterPrepared = false;
