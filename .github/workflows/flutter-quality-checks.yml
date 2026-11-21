@@ -130,7 +130,7 @@ jobs:
             adb shell uiautomator dump /sdcard/danestani-dashboard.xml || true
             adb pull /sdcard/danestani-dashboard.xml build/emulator-review/dashboard-window.xml || true
             test -s build/emulator-review/dashboard-window.xml
-            python3 -c 'from pathlib import Path; s=Path("build/emulator-review/dashboard-window.xml").read_text(encoding="utf-8", errors="replace"); raise SystemExit("Expected Persian dashboard title was not found after the splash screen.") if "داشبورد" not in s else print("Verified: the dashboard title is visible after the splash screen.")'
+            python3 -c 'from pathlib import Path; s=Path("build/emulator-review/dashboard-window.xml").read_text(encoding="utf-8", errors="replace"); import sys; sys.exit("Expected Persian dashboard title was not found after the splash screen.") if "داشبورد" not in s else print("Verified: the dashboard title is visible after the splash screen.")'
             adb exec-out screencap -p > build/emulator-review/dashboard.png
             adb shell pidof "$(cat build/emulator-review/application_id.txt)" >/dev/null
             adb logcat -d -s AndroidRuntime:E > build/emulator-review/android-runtime.log
