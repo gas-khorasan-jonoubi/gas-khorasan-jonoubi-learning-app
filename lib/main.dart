@@ -111,12 +111,42 @@ class _SplashPageState extends State<SplashPage> {
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: navy,
         body: SizedBox.expand(
-          child: Center(
-            child: Image.asset(
-              'assets/approved_splash.webp',
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.high,
-              alignment: Alignment.center,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            child: Column(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Image.asset(
+                      'assets/approved_splash.webp',
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
+                      alignment: Alignment.center,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'شرکت گاز خراسان جنوبی',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  'شهرستان عشق آباد',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                const Text(
+                  'اداره گاز عشق آباد',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ],
             ),
           ),
         ),
