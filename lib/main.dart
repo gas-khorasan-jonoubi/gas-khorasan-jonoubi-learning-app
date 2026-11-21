@@ -440,12 +440,16 @@ class _QuizPageState extends State<QuizPage> {
     _deadline = _now().add(quizDurationFor(widget.pack.questionCount));
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || _finishing) return;
-      final remaining = _deadline.difference(_now()).inSeconds;
-      if (remaining <= 0) {
+      final remainingMilliseconds = _deadline.difference(_now()).inMilliseconds;
+      if (remainingMilliseconds <= 0) {
         setState(() => _remainingSeconds = 0);
         unawaited(_finish());
-      } else if (remaining != _remainingSeconds) {
-        setState(() => _remainingSeconds = remaining);
+      } else {
+        // Round up so the quiz never ends almost one second early.
+        final remaining = (remainingMilliseconds + 999) ~/ 1000;
+        if (remaining != _remainingSeconds) {
+          setState(() => _remainingSeconds = remaining);
+        }
       }
     });
   }
@@ -491,10 +495,16 @@ class _QuizPageState extends State<QuizPage> {
           .toList(),
     };
 
-    final prefs = await SharedPreferences.getInstance();
-    final old = prefs.getStringList('exam_results') ?? <String>[];
-    old.insert(0, jsonEncode(record));
-    await prefs.setStringList('exam_results', old.take(100).toList());
+    var saved = false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final old = prefs.getStringList('exam_results') ?? <String>[];
+      old.insert(0, jsonEncode(record));
+      saved = await prefs.setStringList('exam_results', old.take(100).toList());
+    } catch (_) {
+      // Always show the result, even when local storage is temporarily unavailable.
+    }
+    record['saved'] = saved;
 
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
@@ -513,7 +523,11 @@ class _QuizPageState extends State<QuizPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.pack.title} - ${_current + 1} از ${packQuestions.length}'),
+        title: Text(
+          '${widget.pack.title} - ${_current + 1} از ${packQuestions.length}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           Padding(
             padding: const EdgeInsetsDirectional.only(end: 16),
@@ -627,6 +641,14 @@ class ResultDetailPage extends StatelessWidget {
               ),
             ),
           ),
+          if (record['saved'] == false)
+            const Card(
+              child: ListTile(
+                leading: Icon(Icons.warning_amber_outlined, color: Colors.orange),
+                title: Text('نتیجه نمایش داده شد، اما در سابقه ذخیره نشد.'),
+                subtitle: Text('فضای ذخیره‌سازی دستگاه را بررسی کنید و آزمون را دوباره ذخیره کنید.'),
+              ),
+            ),
           if (hasQuestionBreakdown) ...[
             _resultGroup('پاسخ‌های درست', 0, correct),
             _resultGroup('پاسخ‌های نادرست و پاسخ صحیح', 1, wrong),
