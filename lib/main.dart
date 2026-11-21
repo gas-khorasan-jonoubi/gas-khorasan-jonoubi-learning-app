@@ -1,8 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
-import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'knowledge_pages.dart';
+import 'data/quiz_registry.dart';
+import 'data/quiz_models.dart';
+import 'purchase_page.dart';
+import 'services/lifetime_purchase_service.dart';
 
 const navy = Color(0xFF123B66);
 const blue = Color(0xFF1976D2);
@@ -15,7 +20,10 @@ class GasLearningApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
-    title: 'آموزش شرکت گاز خراسان جنوبی',
+    title: 'دانستنی‌های گاز',
+    locale: const Locale('fa', 'IR'),
+    supportedLocales: const [Locale('fa', 'IR')],
+    localizationsDelegates: GlobalMaterialLocalizations.delegates,
     theme: ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(seedColor: blue, primary: navy),
@@ -28,47 +36,176 @@ class GasLearningApp extends StatelessWidget {
 }
 
 class SplashPage extends StatefulWidget {
-  const SplashPage({super.key});
+  final Duration displayDuration;
+  final Future<void> Function(BuildContext context)? preparePoster;
+
+  const SplashPage({
+    super.key,
+    this.displayDuration = const Duration(seconds: 3),
+    this.preparePoster,
+  });
   @override
   State<SplashPage> createState() => _SplashPageState();
 }
 
 class _SplashPageState extends State<SplashPage> {
+  Timer? _displayTimer;
+  Completer<void>? _displayDelay;
+
+  Future<void> _waitForDisplayDuration() {
+    final delay = Completer<void>();
+    _displayDelay = delay;
+    _displayTimer = Timer(widget.displayDuration, () {
+      _displayTimer = null;
+      if (!delay.isCompleted) delay.complete();
+    });
+    return delay.future;
+  }
+
   @override
   void initState() {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    Future.delayed(const Duration(seconds: 3), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // ابتدا تصویر کامل بارگذاری می‌شود؛ سپس زمان سه‌ثانیه‌ای آغاز می‌شود.
+      try {
+        final preparePoster = widget.preparePoster;
+        if (preparePoster != null) {
+          await preparePoster(context);
+        } else {
+          await precacheImage(
+            const AssetImage('assets/approved_splash.webp'),
+            context,
+          );
+        }
+      } catch (_) {
+        // اگر بارگذاری تصویر به هر علت شکست خورد، برنامه همچنان قابل ورود است.
+      }
+      if (!mounted) return;
+      await _waitForDisplayDuration();
       if (!mounted) return;
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder<void>(
+          pageBuilder: (_, __, ___) => const AppStartGate(),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
       );
     });
   }
 
   @override
+  void dispose() {
+    _displayTimer?.cancel();
+    _displayTimer = null;
+    final delay = _displayDelay;
+    if (delay != null && !delay.isCompleted) {
+      delay.complete();
+    }
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: const Color(0xFF073B86),
+        backgroundColor: navy,
         body: SizedBox.expand(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ImageFiltered(
-                imageFilter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                child: Transform.scale(
-                  scale: 1.12,
-                  child: Image.asset('assets/splash.webp', fit: BoxFit.cover),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            child: Column(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Image.asset(
+                      'assets/approved_splash.webp',
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
+                      alignment: Alignment.center,
+                    ),
+                  ),
                 ),
-              ),
-              const ColoredBox(color: Color(0x18002A70)),
-              Center(
-                child: Image.asset('assets/splash.webp', fit: BoxFit.contain),
-              ),
-            ],
+                const SizedBox(height: 10),
+                const Text(
+                  'شرکت گاز خراسان جنوبی',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  'شهرستان عشق آباد',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                const Text(
+                  'اداره گاز عشق آباد',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ],
+            ),
           ),
         ),
+      );
+}
+
+class AppStartGate extends StatefulWidget {
+  final Future<bool> Function()? accessCheck;
+
+  const AppStartGate({
+    super.key,
+    this.accessCheck,
+  });
+
+  @override
+  State<AppStartGate> createState() => _AppStartGateState();
+}
+
+class _AppStartGateState extends State<AppStartGate> {
+  late final Future<bool> _accessCheck = _checkAccess();
+
+  Future<bool> _checkAccess() async {
+    final customCheck = widget.accessCheck;
+    if (customCheck != null) {
+      try {
+        return await customCheck();
+      } catch (_) {
+        return false;
+      }
+    }
+
+    // During development, the app remains usable until the real Bazaar SKU
+    // and public key are supplied to the release build.
+    if (!lifetimePurchaseService.isConfigured) return true;
+    try {
+      return await lifetimePurchaseService.restoreAccess();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _enterApp() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(builder: (_) => const HomePage()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<bool>(
+        future: _accessCheck,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snapshot.data == true) return const HomePage();
+          return PurchasePage(onAccessGranted: _enterApp);
+        },
       );
 }
 
@@ -79,15 +216,17 @@ class HomePage extends StatefulWidget {
 }
 class _HomePageState extends State<HomePage> {
   int index = 0;
-  final pages = const [DashboardPage(), ExamPage(), TrainingPage(), LibraryPage(), ResultsPage()];
+  final pages = const [SizedBox.shrink(), ExamPage(), TrainingPage(), LibraryPage(), ResultsPage()];
   final titles = const ['داشبورد', 'آزمون‌ها', 'آموزش‌ها', 'کتابخانه', 'نتایج'];
   @override
-  Widget build(BuildContext context) => WillPopScope(
-    onWillPop: () async {
+  Widget build(BuildContext context) => PopScope<void>(
+    canPop: false,
+    onPopInvokedWithResult: (didPop, result) async {
+      if (didPop) return;
       // در بخش‌های داخلی، دکمه برگشت فقط به داشبورد برمی‌گردد.
       if (index != 0) {
         setState(() => index = 0);
-        return false;
+        return;
       }
 
       // خروج از برنامه در صفحه اصلی فقط با تأیید کاربر انجام می‌شود.
@@ -108,11 +247,15 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       );
-      return shouldExit ?? false;
+      if (shouldExit == true && context.mounted) {
+        SystemNavigator.pop();
+      }
     },
     child: Scaffold(
       appBar: AppBar(title: Text(titles[index])),
-      body: pages[index],
+      body: index == 0
+          ? DashboardPage(onNavigate: (destination) => setState(() => index = destination))
+          : pages[index],
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (v) => setState(() => index = v),
@@ -129,25 +272,87 @@ class _HomePageState extends State<HomePage> {
 }
 
 class DashboardPage extends StatelessWidget {
-  const DashboardPage({super.key});
+  final ValueChanged<int> onNavigate;
+
+  const DashboardPage({super.key, required this.onNavigate});
+
   @override
-  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(18), children: [
-    Container(padding: const EdgeInsets.all(22), decoration: BoxDecoration(color: navy, borderRadius: BorderRadius.circular(20)), child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('به سامانه آموزش خوش آمدید', style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.bold)),
-      SizedBox(height: 8), Text('یادگیری، مرور مطالب و سنجش آموخته‌ها', style: TextStyle(color: Colors.white70)),
-    ])),
-    const SizedBox(height: 18),
-    const Text('دسترسی سریع', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-    const SizedBox(height: 10),
-    _MenuTile(icon: Icons.quiz, title: 'آزمون‌های چهارگزینه‌ای', subtitle: 'پاسخ به پرسش‌ها و ثبت نتیجه', onTap: () => _go(context, 1)),
-    _MenuTile(icon: Icons.menu_book, title: 'آموزش‌ها', subtitle: 'مطالعه محتوای آموزشی', onTap: () => _go(context, 2)),
-    _MenuTile(icon: Icons.local_library, title: 'کتابخانه دیجیتال', subtitle: 'دسترسی به منابع و جزوه‌ها', onTap: () => _go(context, 3)),
-    _MenuTile(icon: Icons.assessment, title: 'سوابق آزمون', subtitle: 'مشاهده نتایج ذخیره‌شده', onTap: () => _go(context, 4)),
-  ]);
-  void _go(BuildContext context, int i) {
-    final state = context.findAncestorStateOfType<_HomePageState>();
-    state?.setState(() => state.index = i);
-  }
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: navy,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'به سامانه آموزش خوش آمدید',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 21,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'یادگیری، مرور مطالب و سنجش آموخته‌ها',
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'دسترسی سریع',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          _MenuTile(
+            icon: Icons.quiz,
+            title: 'آزمون‌های چهارگزینه‌ای',
+            subtitle: 'پاسخ به پرسش‌ها و ثبت نتیجه',
+            onTap: () => onNavigate(1),
+          ),
+          _MenuTile(
+            icon: Icons.menu_book,
+            title: 'آموزش‌ها',
+            subtitle: 'مطالعه محتوای آموزشی',
+            onTap: () => onNavigate(2),
+          ),
+          _MenuTile(
+            icon: Icons.local_library,
+            title: 'کتابخانه دیجیتال',
+            subtitle: 'دسترسی به منابع و جزوه‌ها',
+            onTap: () => onNavigate(3),
+          ),
+          _MenuTile(
+            icon: Icons.assessment,
+            title: 'سوابق آزمون',
+            subtitle: 'مشاهده نتایج ذخیره‌شده',
+            onTap: () => onNavigate(4),
+          ),
+          _MenuTile(
+            icon: Icons.workspace_premium_outlined,
+            title: 'خرید و بازیابی دسترسی دائمی',
+            subtitle: 'خرید یک‌باره و بازیابی با حساب کافه‌بازار',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const PurchasePage()),
+            ),
+          ),
+          _MenuTile(
+            icon: Icons.help_outline,
+            title: 'راهنمای استفاده',
+            subtitle: 'آشنایی با بخش‌ها و مثال کاربردی',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const HelpPage()),
+            ),
+          ),
+        ],
+      );
 }
 class _MenuTile extends StatelessWidget {
   final IconData icon; final String title, subtitle; final VoidCallback onTap;
@@ -156,95 +361,558 @@ class _MenuTile extends StatelessWidget {
   Widget build(BuildContext context) => Card(child: ListTile(leading: CircleAvatar(backgroundColor: paleBlue, child: Icon(icon, color: navy)), title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: Text(subtitle), trailing: const Icon(Icons.chevron_left), onTap: onTap));
 }
 
-const questions = <Map<String, Object>>[
-  {'q':'هدف اصلی آموزش ایمنی در محیط کار چیست؟','a':['افزایش سرعت کار','پیشگیری از حادثه و کاهش خطر','افزایش هزینه‌ها','حذف دستورالعمل‌ها'],'correct':1},
-  {'q':'در صورت مشاهده وضعیت ناایمن چه باید کرد؟','a':['بی‌توجهی کرد','موضوع را گزارش و طبق دستورالعمل اقدام کرد','کار را پنهانی ادامه داد','تجهیزات حفاظتی را کنار گذاشت'],'correct':1},
-  {'q':'پیش از استفاده از تجهیزات باید چه کاری انجام داد؟','a':['بررسی سلامت و ایمنی تجهیزات','تغییر خودسرانه تنظیمات','حذف حفاظ‌ها','استفاده بدون بررسی'],'correct':0},
-];
-
-class ExamPage extends StatefulWidget {
-  const ExamPage({super.key});
-  @override
-  State<ExamPage> createState() => _ExamPageState();
+Duration quizDurationFor(int questionCount) {
+  if (questionCount < 0) {
+    throw ArgumentError.value(questionCount, 'questionCount', 'Must not be negative.');
+  }
+  return Duration(seconds: questionCount * 30);
 }
-class _ExamPageState extends State<ExamPage> {
-  int question = 0, score = 0;
-  int? selected;
-  bool finished = false;
+
+class QuizSummary {
+  final int correct;
+  final int wrong;
+  final int unanswered;
+
+  const QuizSummary({
+    required this.correct,
+    required this.wrong,
+    required this.unanswered,
+  });
+}
+
+QuizSummary evaluateQuizAnswers(
+  List<int?> selectedAnswers,
+  List<int> correctAnswers,
+) {
+  if (selectedAnswers.length != correctAnswers.length) {
+    throw ArgumentError('Selected answers and correct answers must have equal lengths.');
+  }
+  var correct = 0;
+  var wrong = 0;
+  var unanswered = 0;
+  for (var i = 0; i < correctAnswers.length; i++) {
+    final answer = selectedAnswers[i];
+    if (answer == null) {
+      unanswered++;
+    } else if (answer == correctAnswers[i]) {
+      correct++;
+    } else {
+      wrong++;
+    }
+  }
+  return QuizSummary(
+    correct: correct,
+    wrong: wrong,
+    unanswered: unanswered,
+  );
+}
+
+class ExamPage extends StatelessWidget {
+  const ExamPage({super.key});
+
+  @override
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          const _InfoCard(
+            icon: Icons.quiz_outlined,
+            title: 'آزمون‌های آفلاین',
+            body: 'هر آزمون به‌صورت مستقل طراحی شده است. برای هر سؤال ۳۰ ثانیه در زمان کل آزمون محاسبه می‌شود و می‌توانید تا پایان زمان، پاسخ‌ها را تغییر دهید.',
+          ),
+          const SizedBox(height: 10),
+          ...quizPacks.map((pack) {
+            final minutes = pack.durationSeconds ~/ 60;
+            final seconds = pack.durationSeconds % 60;
+            final durationLabel = seconds == 0
+                ? '$minutes دقیقه'
+                : '$minutes دقیقه و $seconds ثانیه';
+            return Card(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                leading: const CircleAvatar(
+                  backgroundColor: paleBlue,
+                  child: Icon(Icons.quiz, color: navy),
+                ),
+                title: Text(
+                  pack.title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 7),
+                  child: Text(
+                    '${pack.description}\nتعداد پرسش‌ها: ${pack.questionCount}  |  زمان کل: $durationLabel',
+                  ),
+                ),
+                isThreeLine: true,
+                trailing: const Icon(Icons.chevron_left),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => QuizPage(pack: pack),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      );
+}
+
+class QuizPage extends StatefulWidget {
+  final QuizPack pack;
+  final DateTime Function()? clock;
+
+  const QuizPage({
+    super.key,
+    required this.pack,
+    this.clock,
+  });
+
+  @override
+  State<QuizPage> createState() => _QuizPageState();
+}
+
+class _QuizPageState extends State<QuizPage> {
+  late final List<int?> _answers;
+  int _current = 0;
+  late int _remainingSeconds;
+  late DateTime _deadline;
+  Timer? _timer;
+  final ScrollController _scrollController = ScrollController();
+  bool _finishing = false;
+
+  DateTime _now() => widget.clock?.call() ?? DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _answers = List<int?>.filled(widget.pack.questionCount, null);
+    _remainingSeconds = quizDurationFor(widget.pack.questionCount).inSeconds;
+    _deadline = _now().add(quizDurationFor(widget.pack.questionCount));
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || _finishing) return;
+      final remainingMilliseconds = _deadline.difference(_now()).inMilliseconds;
+      if (remainingMilliseconds <= 0) {
+        setState(() => _remainingSeconds = 0);
+        unawaited(_finish());
+      } else {
+        // Round up so the quiz never ends almost one second early.
+        final remaining = (remainingMilliseconds + 999) ~/ 1000;
+        if (remaining != _remainingSeconds) {
+          setState(() => _remainingSeconds = remaining);
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _showQuestion(int index) {
+    if (index < 0 || index >= widget.pack.questionCount) return;
+    setState(() => _current = index);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      _scrollController.jumpTo(0);
+    });
+  }
+
+  String get _timeLabel {
+    final minutes = _remainingSeconds ~/ 60;
+    final seconds = _remainingSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _finish() async {
+    if (_finishing) return;
+    _finishing = true;
+    _timer?.cancel();
+
+    final packQuestions = widget.pack.questions;
+    final summary = evaluateQuizAnswers(
+      _answers,
+      packQuestions.map((question) => question['correct'] as int).toList(),
+    );
+
+    final record = <String, dynamic>{
+      'date': DateTime.now().toIso8601String(),
+      'examId': widget.pack.id,
+      'examTitle': widget.pack.title,
+      'correct': summary.correct,
+      'wrong': summary.wrong,
+      'unanswered': summary.unanswered,
+      'total': packQuestions.length,
+      'answers': _answers.map((answer) => answer ?? -1).toList(),
+      'questions': packQuestions
+          .map((question) => <String, Object>{
+                'q': question['q'] as String,
+                'a': List<String>.from(question['a'] as List<String>),
+                'correct': question['correct'] as int,
+              })
+          .toList(),
+    };
+
+    var saved = false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final old = prefs.getStringList('exam_results') ?? <String>[];
+      old.insert(0, jsonEncode(record));
+      saved = await prefs.setStringList('exam_results', old.take(100).toList());
+    } catch (_) {
+      // Always show the result, even when local storage is temporarily unavailable.
+    }
+    record['saved'] = saved;
+
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => ResultDetailPage(record: record),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (finished) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(Icons.emoji_events, color: blue, size: 64),
-      Text('نتیجه آزمون: $score از ${questions.length}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 16), FilledButton(onPressed: () => setState(() { question=0; score=0; selected=null; finished=false; }), child: const Text('آزمون مجدد')),
-    ]));
-    final q = questions[question];
-    final answers = q['a'] as List<String>;
-    return ListView(padding: const EdgeInsets.all(18), children: [
-      LinearProgressIndicator(value: (question+1)/questions.length),
-      const SizedBox(height: 18),
-      Text('پرسش ${question+1} از ${questions.length}', style: const TextStyle(color: navy, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 12),
-      Text(q['q'] as String, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 16),
-      ...List.generate(answers.length, (i) => Card(child: RadioListTile<int>(value:i, groupValue:selected, onChanged:(v)=>setState(()=>selected=v), title:Text(answers[i])))),
-      const SizedBox(height: 14),
-      FilledButton(onPressed: selected==null ? null : () {
-        if (selected == q['correct']) score++;
-        if (question == questions.length-1) {
-          setState(()=>finished=true);
-          _saveResult();
-        } else { setState(() { question++; selected=null; }); }
-      }, child: Text(question==questions.length-1 ? 'پایان آزمون' : 'پرسش بعدی')),
-    ]);
-  }
-  Future<void> _saveResult() async {
-    final prefs = await SharedPreferences.getInstance();
-    final old = prefs.getStringList('exam_results') ?? [];
-    old.insert(0, jsonEncode({'score':score,'total':questions.length,'date':DateTime.now().toIso8601String()}));
-    await prefs.setStringList('exam_results', old.take(100).toList());
+    final packQuestions = widget.pack.questions;
+    final question = packQuestions[_current];
+    final options = question['a'] as List<String>;
+    final selected = _answers[_current];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          '${widget.pack.title} - ${_current + 1} از ${packQuestions.length}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: 16),
+            child: Center(
+              child: Text(
+                _timeLabel,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: _remainingSeconds <= 10 ? Colors.red : Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: ListView(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(18),
+        children: [
+          LinearProgressIndicator(
+            value: (_current + 1) / packQuestions.length,
+          ),
+          const SizedBox(height: 18),
+          Text(
+            question['q'] as String,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            color: selected == null
+                ? const Color(0xFFFFF4E5)
+                : const Color(0xFFE8F5E9),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(
+                    selected == null
+                        ? Icons.radio_button_unchecked
+                        : Icons.check_circle_outline,
+                    color: selected == null
+                        ? Colors.orange.shade800
+                        : Colors.green.shade700,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      selected == null
+                          ? 'این سؤال هنوز بی‌پاسخ است'
+                          : 'پاسخ این سؤال ثبت شده است',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: selected == null
+                            ? Colors.orange.shade900
+                            : Colors.green.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          RadioGroup<int>(
+            groupValue: selected,
+            onChanged: (value) {
+              if (value == null || _finishing) return;
+              if (!_deadline.isAfter(_now())) {
+                setState(() => _remainingSeconds = 0);
+                unawaited(_finish());
+                return;
+              }
+              setState(() => _answers[_current] = value);
+            },
+            child: Column(
+              children: List.generate(
+                options.length,
+                (index) => Card(
+                  child: RadioListTile<int>(
+                    value: index,
+                    title: Text(options[index]),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              OutlinedButton(
+                onPressed: _current == 0
+                    ? null
+                    : () => _showQuestion(_current - 1),
+                child: const Text('قبلی'),
+              ),
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: _current == packQuestions.length - 1
+                    ? null
+                    : () => _showQuestion(_current + 1),
+                child: const Text('بعدی'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: _finishing ? null : _finish,
+            child: const Text('پایان آزمون و ثبت نتیجه'),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'پاسخ داده‌شده: ${_answers.where((answer) => answer != null).length} از ${packQuestions.length}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.black54),
+          ),
+        ],
+      ),
+    );
   }
 }
 
-class TrainingPage extends StatelessWidget {
-  const TrainingPage({super.key});
+class ResultDetailPage extends StatelessWidget {
+  final Map<String, dynamic> record;
+  const ResultDetailPage({super.key, required this.record});
+
   @override
-  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(18), children: const [
-    Text('محتوای آموزشی', style: TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
-    _InfoCard(icon:Icons.health_and_safety,title:'اصول ایمنی و بهداشت',body:'آشنایی با اصول عمومی ایمنی، شناسایی خطرها و گزارش شرایط ناایمن.'),
-    _InfoCard(icon:Icons.local_fire_department,title:'آشنایی با گاز طبیعی',body:'مفاهیم پایه درباره گاز طبیعی و نکات عمومی استفاده ایمن.'),
-    _InfoCard(icon:Icons.warning_amber,title:'اقدام در شرایط اضطراری',body:'حفظ خونسردی، رعایت دستورالعمل‌های سازمانی و اطلاع‌رسانی به مسئول مربوط.'),
-  ]);
+  Widget build(BuildContext context) {
+    // نتایج ذخیره‌شده در نسخه‌های قبلی نیز پس از به‌روزرسانی قابل مشاهده می‌مانند.
+    final total = (record['total'] as int?) ?? 0;
+    final correct = (record['correct'] as int?) ?? (record['score'] as int?) ?? 0;
+    final wrong = (record['wrong'] as int?) ?? (total - correct).clamp(0, total).toInt();
+    final unanswered = (record['unanswered'] as int?) ?? 0;
+    final hasQuestionBreakdown =
+        record['questions'] is List && record['answers'] is List;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('جزئیات نتیجه آزمون')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  const Text('خلاصه نتیجه', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  Text('درست: $correct   |   نادرست: $wrong   |   بی‌پاسخ: $unanswered'),
+                  Text('مجموع پرسش‌ها: ${record['total']}'),
+                ],
+              ),
+            ),
+          ),
+          if (record['saved'] == false)
+            const Card(
+              child: ListTile(
+                leading: Icon(Icons.warning_amber_outlined, color: Colors.orange),
+                title: Text('نتیجه نمایش داده شد، اما در سابقه ذخیره نشد.'),
+                subtitle: Text('فضای ذخیره‌سازی دستگاه را بررسی کنید؛ این نتیجه فقط در همین صفحه نمایش داده می‌شود و در سوابق ثبت نشده است.'),
+              ),
+            ),
+          if (hasQuestionBreakdown) ...[
+            _resultGroup('پاسخ‌های درست', 0, correct),
+            _resultGroup('پاسخ‌های نادرست و پاسخ صحیح', 1, wrong),
+            _resultGroup('پرسش‌های بی‌پاسخ و پاسخ صحیح', 2, unanswered),
+          ] else
+            const Card(
+              child: ListTile(
+                title: Text('این نتیجه در نسخهٔ قبلی برنامه ثبت شده است.'),
+                subtitle: Text('برای حفظ سابقه، امتیاز قبلی نمایش داده می‌شود؛ جزئیات سؤال‌ها در آن نسخه ذخیره نشده بود.'),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _resultGroup(String title, int mode, int count) {
+    final savedQuestions = (record['questions'] as List).cast<Map>();
+    final answers = (record['answers'] as List).cast<int>();
+    final children = <Widget>[];
+    for (var i = 0; i < savedQuestions.length; i++) {
+      final q = savedQuestions[i];
+      final options = (q['a'] as List).cast<String>();
+      final correctIndex = q['correct'] as int;
+      final userAnswer = answers[i];
+      final isUnanswered = userAnswer < 0;
+      final isCorrect = userAnswer == correctIndex;
+      final include = mode == 0
+          ? isCorrect
+          : mode == 1
+              ? !isUnanswered && !isCorrect
+              : isUnanswered;
+      if (!include) continue;
+      children.add(
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          title: Text(q['q'] as String),
+          subtitle: Text(
+            'پاسخ شما: ${isUnanswered ? 'بدون پاسخ' : options[userAnswer]}\n'
+            'پاسخ صحیح: ${options[correctIndex]}',
+          ),
+          isThreeLine: true,
+        ),
+      );
+    }
+
+    return Card(
+      child: ExpansionTile(
+        title: Text(title),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [Text('$count'), const SizedBox(width: 8), const Icon(Icons.expand_more)],
+        ),
+        children: children.isEmpty
+            ? const [ListTile(title: Text('موردی برای نمایش وجود ندارد'))]
+            : children,
+      ),
+    );
+  }
 }
-class LibraryPage extends StatelessWidget {
-  const LibraryPage({super.key});
-  @override
-  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(18), children: const [
-    Text('کتابخانه دیجیتال', style: TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
-    _InfoCard(icon:Icons.picture_as_pdf,title:'جزوه‌های آموزشی',body:'محل نمایش و افزودن فایل‌های آموزشی تأییدشده در نسخه‌های بعدی.'),
-    _InfoCard(icon:Icons.book,title:'دستورالعمل‌ها و منابع',body:'منابع و دستورالعمل‌های موردنیاز کارکنان در یک بخش متمرکز.'),
-  ]);
-}
+
 class _InfoCard extends StatelessWidget {
   final IconData icon; final String title,body;
   const _InfoCard({required this.icon,required this.title,required this.body});
   @override
   Widget build(BuildContext context) => Card(margin:const EdgeInsets.only(top:12), child: Padding(padding:const EdgeInsets.all(16), child: Row(crossAxisAlignment:CrossAxisAlignment.start, children:[Icon(icon,color:blue,size:30),const SizedBox(width:14),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:const TextStyle(fontWeight:FontWeight.bold,fontSize:16)),const SizedBox(height:6),Text(body)]))])));
 }
+class HelpPage extends StatelessWidget {
+  const HelpPage({super.key});
+
+  @override
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.all(18),
+        children: const [
+          Text('راهنمای استفاده از برنامه', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          _InfoCard(
+            icon: Icons.home,
+            title: 'داشبورد',
+            body: 'از داشبورد می‌توانید با انتخاب هر کارت مستقیماً وارد آزمون‌ها، آموزش‌ها، کتابخانه، سوابق یا بخش خرید و بازیابی دسترسی شوید.',
+          ),
+          _InfoCard(
+            icon: Icons.quiz,
+            title: 'شرکت در آزمون',
+            body: 'برنامه ۲۰ آزمون مستقل دارد و هر آزمون ۴۰ سؤال و ۲۰ دقیقه زمان دارد. گزینه هر سؤال را انتخاب کنید و با دکمه‌های قبلی و بعدی بین سؤال‌ها جابه‌جا شوید. تا پایان زمان یا پایان‌دادن دستی، می‌توانید پاسخ‌ها را تغییر دهید.',
+          ),
+          _InfoCard(
+            icon: Icons.assessment,
+            title: 'دیدن نتیجه و سوابق',
+            body: 'پس از پایان یا اتمام زمان، تعداد پاسخ‌های درست، نادرست و بی‌پاسخ نمایش داده می‌شود. هر گروه را باز کنید تا سؤال‌ها، پاسخ انتخابی و پاسخ صحیح را ببینید. نتیجه‌ها در بخش سوابق آزمون روی همین دستگاه ذخیره می‌شوند.',
+          ),
+          _InfoCard(
+            icon: Icons.menu_book,
+            title: 'آموزش و کتابخانه دیجیتال',
+            body: 'در قسمت آموزش‌ها یا کتابخانه، عبارت موردنظر را در کادر جست‌وجو بنویسید یا حوزه‌ای مانند HSE، امور مشترکین یا تعمیرات را انتخاب کنید. برای خواندن متن کامل، کارت مطلب را باز کنید.',
+          ),
+          _InfoCard(
+            icon: Icons.workspace_premium_outlined,
+            title: 'خرید دائمی و بازیابی خرید',
+            body: 'دسترسی برنامه با یک خرید یک‌باره فعال می‌شود و اشتراک دوره‌ای ندارد. برای بازیابی پس از نصب مجدد یا تعویض گوشی، کافه‌بازار را نصب کنید، با همان حساب قبلی وارد شوید و گزینه بازیابی خرید را بزنید. نخستین خرید و بازیابی نیازمند اتصال به اینترنت و تأیید کافه‌بازار است.',
+          ),
+          _InfoCard(
+            icon: Icons.wifi_off,
+            title: 'استفاده آفلاین',
+            body: 'پس از تأیید خرید، مطالب و آزمون‌هایی که داخل نسخه نصب‌شده قرار دارند بدون اینترنت قابل استفاده‌اند. برای بازیابی روی گوشی تازه یا نصب تازه، ابتدا باید خرید از کافه‌بازار بازیابی شود. اسناد رسمی و فایل‌های آموزشی مصوب فقط پس از دریافت و بررسی نسخه معتبر به کتابخانه افزوده می‌شوند.',
+          ),
+          _InfoCard(
+            icon: Icons.lightbulb_outline,
+            title: 'مثال کاربردی',
+            body: 'در یک آزمون، پاسخ سؤال اول را انتخاب کنید، به سؤال دوم بروید، با دکمه قبلی برگردید و پاسخ را اصلاح کنید. سپس آزمون را پایان دهید و در صفحه نتیجه، گروه پاسخ‌های نادرست و بی‌پاسخ را باز کنید تا پاسخ صحیح را مرور کنید.',
+          ),
+        ],
+      );
+}
+
 class ResultsPage extends StatefulWidget {
   const ResultsPage({super.key});
+
   @override
-  State<ResultsPage> createState()=>_ResultsPageState();
+  State<ResultsPage> createState() => _ResultsPageState();
 }
+
 class _ResultsPageState extends State<ResultsPage> {
-  late Future<List<String>> results;
+  late final Future<List<String>> _results = _load();
+
+  Future<List<String>> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('exam_results') ?? <String>[];
+  }
+
   @override
-  void initState(){super.initState();results=_load();}
-  Future<List<String>> _load() async {final p=await SharedPreferences.getInstance();return p.getStringList('exam_results')??[];}
-  @override
-  Widget build(BuildContext context)=>FutureBuilder<List<String>>(future:results,builder:(context,s){
-    if(!s.hasData)return const Center(child:CircularProgressIndicator());
-    if(s.data!.isEmpty)return const Center(child:Text('هنوز نتیجه‌ای ثبت نشده است'));
-    return ListView(padding:const EdgeInsets.all(16),children:s.data!.map((v){final x=jsonDecode(v) as Map<String,dynamic>;final d=DateTime.parse(x['date'] as String);return Card(child:ListTile(leading:const Icon(Icons.check_circle,color:blue),title:Text('امتیاز: ${x['score']} از ${x['total']}'),subtitle:Text('${d.year}/${d.month}/${d.day} - ${d.hour}:${d.minute}')));}).toList());
-  });
+  Widget build(BuildContext context) => FutureBuilder<List<String>>(
+        future: _results,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final values = snapshot.data ?? <String>[];
+          if (values.isEmpty) {
+            return const Center(child: Text('هنوز نتیجه‌ای ثبت نشده است'));
+          }
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: values.map((value) {
+              final record = jsonDecode(value) as Map<String, dynamic>;
+              final date = DateTime.parse(record['date'] as String);
+              final total = (record['total'] as int?) ?? 0;
+              final correct = (record['correct'] as int?) ?? (record['score'] as int?) ?? 0;
+              final wrong = (record['wrong'] as int?) ?? (total - correct).clamp(0, total).toInt();
+              return Card(
+                child: ListTile(
+                  leading: const Icon(Icons.assessment, color: blue),
+                  title: Text('${record['examTitle'] ?? 'آزمون'} - درست: $correct  |  نادرست: $wrong'),
+                  subtitle: Text('${date.year}/${date.month}/${date.day} - ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}'),
+                  trailing: const Icon(Icons.chevron_left),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ResultDetailPage(record: record),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          );
+        },
+      );
 }

@@ -1,8 +1,7 @@
-
 workflows:
-  android-release:
-    name: Gas Khorasan Jonoubi - Android APK
-    max_build_duration: 60
+  quality-checks:
+    name: Danestaniha-ye Gaz - Code Quality Checks
+    max_build_duration: 45
     environment:
       flutter: stable
     scripts:
@@ -11,9 +10,140 @@ workflows:
           if [ ! -d android ]; then
             flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
           fi
+      - name: Prepare approved WebP splash asset
+        script: |
+          mkdir -p /tmp
+          python3 -m venv /tmp/danestani-image-tools
+          /tmp/danestani-image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
+          /tmp/danestani-image-tools/bin/python tool/prepare_splash_asset.py --quality 92
+          /tmp/danestani-image-tools/bin/python tool/test_prepare_splash_asset.py
+          test -s assets/approved_splash.webp
+      - name: Configure Cafe Bazaar Android host
+        script: BAZAAR_APPLICATION_ID=ir.gas.khorasanjonoubi.danestanihayegaz.debug python3 tool/configure_bazaar_android.py
+      - name: Test Android host configurator
+        script: python3 tool/test_configure_bazaar_android.py
       - name: Get Flutter packages
-        script: flutter pub get
+        script: flutter pub get --enforce-lockfile
+      - name: Verify selected NIGC launcher artwork
+        script: |
+          test -s assets/app_icon.jpg
+          echo 'e0310a00567f7b4877632119ceba87c862dbf67b20b53e29202fe37e84c7094a  assets/app_icon.jpg' | sha256sum --check -
+      - name: Generate selected NIGC Android launcher icon
+        script: dart run flutter_launcher_icons
+      - name: Check Cafe Bazaar Android integration
+        script: dart run iran_iap doctor --store bazaar
+      - name: Resolve Cafe Bazaar Android release dependencies (no APK)
+        script: cd android && ./gradlew --no-daemon :app:dependencies --configuration releaseRuntimeClasspath -PiranIapStore=bazaar
+      - name: Compile Android release host (no APK)
+        script: cd android && ./gradlew --no-daemon :app:checkReleaseAarMetadata :app:compileReleaseKotlin
+
+      - name: Analyze Dart code
+        script: flutter analyze
+      - name: Run automated tests
+        script: flutter test --reporter expanded
+
+  android-release:
+    name: Gas Khorasan Jonoubi - Android APK
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      android_signing:
+        - danestani_gaz_release
+    scripts:
+      - name: Generate Android platform files
+        script: |
+          if [ ! -d android ]; then
+            flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
+          fi
+      - name: Prepare approved WebP splash asset
+        script: |
+          mkdir -p /tmp
+          python3 -m venv /tmp/danestani-image-tools
+          /tmp/danestani-image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
+          /tmp/danestani-image-tools/bin/python tool/prepare_splash_asset.py --quality 92
+          /tmp/danestani-image-tools/bin/python tool/test_prepare_splash_asset.py
+          test -s assets/approved_splash.webp
+      - name: Configure Cafe Bazaar Android host
+        script: python3 tool/configure_bazaar_android.py
+      - name: Validate Cafe Bazaar release configuration
+        script: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          application_id = os.environ.get("BAZAAR_APPLICATION_ID", "").strip()
+          product_id = os.environ.get("BAZAAR_LIFETIME_PRODUCT_ID", "").strip()
+          public_key = os.environ.get("BAZAAR_RSA_PUBLIC_KEY", "").strip()
+          signing_names = (
+              "CM_KEYSTORE_PATH",
+              "CM_KEYSTORE_PASSWORD",
+              "CM_KEY_ALIAS",
+              "CM_KEY_PASSWORD",
+          )
+          missing = [
+              name for name, value in (
+                  ("BAZAAR_APPLICATION_ID", application_id),
+                  ("BAZAAR_LIFETIME_PRODUCT_ID", product_id),
+                  ("BAZAAR_RSA_PUBLIC_KEY", public_key),
+                  *[(name, os.environ.get(name, "").strip()) for name in signing_names],
+              )
+              if not value
+          ]
+          if missing:
+              raise SystemExit(
+                  "Cafe Bazaar release blocked. Configure these Codemagic environment variables: "
+                  + ", ".join(missing)
+              )
+
+          if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+", application_id):
+              raise SystemExit("BAZAAR_APPLICATION_ID is not a valid Android application ID.")
+
+          defines = {
+              "IRAN_IAP_STORE": "bazaar",
+              "BAZAAR_LIFETIME_PRODUCT_ID": product_id,
+              "BAZAAR_RSA_PUBLIC_KEY": public_key,
+          }
+          target = Path("build/ci-iap-defines.json")
+          target.parent.mkdir(parents=True, exist_ok=True)
+          target.write_text(json.dumps(defines), encoding="utf-8")
+          PY
+      - name: Set installed app label
+        script: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          source = manifest.read_text(encoding="utf-8")
+          updated, count = re.subn(
+              r'android:label="[^"]+"',
+              'android:label="دانستنی‌های گاز"',
+              source,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit("Android app label was not found in the manifest.")
+          manifest.write_text(updated, encoding="utf-8")
+          PY
+      - name: Get Flutter packages
+        script: flutter pub get --enforce-lockfile
+      - name: Verify selected NIGC launcher artwork
+        script: |
+          test -s assets/app_icon.jpg
+          echo 'e0310a00567f7b4877632119ceba87c862dbf67b20b53e29202fe37e84c7094a  assets/app_icon.jpg' | sha256sum --check -
+      - name: Generate selected NIGC Android launcher icon
+        script: dart run flutter_launcher_icons
+      - name: Check Cafe Bazaar Android integration
+        script: dart run iran_iap doctor --store bazaar
+      - name: Analyze Dart code
+        script: flutter analyze
+      - name: Run automated tests
+        script: flutter test --reporter expanded
       - name: Build release APK
-        script: flutter build apk --release
+        script: dart run iran_iap build apk --store bazaar -- --release --dart-define-from-file=build/ci-iap-defines.json
+      - name: Verify selected store SDK in release APK
+        script: dart run iran_iap verify --store bazaar build/app/outputs/flutter-apk/app-release.apk
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
