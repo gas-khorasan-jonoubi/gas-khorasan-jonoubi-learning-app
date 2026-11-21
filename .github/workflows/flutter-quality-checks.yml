@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   analyze-and-test:
-    name: Analyze and test (no APK)
+    name: Analyze, test and emulator smoke (no release APK)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
@@ -81,11 +81,72 @@ jobs:
       - name: Run automated tests
         run: flutter test --reporter expanded
 
+      - name: Enable KVM group permissions when available
+        run: |
+          if [ -e /dev/kvm ]; then
+            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+            sudo udevadm control --reload-rules
+            sudo udevadm trigger --name-match=kvm
+          else
+            echo "KVM is not exposed by this runner; emulator may use software acceleration."
+          fi
+
+      - name: Run Android emulator visual smoke test
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -camera-back none
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            flutter build apk --debug
+            app_id="$(python3 - <<'PY'
+            import re
+            from pathlib import Path
+
+            candidates = (
+                Path("android/app/build.gradle.kts"),
+                Path("android/app/build.gradle"),
+            )
+            source = next(
+                (path.read_text(encoding="utf-8") for path in candidates if path.is_file()),
+                "",
+            )
+            match = re.search(r'applicationId\\s*(?:=\\s*)?["\\\']([^"\\\']+)["\\\']', source)
+            if match is None:
+                raise SystemExit("Generated Android applicationId was not found.")
+            print(match.group(1))
+            PY
+            )"
+
+            mkdir -p build/emulator-review
+            adb install -r build/app/outputs/flutter-apk/app-debug.apk
+            adb logcat -c
+            adb shell monkey -p "$app_id" -c android.intent.category.LAUNCHER 1
+            sleep 1
+            adb exec-out screencap -p > build/emulator-review/splash.png
+            sleep 4
+            adb exec-out screencap -p > build/emulator-review/dashboard.png
+            adb shell pidof "$app_id" >/dev/null
+            if adb logcat -d -s AndroidRuntime:E | grep -q "FATAL EXCEPTION"; then
+              adb logcat -d -s AndroidRuntime:E
+              exit 1
+            fi
+            test -s build/emulator-review/splash.png
+            test -s build/emulator-review/dashboard.png
+
       - name: Prepare reproducible dependency and splash review files
         run: |
           mkdir -p build/release-readiness/splash
           cp pubspec.lock build/release-readiness/pubspec.lock
           cp assets/approved_splash.webp build/release-readiness/splash/approved_splash_bundle.webp
+          mkdir -p build/release-readiness/emulator
+          cp build/emulator-review/splash.png build/release-readiness/emulator/splash.png
+          cp build/emulator-review/dashboard.png build/release-readiness/emulator/dashboard.png
           /tmp/danestani-image-tools/bin/python - <<'PY'
           from hashlib import sha256
           from pathlib import Path
