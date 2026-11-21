@@ -206,15 +206,20 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump();
 
+    // وضعیت سؤال بی‌پاسخ باید پیش از انتخاب پاسخ مشخص باشد.
+    expect(find.text('این سؤال هنوز بی‌پاسخ است'), findsOneWidget);
+
     // پاسخ درست سؤال اول را انتخاب می‌کنیم.
     await tester.tap(find.text('شناخت عوامل بالقوه آسیب پیش از وقوع حادثه'));
     await tester.pump();
+    expect(find.text('پاسخ این سؤال ثبت شده است'), findsOneWidget);
 
     // به سؤال بعد می‌رویم، برمی‌گردیم و پاسخ را تغییر می‌دهیم.
     await tester.ensureVisible(find.text('بعدی'));
     await tester.tap(find.text('بعدی'));
     await tester.pump();
     expect(find.text('آزمون مبانی ایمنی و HSE - 2 از 40'), findsOneWidget);
+    expect(find.text('این سؤال هنوز بی‌پاسخ است'), findsOneWidget);
 
     await tester.ensureVisible(find.text('قبلی'));
     await tester.tap(find.text('قبلی'));
