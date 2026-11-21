@@ -428,6 +428,7 @@ class _QuizPageState extends State<QuizPage> {
   late int _remainingSeconds;
   late DateTime _deadline;
   Timer? _timer;
+  final ScrollController _scrollController = ScrollController();
   bool _finishing = false;
 
   DateTime _now() => widget.clock?.call() ?? DateTime.now();
@@ -457,7 +458,17 @@ class _QuizPageState extends State<QuizPage> {
   @override
   void dispose() {
     _timer?.cancel();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _showQuestion(int index) {
+    if (index < 0 || index >= widget.pack.questionCount) return;
+    setState(() => _current = index);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      _scrollController.jumpTo(0);
+    });
   }
 
   String get _timeLabel {
@@ -544,6 +555,7 @@ class _QuizPageState extends State<QuizPage> {
         ],
       ),
       body: ListView(
+        controller: _scrollController,
         padding: const EdgeInsets.all(18),
         children: [
           LinearProgressIndicator(
@@ -554,7 +566,42 @@ class _QuizPageState extends State<QuizPage> {
             question['q'] as String,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+          Card(
+            color: selected == null
+                ? const Color(0xFFFFF4E5)
+                : const Color(0xFFE8F5E9),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(
+                    selected == null
+                        ? Icons.radio_button_unchecked
+                        : Icons.check_circle_outline,
+                    color: selected == null
+                        ? Colors.orange.shade800
+                        : Colors.green.shade700,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      selected == null
+                          ? 'این سؤال هنوز بی‌پاسخ است'
+                          : 'پاسخ این سؤال ثبت شده است',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: selected == null
+                            ? Colors.orange.shade900
+                            : Colors.green.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           RadioGroup<int>(
             groupValue: selected,
             onChanged: (value) {
@@ -580,14 +627,14 @@ class _QuizPageState extends State<QuizPage> {
               OutlinedButton(
                 onPressed: _current == 0
                     ? null
-                    : () => setState(() => _current--),
+                    : () => _showQuestion(_current - 1),
                 child: const Text('قبلی'),
               ),
               const SizedBox(height: 8),
               FilledButton(
                 onPressed: _current == packQuestions.length - 1
                     ? null
-                    : () => setState(() => _current++),
+                    : () => _showQuestion(_current + 1),
                 child: const Text('بعدی'),
               ),
             ],
