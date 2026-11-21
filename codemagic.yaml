@@ -19,7 +19,7 @@ workflows:
           /tmp/danestani-image-tools/bin/python tool/test_prepare_splash_asset.py
           test -s assets/approved_splash.webp
       - name: Configure Cafe Bazaar Android host
-        script: python3 tool/configure_bazaar_android.py
+        script: BAZAAR_APPLICATION_ID=ir.gas.khorasanjonoubi.danestanihayegaz.debug python3 tool/configure_bazaar_android.py
       - name: Test Android host configurator
         script: python3 tool/test_configure_bazaar_android.py
       - name: Get Flutter packages
