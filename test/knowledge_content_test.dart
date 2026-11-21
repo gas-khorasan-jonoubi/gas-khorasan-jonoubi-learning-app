@@ -28,7 +28,9 @@ void main() {
         expect(article.title.trim(), isNotEmpty);
         expect(article.summary.trim(), isNotEmpty);
         expect(article.sections, isNotEmpty);
+        expect(article.sections.every((section) => section.trim().isNotEmpty), isTrue);
         expect(article.keyPoints, isNotEmpty);
+        expect(article.keyPoints.every((point) => point.trim().isNotEmpty), isTrue);
       }
     });
 
