@@ -118,7 +118,7 @@ jobs:
             adb shell pidof "$(cat build/emulator-review/application_id.txt)" >/dev/null
             adb logcat -d -s AndroidRuntime:E > build/emulator-review/android-runtime.log
             python3 -c 'from pathlib import Path; s=Path("build/emulator-review/android-runtime.log").read_text(errors="replace"); raise SystemExit("FATAL EXCEPTION" in s)'
-            test -s build/emulator-review/splash.png
+            test -s build/emulator-review/flutter-splash.png
             test -s build/emulator-review/dashboard.png
 
       - name: Prepare reproducible dependency and splash review files
