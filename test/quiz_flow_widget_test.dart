@@ -228,7 +228,10 @@ void main() {
     await tester.tap(find.text('افزایش سرعت بدون توجه به ایمنی'));
     await tester.pump();
 
-    await tester.tap(find.text('پایان آزمون و ثبت نتیجه'));
+    final finishButton = find.text('پایان آزمون و ثبت نتیجه');
+    await tester.ensureVisible(finishButton);
+    await tester.pump();
+    await tester.tap(finishButton);
     await tester.pumpAndSettle();
 
     expect(find.text('جزئیات نتیجه آزمون'), findsOneWidget);
