@@ -112,22 +112,31 @@ jobs:
             adb install -r build/app/outputs/flutter-apk/app-debug.apk
             adb logcat -c
             adb shell monkey -p "$(cat build/emulator-review/application_id.txt)" -c android.intent.category.LAUNCHER 1
+            # Capture the splash immediately: querying Android's UI hierarchy can take
+            # several seconds, longer than the intentional three-second splash screen.
+            sleep 0.5
+            adb exec-out screencap -p > build/emulator-review/flutter-splash.png
+
             # Android 15 may show a one-time immersive-mode confirmation.
             # Dismiss it by its accessible label instead of relying on fixed screen coordinates.
-            sleep 1
+            sleep 0.5
             adb shell uiautomator dump /sdcard/danestani-window.xml || true
             adb pull /sdcard/danestani-window.xml build/emulator-review/window.xml || true
             python3 tool/dismiss_immersive_prompt.py build/emulator-review/window.xml
-            sleep 1
-            adb exec-out screencap -p > build/emulator-review/flutter-splash.png
-            sleep 5
+
+            # Wait beyond the splash duration, then verify the actual dashboard title
+            # instead of comparing PNG bytes (which can vary for unrelated system pixels).
+            sleep 4
+            adb shell uiautomator dump /sdcard/danestani-dashboard.xml || true
+            adb pull /sdcard/danestani-dashboard.xml build/emulator-review/dashboard-window.xml || true
+            test -s build/emulator-review/dashboard-window.xml
+            python3 -c 'from pathlib import Path; s=Path("build/emulator-review/dashboard-window.xml").read_text(encoding="utf-8", errors="replace"); raise SystemExit("Expected Persian dashboard title was not found after the splash screen.") if "داشبورد" not in s else print("Verified: the dashboard title is visible after the splash screen.")'
             adb exec-out screencap -p > build/emulator-review/dashboard.png
             adb shell pidof "$(cat build/emulator-review/application_id.txt)" >/dev/null
             adb logcat -d -s AndroidRuntime:E > build/emulator-review/android-runtime.log
             python3 -c 'from pathlib import Path; s=Path("build/emulator-review/android-runtime.log").read_text(errors="replace"); raise SystemExit("FATAL EXCEPTION" in s)'
             test -s build/emulator-review/flutter-splash.png
             test -s build/emulator-review/dashboard.png
-            python3 -c 'from pathlib import Path; import sys; splash=Path("build/emulator-review/flutter-splash.png").read_bytes(); dashboard=Path("build/emulator-review/dashboard.png").read_bytes(); sys.exit("Splash and dashboard screenshots are identical; visual smoke capture timing is invalid.") if splash == dashboard else print("Verified: splash and dashboard screenshots differ.")'
             test "$(cat build/emulator-review/application_id.txt)" = "ir.gas.khorasanjonoubi.danestanihayegaz.debug"
 
       - name: Prepare reproducible dependency and splash review files
