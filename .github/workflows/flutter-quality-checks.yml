@@ -55,6 +55,9 @@ jobs:
       - name: Test Android host configurator
         run: python3 tool/test_configure_bazaar_android.py
 
+      - name: Test emulator immersive prompt helper
+        run: python3 tool/test_dismiss_immersive_prompt.py
+
       - name: Get dependencies
         run: flutter pub get --enforce-lockfile
 
@@ -114,34 +117,7 @@ jobs:
             sleep 1
             adb shell uiautomator dump /sdcard/danestani-window.xml >/dev/null 2>&1 || true
             adb exec-out cat /sdcard/danestani-window.xml > build/emulator-review/window.xml 2>/dev/null || true
-            python3 - <<'PY'
-            import re
-            import subprocess
-            from pathlib import Path
-            import xml.etree.ElementTree as ET
-
-            window_dump = Path("build/emulator-review/window.xml")
-            if window_dump.is_file():
-                try:
-                    root = ET.fromstring(window_dump.read_text(errors="replace"))
-                    for node in root.iter("node"):
-                        if node.attrib.get("text", "").strip().lower() == "got it":
-                            bounds = re.fullmatch(
-                                r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",
-                                node.attrib.get("bounds", ""),
-                            )
-                            if bounds:
-                                left, top, right, bottom = map(int, bounds.groups())
-                                x, y = (left + right) // 2, (top + bottom) // 2
-                                subprocess.run(
-                                    ["adb", "shell", "input", "tap", str(x), str(y)],
-                                    check=True,
-                                )
-                                print("Dismissed Android immersive-mode confirmation.")
-                                break
-                except (ET.ParseError, OSError, subprocess.CalledProcessError) as error:
-                    print(f"Immersive-mode dialog check skipped: {error}")
-            PY
+            python3 tool/dismiss_immersive_prompt.py build/emulator-review/window.xml
             sleep 1
             adb exec-out screencap -p > build/emulator-review/startup.png
             sleep 1
