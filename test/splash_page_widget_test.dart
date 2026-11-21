@@ -43,7 +43,12 @@ void main() {
     expect(find.text('داشبورد'), findsOneWidget);
   });
 
-  testWidgets('splash displays the approved poster without cropping and cancels its timer on dispose', (tester) async {
+  testWidgets('splash shows local office labels on a compact screen and cancels its timer on dispose', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     var posterPrepared = false;
     await tester.pumpWidget(
       MaterialApp(
@@ -58,6 +63,9 @@ void main() {
     await tester.pump();
 
     expect(posterPrepared, isTrue);
+    expect(find.text('شرکت گاز خراسان جنوبی'), findsOneWidget);
+    expect(find.text('شهرستان عشق آباد'), findsOneWidget);
+    expect(find.text('اداره گاز عشق آباد'), findsOneWidget);
     final posterFinder = find.byWidgetPredicate(
       (widget) =>
           widget is Image &&
