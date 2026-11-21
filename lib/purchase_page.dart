@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:iran_iap/iran_iap.dart';
 import 'package:material_ui/material_ui.dart';
 import 'services/lifetime_purchase_service.dart';
 
@@ -130,12 +131,19 @@ class _PurchasePageState extends State<PurchasePage> {
   }
 
   String _friendlyError(Object error) {
-    final message = error.toString();
-    if (message.contains('storeNotInstalled')) {
-      return 'برای خرید یا بازیابی، برنامه کافه‌بازار باید روی دستگاه نصب و حساب شما در آن فعال باشد.';
-    }
-    if (message.contains('serviceUnavailable')) {
-      return 'ارتباط با سرویس پرداخت کافه‌بازار برقرار نشد. اتصال اینترنت و وضعیت کافه‌بازار را بررسی و دوباره تلاش کنید.';
+    if (error is IapException) {
+      return switch (error.code) {
+        IapErrorCode.storeNotInstalled =>
+          'برای خرید یا بازیابی، برنامه کافه‌بازار باید روی دستگاه نصب و حساب شما در آن فعال باشد.',
+        IapErrorCode.serviceUnavailable =>
+          'ارتباط با سرویس پرداخت کافه‌بازار برقرار نشد. اتصال اینترنت و وضعیت کافه‌بازار را بررسی و دوباره تلاش کنید.',
+        IapErrorCode.activityUnavailable =>
+          'امکان بازکردن صفحه پرداخت فراهم نشد. برنامه را دوباره اجرا کنید و مجدداً تلاش کنید.',
+        IapErrorCode.notInitialized =>
+          'اتصال کافه‌بازار آماده نیست. چند لحظه بعد دوباره برای بررسی یا بازیابی خرید تلاش کنید.',
+        _ =>
+          'بررسی خرید انجام نشد. لطفاً کافه‌بازار و اتصال اینترنت را بررسی و دوباره تلاش کنید.',
+      };
     }
     return 'بررسی خرید انجام نشد. لطفاً کافه‌بازار و اتصال اینترنت را بررسی و دوباره تلاش کنید.';
   }
