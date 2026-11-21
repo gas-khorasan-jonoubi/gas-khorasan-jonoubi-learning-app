@@ -9,6 +9,18 @@ void main() {
     expect(poster.lengthInBytes, greaterThan(0));
   });
 
+  testWidgets('real poster preload completes and splash opens dashboard after three seconds', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SplashPage()));
+    await tester.pump();
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    });
+    await tester.pump();
+    expect(find.text('شرکت گاز خراسان جنوبی'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.text('داشبورد'), findsOneWidget);
+  });
 
   testWidgets('splash remains visible for three seconds after poster is ready', (tester) async {
     var posterPrepared = false;
@@ -78,7 +90,6 @@ void main() {
     expect(poster.fit, BoxFit.contain);
     expect(poster.filterQuality, FilterQuality.high);
 
-    // Removing the splash early must cancel its pending timer.
     await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
     await tester.pump();
     expect(tester.takeException(), isNull);
