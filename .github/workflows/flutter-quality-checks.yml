@@ -116,10 +116,8 @@ jobs:
             # Dismiss it by its accessible label instead of relying on fixed screen coordinates.
             sleep 1
             adb shell uiautomator dump /sdcard/danestani-window.xml >/dev/null 2>&1 || true
-            adb exec-out cat /sdcard/danestani-window.xml > build/emulator-review/window.xml 2>/dev/null || true
+            adb pull /sdcard/danestani-window.xml build/emulator-review/window.xml >/dev/null 2>&1 || true
             python3 tool/dismiss_immersive_prompt.py build/emulator-review/window.xml
-            sleep 1
-            adb exec-out screencap -p > build/emulator-review/startup.png
             sleep 1
             adb exec-out screencap -p > build/emulator-review/flutter-splash.png
             sleep 5
@@ -129,6 +127,10 @@ jobs:
             python3 -c 'from pathlib import Path; s=Path("build/emulator-review/android-runtime.log").read_text(errors="replace"); raise SystemExit("FATAL EXCEPTION" in s)'
             test -s build/emulator-review/flutter-splash.png
             test -s build/emulator-review/dashboard.png
+            if cmp -s build/emulator-review/flutter-splash.png build/emulator-review/dashboard.png; then
+              echo "Splash and dashboard screenshots are identical; visual smoke capture timing is invalid." >&2
+              exit 1
+            fi
             test "$(cat build/emulator-review/application_id.txt)" = "ir.gas.khorasanjonoubi.danestanihayegaz.debug"
 
       - name: Prepare reproducible dependency and splash review files
@@ -137,7 +139,6 @@ jobs:
           cp pubspec.lock build/release-readiness/pubspec.lock
           cp assets/approved_splash.webp build/release-readiness/splash/approved_splash_bundle.webp
           mkdir -p build/release-readiness/emulator
-          cp build/emulator-review/startup.png build/release-readiness/emulator/startup.png
           cp build/emulator-review/flutter-splash.png build/release-readiness/emulator/flutter-splash.png
           cp build/emulator-review/dashboard.png build/release-readiness/emulator/dashboard.png
           /tmp/danestani-image-tools/bin/python - <<'PY'
