@@ -104,7 +104,7 @@ jobs:
           script: |
             flutter build apk --debug
             mkdir -p build/emulator-review
-            python3 -c 'import pathlib,re; ps=(pathlib.Path("android/app/build.gradle.kts"),pathlib.Path("android/app/build.gradle")); s=next((p.read_text(encoding="utf-8") for p in ps if p.is_file()),""); m=re.search(r"applicationId\\s*(?:=\\s*)?"([^"]+)"",s); print(m.group(1) if m else "")' > build/emulator-review/application_id.txt
+            python3 -c 'import pathlib; ps=(pathlib.Path("android/app/build.gradle.kts"),pathlib.Path("android/app/build.gradle")); s=next((p.read_text(encoding="utf-8") for p in ps if p.is_file()),""); print(next((line.split(chr(34))[1] for line in s.splitlines() if "applicationId" in line and chr(34) in line),""))' > build/emulator-review/application_id.txt
             test -s build/emulator-review/application_id.txt
             adb install -r build/app/outputs/flutter-apk/app-debug.apk
             adb logcat -c
