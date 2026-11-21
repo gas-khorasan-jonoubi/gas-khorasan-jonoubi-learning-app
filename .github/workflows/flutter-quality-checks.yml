@@ -115,8 +115,8 @@ jobs:
             # Android 15 may show a one-time immersive-mode confirmation.
             # Dismiss it by its accessible label instead of relying on fixed screen coordinates.
             sleep 1
-            adb shell uiautomator dump /sdcard/danestani-window.xml >/dev/null 2>&1 || true
-            adb pull /sdcard/danestani-window.xml build/emulator-review/window.xml >/dev/null 2>&1 || true
+            adb shell uiautomator dump /sdcard/danestani-window.xml || true
+            adb pull /sdcard/danestani-window.xml build/emulator-review/window.xml || true
             python3 tool/dismiss_immersive_prompt.py build/emulator-review/window.xml
             sleep 1
             adb exec-out screencap -p > build/emulator-review/flutter-splash.png
@@ -127,10 +127,7 @@ jobs:
             python3 -c 'from pathlib import Path; s=Path("build/emulator-review/android-runtime.log").read_text(errors="replace"); raise SystemExit("FATAL EXCEPTION" in s)'
             test -s build/emulator-review/flutter-splash.png
             test -s build/emulator-review/dashboard.png
-            if cmp -s build/emulator-review/flutter-splash.png build/emulator-review/dashboard.png; then
-              echo "Splash and dashboard screenshots are identical; visual smoke capture timing is invalid." >&2
-              exit 1
-            fi
+            python3 -c 'from pathlib import Path; import sys; splash=Path("build/emulator-review/flutter-splash.png").read_bytes(); dashboard=Path("build/emulator-review/dashboard.png").read_bytes(); sys.exit("Splash and dashboard screenshots are identical; visual smoke capture timing is invalid.") if splash == dashboard else print("Verified: splash and dashboard screenshots differ.")'
             test "$(cat build/emulator-review/application_id.txt)" = "ir.gas.khorasanjonoubi.danestanihayegaz.debug"
 
       - name: Prepare reproducible dependency and splash review files
