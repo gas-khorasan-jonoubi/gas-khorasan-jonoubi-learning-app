@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
 import 'package:gas_khorasan_jonoubi_learning_app/data/quiz_models.dart';
+import 'package:gas_khorasan_jonoubi_learning_app/data/quiz_registry.dart';
 
 Widget _examHost() => const MaterialApp(
       home: Scaffold(body: ExamPage()),
@@ -292,6 +293,21 @@ void main() {
     expect(record['correct'], 0);
     expect(record['wrong'], 0);
     expect(record['unanswered'], 1);
+  });
+
+  testWidgets('long quiz titles do not overflow on a compact phone screen', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(home: QuizPage(pack: quizPacks.first)),
+    );
+    await tester.pump();
+
+    expect(find.text('20:00'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
 }
