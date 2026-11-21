@@ -49,6 +49,19 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
+  Timer? _displayTimer;
+  Completer<void>? _displayDelay;
+
+  Future<void> _waitForDisplayDuration() {
+    final delay = Completer<void>();
+    _displayDelay = delay;
+    _displayTimer = Timer(widget.displayDuration, () {
+      _displayTimer = null;
+      if (!delay.isCompleted) delay.complete();
+    });
+    return delay.future;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -69,7 +82,7 @@ class _SplashPageState extends State<SplashPage> {
         // اگر بارگذاری تصویر به هر علت شکست خورد، برنامه همچنان قابل ورود است.
       }
       if (!mounted) return;
-      await Future<void>.delayed(widget.displayDuration);
+      await _waitForDisplayDuration();
       if (!mounted) return;
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       Navigator.of(context).pushReplacement(
@@ -84,6 +97,12 @@ class _SplashPageState extends State<SplashPage> {
 
   @override
   void dispose() {
+    _displayTimer?.cancel();
+    _displayTimer = null;
+    final delay = _displayDelay;
+    if (delay != null && !delay.isCompleted) {
+      delay.complete();
+    }
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
