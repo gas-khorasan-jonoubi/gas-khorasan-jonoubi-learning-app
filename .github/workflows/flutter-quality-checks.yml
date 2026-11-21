@@ -50,7 +50,7 @@ jobs:
           test -s assets/approved_splash.webp
 
       - name: Configure Cafe Bazaar Android host
-        run: python3 tool/configure_bazaar_android.py
+        run: BAZAAR_APPLICATION_ID=ir.gas.khorasanjonoubi.danestanihayegaz.debug python3 tool/configure_bazaar_android.py
 
       - name: Test Android host configurator
         run: python3 tool/test_configure_bazaar_android.py
@@ -120,6 +120,7 @@ jobs:
             python3 -c 'from pathlib import Path; s=Path("build/emulator-review/android-runtime.log").read_text(errors="replace"); raise SystemExit("FATAL EXCEPTION" in s)'
             test -s build/emulator-review/flutter-splash.png
             test -s build/emulator-review/dashboard.png
+            test "$(cat build/emulator-review/application_id.txt)" = "ir.gas.khorasanjonoubi.danestanihayegaz.debug"
 
       - name: Prepare reproducible dependency and splash review files
         run: |
