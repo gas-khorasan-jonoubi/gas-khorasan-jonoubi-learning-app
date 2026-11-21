@@ -1,0 +1,141 @@
+name: Android release APK
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-release:
+    name: Build and verify signed Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Flutter stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Validate release secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          CM_KEYSTORE_PASSWORD: ${{ secrets.CM_KEYSTORE_PASSWORD }}
+          CM_KEY_ALIAS: ${{ secrets.CM_KEY_ALIAS }}
+          CM_KEY_PASSWORD: ${{ secrets.CM_KEY_PASSWORD }}
+          BAZAAR_APPLICATION_ID: ${{ secrets.BAZAAR_APPLICATION_ID }}
+          BAZAAR_LIFETIME_PRODUCT_ID: ${{ secrets.BAZAAR_LIFETIME_PRODUCT_ID }}
+          BAZAAR_RSA_PUBLIC_KEY: ${{ secrets.BAZAAR_RSA_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in ANDROID_KEYSTORE_BASE64 CM_KEYSTORE_PASSWORD CM_KEY_ALIAS CM_KEY_PASSWORD BAZAAR_APPLICATION_ID BAZAAR_LIFETIME_PRODUCT_ID BAZAAR_RSA_PUBLIC_KEY; do
+            if [ -z "${!name:-}" ]; then missing+=("$name"); fi
+          done
+          if [ "${#missing[@]}" -ne 0 ]; then
+            printf 'Release is safely blocked. Missing GitHub Actions secrets: %s\\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - name: Restore private Android signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/android-signing"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/android-signing/release.keystore"
+          test -s "$RUNNER_TEMP/android-signing/release.keystore"
+          echo "CM_KEYSTORE_PATH=$RUNNER_TEMP/android-signing/release.keystore" >> "$GITHUB_ENV"
+
+      - name: Generate Android host and configure Bazaar and signing
+        env:
+          BAZAAR_APPLICATION_ID: ${{ secrets.BAZAAR_APPLICATION_ID }}
+          CM_KEYSTORE_PATH: ${{ runner.temp }}/android-signing/release.keystore
+          CM_KEYSTORE_PASSWORD: ${{ secrets.CM_KEYSTORE_PASSWORD }}
+          CM_KEY_ALIAS: ${{ secrets.CM_KEY_ALIAS }}
+          CM_KEY_PASSWORD: ${{ secrets.CM_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ ! -d android ]; then
+            flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
+          fi
+          python3 tool/configure_bazaar_android.py
+
+      - name: Prepare compact splash asset
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/danestani-image-tools
+          /tmp/danestani-image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
+          /tmp/danestani-image-tools/bin/python tool/prepare_splash_asset.py --quality 92
+          /tmp/danestani-image-tools/bin/python tool/test_prepare_splash_asset.py
+          test -s assets/approved_splash.webp
+
+      - name: Get dependencies and verify launcher artwork
+        run: |
+          set -euo pipefail
+          flutter pub get --enforce-lockfile
+          echo 'e0310a00567f7b4877632119ceba87c862dbf67b20b53e29202fe37e84c7094a  assets/app_icon.jpg' | sha256sum --check -
+          dart run flutter_launcher_icons
+
+      - name: Validate Bazaar configuration and prepare compile-time defines
+        env:
+          BAZAAR_LIFETIME_PRODUCT_ID: ${{ secrets.BAZAAR_LIFETIME_PRODUCT_ID }}
+          BAZAAR_RSA_PUBLIC_KEY: ${{ secrets.BAZAAR_RSA_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          dart run iran_iap doctor --store bazaar
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          values = {
+              "IRAN_IAP_STORE": "bazaar",
+              "BAZAAR_LIFETIME_PRODUCT_ID": os.environ["BAZAAR_LIFETIME_PRODUCT_ID"],
+              "BAZAAR_RSA_PUBLIC_KEY": os.environ["BAZAAR_RSA_PUBLIC_KEY"],
+          }
+          Path("build").mkdir(exist_ok=True)
+          Path("build/ci-iap-defines.json").write_text(json.dumps(values), encoding="utf-8")
+          PY
+
+      - name: Analyze and test
+        run: |
+          set -euo pipefail
+          flutter analyze
+          flutter test --reporter expanded
+
+      - name: Build signed release APK
+        run: dart run iran_iap build apk --store bazaar -- --release --dart-define-from-file=build/ci-iap-defines.json
+
+      - name: Verify Bazaar SDK and APK signature
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          test -s "$APK"
+          dart run iran_iap verify --store bazaar "$APK"
+          "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)/apksigner" verify --verbose "$APK"
+          sha256sum "$APK"
+          ls -lh "$APK"
+
+      - name: Upload signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: danestani-gaz-release-${{ github.ref_name }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
