@@ -43,22 +43,36 @@ void main() {
     expect(find.text('داشبورد'), findsOneWidget);
   });
 
-  testWidgets('splash displays the approved offline poster without cropping', (tester) async {
+  testWidgets('splash displays the approved poster without cropping and cancels its timer on dispose', (tester) async {
+    var posterPrepared = false;
     await tester.pumpWidget(
-      const MaterialApp(home: SplashPage()),
+      MaterialApp(
+        home: SplashPage(
+          displayDuration: const Duration(hours: 1),
+          preparePoster: (_) async {
+            posterPrepared = true;
+          },
+        ),
+      ),
     );
+    await tester.pump();
 
+    expect(posterPrepared, isTrue);
     final posterFinder = find.byWidgetPredicate(
       (widget) =>
           widget is Image &&
           widget.image is AssetImage &&
           (widget.image as AssetImage).assetName == 'assets/approved_splash.webp',
     );
-
     expect(posterFinder, findsOneWidget);
 
     final poster = tester.widget<Image>(posterFinder);
     expect(poster.fit, BoxFit.contain);
     expect(poster.filterQuality, FilterQuality.high);
+
+    // Removing the splash early must cancel its pending timer.
+    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
   });
 }
