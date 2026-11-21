@@ -61,6 +61,11 @@ void main() {
           final options = question['a'] as List<String>;
           expect(options, hasLength(4));
           expect(options.every((option) => option.trim().isNotEmpty), isTrue);
+          expect(
+            options.map((option) => option.trim().toLowerCase()).toSet(),
+            hasLength(4),
+            reason: 'Duplicate answer choices in ${pack.title}: ${question['q']}',
+          );
           final correctIndex = question['correct'] as int;
           expect(correctIndex, inInclusiveRange(0, 3));
           answerDistribution[correctIndex]++;
