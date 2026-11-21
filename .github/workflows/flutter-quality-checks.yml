@@ -127,7 +127,7 @@ jobs:
                     for node in root.iter("node"):
                         if node.attrib.get("text", "").strip().lower() == "got it":
                             bounds = re.fullmatch(
-                                r"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]",
+                                r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",
                                 node.attrib.get("bounds", ""),
                             )
                             if bounds:
