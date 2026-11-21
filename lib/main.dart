@@ -606,6 +606,11 @@ class _QuizPageState extends State<QuizPage> {
             groupValue: selected,
             onChanged: (value) {
               if (value == null || _finishing) return;
+              if (!_deadline.isAfter(_now())) {
+                setState(() => _remainingSeconds = 0);
+                unawaited(_finish());
+                return;
+              }
               setState(() => _answers[_current] = value);
             },
             child: Column(
@@ -693,7 +698,7 @@ class ResultDetailPage extends StatelessWidget {
               child: ListTile(
                 leading: Icon(Icons.warning_amber_outlined, color: Colors.orange),
                 title: Text('نتیجه نمایش داده شد، اما در سابقه ذخیره نشد.'),
-                subtitle: Text('فضای ذخیره‌سازی دستگاه را بررسی کنید و آزمون را دوباره ذخیره کنید.'),
+                subtitle: Text('فضای ذخیره‌سازی دستگاه را بررسی کنید؛ این نتیجه فقط در همین صفحه نمایش داده می‌شود و در سوابق ثبت نشده است.'),
               ),
             ),
           if (hasQuestionBreakdown) ...[
