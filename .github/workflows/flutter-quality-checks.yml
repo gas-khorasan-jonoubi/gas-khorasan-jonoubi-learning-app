@@ -110,8 +110,10 @@ jobs:
             adb logcat -c
             adb shell monkey -p "$(cat build/emulator-review/application_id.txt)" -c android.intent.category.LAUNCHER 1
             sleep 2
-            adb exec-out screencap -p > build/emulator-review/splash.png
-            sleep 8
+            adb exec-out screencap -p > build/emulator-review/startup.png
+            sleep 3
+            adb exec-out screencap -p > build/emulator-review/flutter-splash.png
+            sleep 5
             adb exec-out screencap -p > build/emulator-review/dashboard.png
             adb shell pidof "$(cat build/emulator-review/application_id.txt)" >/dev/null
             adb logcat -d -s AndroidRuntime:E > build/emulator-review/android-runtime.log
@@ -125,7 +127,8 @@ jobs:
           cp pubspec.lock build/release-readiness/pubspec.lock
           cp assets/approved_splash.webp build/release-readiness/splash/approved_splash_bundle.webp
           mkdir -p build/release-readiness/emulator
-          cp build/emulator-review/splash.png build/release-readiness/emulator/splash.png
+          cp build/emulator-review/startup.png build/release-readiness/emulator/startup.png
+          cp build/emulator-review/flutter-splash.png build/release-readiness/emulator/flutter-splash.png
           cp build/emulator-review/dashboard.png build/release-readiness/emulator/dashboard.png
           /tmp/danestani-image-tools/bin/python - <<'PY'
           from hashlib import sha256
