@@ -116,7 +116,7 @@ jobs:
                 (path.read_text(encoding="utf-8") for path in candidates if path.is_file()),
                 "",
             )
-            match = re.search(r'applicationId\\s*(?:=\\s*)?["\\\']([^"\\\']+)["\\\']', source)
+            match = re.search(r"""applicationId\s*(?:=\s*)?["']([^"']+)["']""", source)
             if match is None:
                 raise SystemExit("Generated Android applicationId was not found.")
             print(match.group(1))
