@@ -109,9 +109,9 @@ jobs:
             adb install -r build/app/outputs/flutter-apk/app-debug.apk
             adb logcat -c
             adb shell monkey -p "$(cat build/emulator-review/application_id.txt)" -c android.intent.category.LAUNCHER 1
-            sleep 1
+            sleep 2
             adb exec-out screencap -p > build/emulator-review/splash.png
-            sleep 4
+            sleep 8
             adb exec-out screencap -p > build/emulator-review/dashboard.png
             adb shell pidof "$(cat build/emulator-review/application_id.txt)" >/dev/null
             adb logcat -d -s AndroidRuntime:E > build/emulator-review/android-runtime.log
