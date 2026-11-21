@@ -102,30 +102,20 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -camera-back none
           disable-animations: true
           script: |
-            set -euo pipefail
             flutter build apk --debug
-            android_sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-            aapt="$(find "$android_sdk/build-tools" -name aapt -type f 2>/dev/null | sort -V | tail -n 1)"
-            if [ -z "$aapt" ]; then
-              aapt="$(command -v aapt || true)"
-            fi
-            test -n "$aapt"
-            app_id="$("$aapt" dump badging build/app/outputs/flutter-apk/app-debug.apk | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p")"
-            test -n "$app_id"
-
             mkdir -p build/emulator-review
+            python3 -c 'import pathlib,re; ps=(pathlib.Path("android/app/build.gradle.kts"),pathlib.Path("android/app/build.gradle")); s=next((p.read_text(encoding="utf-8") for p in ps if p.is_file()),""); m=re.search(r"applicationId\\s*(?:=\\s*)?"([^"]+)"",s); print(m.group(1) if m else "")' > build/emulator-review/application_id.txt
+            test -s build/emulator-review/application_id.txt
             adb install -r build/app/outputs/flutter-apk/app-debug.apk
             adb logcat -c
-            adb shell monkey -p "$app_id" -c android.intent.category.LAUNCHER 1
+            adb shell monkey -p "$(cat build/emulator-review/application_id.txt)" -c android.intent.category.LAUNCHER 1
             sleep 1
             adb exec-out screencap -p > build/emulator-review/splash.png
             sleep 4
             adb exec-out screencap -p > build/emulator-review/dashboard.png
-            adb shell pidof "$app_id" >/dev/null
-            if adb logcat -d -s AndroidRuntime:E | grep -q "FATAL EXCEPTION"; then
-              adb logcat -d -s AndroidRuntime:E
-              exit 1
-            fi
+            adb shell pidof "$(cat build/emulator-review/application_id.txt)" >/dev/null
+            adb logcat -d -s AndroidRuntime:E > build/emulator-review/android-runtime.log
+            python3 -c 'from pathlib import Path; s=Path("build/emulator-review/android-runtime.log").read_text(errors="replace"); raise SystemExit("FATAL EXCEPTION" in s)'
             test -s build/emulator-review/splash.png
             test -s build/emulator-review/dashboard.png
 
