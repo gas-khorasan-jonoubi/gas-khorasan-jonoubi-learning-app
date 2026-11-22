@@ -124,14 +124,17 @@ def run_smoke_test(
         )
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    # Capture the branded Flutter screen before UIAutomator startup/dumps can consume
+    # the short splash window on slower hosted Android emulators.
+    time.sleep(0.7)
+    capture_screenshot(output_dir / "flutter-splash.png")
+
     wait_for_labels(
         SPLASH_LABELS,
         remote_path="/sdcard/danestani-splash.xml",
         local_path=output_dir / "splash-window.xml",
         timeout_seconds=splash_timeout,
     )
-    capture_screenshot(output_dir / "flutter-splash.png")
-
     wait_for_labels(
         {"داشبورد"},
         remote_path="/sdcard/danestani-dashboard.xml",
