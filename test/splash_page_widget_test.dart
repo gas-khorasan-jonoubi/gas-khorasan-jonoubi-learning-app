@@ -9,7 +9,7 @@ void main() {
     expect(poster.lengthInBytes, greaterThan(0));
   });
 
-  testWidgets('real poster preload completes and splash opens dashboard after three seconds', (tester) async {
+  testWidgets('real poster preload completes and splash opens dashboard after five seconds', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: SplashPage()));
     await tester.pump();
     await tester.runAsync(() async {
@@ -17,7 +17,9 @@ void main() {
     });
     await tester.pump();
     expect(find.text('شرکت گاز خراسان جنوبی'), findsOneWidget);
-    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(seconds: 4));
+    expect(find.text('داشبورد'), findsNothing);
+    await tester.pump(const Duration(seconds: 1));
     await tester.pumpAndSettle();
     expect(find.text('داشبورد'), findsOneWidget);
   });
