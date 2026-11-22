@@ -37,9 +37,9 @@ jobs:
       - name: Validate release secrets
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          CM_KEYSTORE_PASSWORD: ${{ secrets.CM_KEYSTORE_PASSWORD }}
-          CM_KEY_ALIAS: ${{ secrets.CM_KEY_ALIAS }}
-          CM_KEY_PASSWORD: ${{ secrets.CM_KEY_PASSWORD }}
+          CM_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          CM_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          CM_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           BAZAAR_APPLICATION_ID: ${{ secrets.BAZAAR_APPLICATION_ID }}
           BAZAAR_LIFETIME_PRODUCT_ID: ${{ secrets.BAZAAR_LIFETIME_PRODUCT_ID }}
           BAZAAR_RSA_PUBLIC_KEY: ${{ secrets.BAZAAR_RSA_PUBLIC_KEY }}
@@ -68,9 +68,9 @@ jobs:
         env:
           BAZAAR_APPLICATION_ID: ${{ secrets.BAZAAR_APPLICATION_ID }}
           CM_KEYSTORE_PATH: ${{ runner.temp }}/android-signing/release.keystore
-          CM_KEYSTORE_PASSWORD: ${{ secrets.CM_KEYSTORE_PASSWORD }}
-          CM_KEY_ALIAS: ${{ secrets.CM_KEY_ALIAS }}
-          CM_KEY_PASSWORD: ${{ secrets.CM_KEY_PASSWORD }}
+          CM_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          CM_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          CM_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           if [ ! -d android ]; then
