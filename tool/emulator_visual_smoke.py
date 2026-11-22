@@ -124,13 +124,16 @@ def run_smoke_test(
         )
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    # Capture the first Flutter frame before accessibility inspection. The
+    # splash is intentionally brief, and UIAutomator dumps can take several seconds.
+    time.sleep(0.5)
+    capture_screenshot(output_dir / "flutter-splash.png")
     wait_for_labels(
         SPLASH_LABELS,
         remote_path="/sdcard/danestani-splash.xml",
         local_path=output_dir / "splash-window.xml",
         timeout_seconds=splash_timeout,
     )
-    capture_screenshot(output_dir / "flutter-splash.png")
 
     wait_for_labels(
         {"داشبورد"},
