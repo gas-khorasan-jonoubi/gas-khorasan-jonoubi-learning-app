@@ -112,17 +112,28 @@ jobs:
             adb install -r build/app/outputs/flutter-apk/app-debug.apk
             adb logcat -c
             adb shell monkey -p "$(cat build/emulator-review/application_id.txt)" -c android.intent.category.LAUNCHER 1
-            # Capture the splash immediately: querying Android's UI hierarchy can take
-            # several seconds, longer than the intentional three-second splash screen.
-            sleep 0.5
-            adb exec-out screencap -p > build/emulator-review/flutter-splash.png
-
             # Android 15 may show a one-time immersive-mode confirmation.
             # Dismiss it by its accessible label instead of relying on fixed screen coordinates.
             sleep 0.5
             adb shell uiautomator dump /sdcard/danestani-window.xml || true
             adb pull /sdcard/danestani-window.xml build/emulator-review/window.xml || true
             python3 tool/dismiss_immersive_prompt.py build/emulator-review/window.xml
+
+            # Verify the app's branded three-second Flutter splash, not merely
+            # Android's short-lived native launch screen. Poll the accessibility
+            # tree so emulator startup timing does not make the capture flaky.
+            for attempt in $(seq 1 8); do
+              adb shell uiautomator dump /sdcard/danestani-splash.xml >/dev/null 2>&1 || true
+              adb pull /sdcard/danestani-splash.xml build/emulator-review/splash-window.xml >/dev/null 2>&1 || true
+              if grep -q 'شرکت گاز خراسان جنوبی' build/emulator-review/splash-window.xml 2>/dev/null; then
+                break
+              fi
+              sleep 0.2
+            done
+            for expected in 'شرکت گاز خراسان جنوبی' 'شهرستان عشق آباد' 'اداره گاز عشق آباد'; do
+              grep -q "$expected" build/emulator-review/splash-window.xml
+            done
+            adb exec-out screencap -p > build/emulator-review/flutter-splash.png
 
             # Wait beyond the splash duration, then verify the actual dashboard title
             # instead of comparing PNG bytes (which can vary for unrelated system pixels).
