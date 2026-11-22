@@ -41,7 +41,7 @@ class SplashPage extends StatefulWidget {
 
   const SplashPage({
     super.key,
-    this.displayDuration = const Duration(seconds: 3),
+    this.displayDuration = const Duration(seconds: 5),
     this.preparePoster,
   });
   @override
