@@ -67,7 +67,7 @@ class _SplashPageState extends State<SplashPage> {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // ابتدا تصویر کامل بارگذاری می‌شود؛ سپس زمان سه‌ثانیه‌ای آغاز می‌شود.
+      // ابتدا تصویر کامل بارگذاری می‌شود؛ سپس زمان پنج‌ثانیه‌ای آغاز می‌شود.
       try {
         final preparePoster = widget.preparePoster;
         if (preparePoster != null) {
