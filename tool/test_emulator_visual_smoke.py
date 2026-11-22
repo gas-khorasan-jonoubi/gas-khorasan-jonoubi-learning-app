@@ -79,17 +79,13 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
             run_smoke_test(application_id, root / "review")
 
             self.assertEqual(wait.call_count, 2)
-            self.assertEqual(screenshot.call_count, 3)
+            self.assertEqual(screenshot.call_count, 2)
             self.assertEqual(
                 screenshot.call_args_list[0].args[0],
                 root / "review" / "flutter-splash.png",
             )
             self.assertEqual(
                 screenshot.call_args_list[1].args[0],
-                root / "review" / "flutter-splash.png",
-            )
-            self.assertEqual(
-                screenshot.call_args_list[2].args[0],
                 root / "review" / "dashboard.png",
             )
             self.assertEqual(run.call_count, 2)
