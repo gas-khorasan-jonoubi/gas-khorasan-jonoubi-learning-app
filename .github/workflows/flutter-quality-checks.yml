@@ -55,8 +55,10 @@ jobs:
       - name: Test Android host configurator
         run: python3 tool/test_configure_bazaar_android.py
 
-      - name: Test emulator immersive prompt helper
-        run: python3 tool/test_dismiss_immersive_prompt.py
+      - name: Test emulator UI smoke-test helpers
+        run: |
+          python3 tool/test_dismiss_immersive_prompt.py
+          python3 tool/test_emulator_visual_smoke.py
 
       - name: Get dependencies
         run: flutter pub get --enforce-lockfile
@@ -112,43 +114,10 @@ jobs:
             adb install -r build/app/outputs/flutter-apk/app-debug.apk
             adb logcat -c
             adb shell monkey -p "$(cat build/emulator-review/application_id.txt)" -c android.intent.category.LAUNCHER 1
-            # Android 15 may show a one-time immersive-mode confirmation.
-            # Dismiss it by its accessible label instead of relying on fixed screen coordinates.
-            sleep 0.5
-            adb shell uiautomator dump /sdcard/danestani-window.xml || true
-            adb pull /sdcard/danestani-window.xml build/emulator-review/window.xml || true
-            python3 tool/dismiss_immersive_prompt.py build/emulator-review/window.xml
-
-            # Verify the app's branded three-second Flutter splash, not merely
-            # Android's short-lived native launch screen. Poll the accessibility
-            # tree so emulator startup timing does not make the capture flaky.
-            for attempt in $(seq 1 8); do
-              adb shell uiautomator dump /sdcard/danestani-splash.xml >/dev/null 2>&1 || true
-              adb pull /sdcard/danestani-splash.xml build/emulator-review/splash-window.xml >/dev/null 2>&1 || true
-              if grep -q 'شرکت گاز خراسان جنوبی' build/emulator-review/splash-window.xml 2>/dev/null; then
-                break
-              fi
-              sleep 0.2
-            done
-            for expected in 'شرکت گاز خراسان جنوبی' 'شهرستان عشق آباد' 'اداره گاز عشق آباد'; do
-              grep -q "$expected" build/emulator-review/splash-window.xml
-            done
-            adb exec-out screencap -p > build/emulator-review/flutter-splash.png
-
-            # Wait beyond the splash duration, then verify the actual dashboard title
-            # instead of comparing PNG bytes (which can vary for unrelated system pixels).
-            sleep 4
-            adb shell uiautomator dump /sdcard/danestani-dashboard.xml || true
-            adb pull /sdcard/danestani-dashboard.xml build/emulator-review/dashboard-window.xml || true
-            test -s build/emulator-review/dashboard-window.xml
-            python3 -c 'from pathlib import Path; s=Path("build/emulator-review/dashboard-window.xml").read_text(encoding="utf-8", errors="replace"); import sys; sys.exit("Expected Persian dashboard title was not found after the splash screen.") if "داشبورد" not in s else print("Verified: the dashboard title is visible after the splash screen.")'
-            adb exec-out screencap -p > build/emulator-review/dashboard.png
-            adb shell pidof "$(cat build/emulator-review/application_id.txt)" >/dev/null
-            adb logcat -d -s AndroidRuntime:E > build/emulator-review/android-runtime.log
-            python3 -c 'from pathlib import Path; s=Path("build/emulator-review/android-runtime.log").read_text(errors="replace"); raise SystemExit("FATAL EXCEPTION" in s)'
-            test -s build/emulator-review/flutter-splash.png
-            test -s build/emulator-review/dashboard.png
-            test "$(cat build/emulator-review/application_id.txt)" = "ir.gas.khorasanjonoubi.danestanihayegaz.debug"
+            # The helper polls UIAutomator until the branded Flutter splash and
+            # dashboard are accessible, and captures both screens. Keeping its
+            # wait loops in Python avoids the emulator action's line-wise shell parsing.
+            python3 tool/emulator_visual_smoke.py --application-id-file build/emulator-review/application_id.txt --output-dir build/emulator-review
 
       - name: Prepare reproducible dependency and splash review files
         run: |
