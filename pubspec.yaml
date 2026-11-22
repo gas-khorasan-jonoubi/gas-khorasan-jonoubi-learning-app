@@ -1,23 +1,33 @@
 name: gas_khorasan_jonoubi_learning_app
-description: اپلیکیشن آموزشی آفلاین شرکت گاز خراسان جنوبی
+description: دانستنی‌های گاز؛ مرجع آفلاین آموزشی شرکت گاز خراسان جنوبی
 publish_to: 'none'
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
+  sdk: ^3.13.0
+  flutter: '>=3.47.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
   shared_preferences: ^2.3.2
+  material_ui: ^1.11.1
+  iran_iap: ^0.3.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/splash.webp
+    - assets/approved_splash.webp
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/app_icon.jpg"
+  adaptive_icon_background: "#061747"
+  adaptive_icon_foreground: "assets/app_icon.jpg"

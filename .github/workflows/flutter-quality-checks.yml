@@ -1,0 +1,168 @@
+name: Flutter quality checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+# Only the newest revision of each branch is checked.
+concurrency:
+  group: flutter-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze-and-test:
+    name: Analyze, test and emulator smoke (no release APK)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install Flutter stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Show tool versions
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Generate Android host project (no build)
+        run: |
+          if [ ! -d android ]; then
+            flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
+          fi
+
+      - name: Prepare approved WebP splash asset
+        run: |
+          python3 -m venv /tmp/danestani-image-tools
+          /tmp/danestani-image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
+          /tmp/danestani-image-tools/bin/python tool/prepare_splash_asset.py --quality 92
+          /tmp/danestani-image-tools/bin/python tool/test_prepare_splash_asset.py
+          test -s assets/approved_splash.webp
+
+      - name: Configure Cafe Bazaar Android host
+        run: BAZAAR_APPLICATION_ID=ir.gas.khorasanjonoubi.danestanihayegaz.debug python3 tool/configure_bazaar_android.py
+
+      - name: Test Android host configurator
+        run: python3 tool/test_configure_bazaar_android.py
+
+      - name: Test emulator UI smoke-test helpers
+        run: |
+          python3 tool/test_dismiss_immersive_prompt.py
+          python3 tool/test_emulator_visual_smoke.py
+
+      - name: Get dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Verify selected NIGC launcher artwork
+        run: |
+          test -s assets/app_icon.jpg
+          echo 'e0310a00567f7b4877632119ceba87c862dbf67b20b53e29202fe37e84c7094a  assets/app_icon.jpg' | sha256sum --check -
+
+      - name: Generate selected NIGC Android launcher icon
+        run: dart run flutter_launcher_icons
+
+      - name: Check Cafe Bazaar Android integration
+        run: dart run iran_iap doctor --store bazaar
+
+      - name: Resolve Cafe Bazaar Android release dependencies (no APK)
+        run: cd android && ./gradlew --no-daemon :app:dependencies --configuration releaseRuntimeClasspath -PiranIapStore=bazaar
+
+      - name: Compile Android release host (no APK)
+        run: cd android && ./gradlew --no-daemon :app:checkReleaseAarMetadata :app:compileReleaseKotlin
+
+      - name: Analyze Dart code
+        run: flutter analyze
+
+      - name: Run automated tests
+        run: flutter test --reporter expanded
+
+      - name: Enable KVM group permissions when available
+        run: |
+          if [ -e /dev/kvm ]; then
+            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+            sudo udevadm control --reload-rules
+            sudo udevadm trigger --name-match=kvm
+          else
+            echo "KVM is not exposed by this runner; emulator may use software acceleration."
+          fi
+
+      - name: Run Android emulator visual smoke test
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -camera-back none
+          disable-animations: true
+          script: |
+            flutter build apk --debug
+            mkdir -p build/emulator-review
+            python3 -c 'import pathlib; ps=(pathlib.Path("android/app/build.gradle.kts"),pathlib.Path("android/app/build.gradle")); s=next((p.read_text(encoding="utf-8") for p in ps if p.is_file()),""); print(next((line.split(chr(34))[1] for line in s.splitlines() if "applicationId" in line and chr(34) in line),""))' > build/emulator-review/application_id.txt
+            test -s build/emulator-review/application_id.txt
+            adb install -r build/app/outputs/flutter-apk/app-debug.apk
+            adb logcat -c
+            adb shell monkey -p "$(cat build/emulator-review/application_id.txt)" -c android.intent.category.LAUNCHER 1
+            # The helper polls UIAutomator until the branded Flutter splash and
+            # dashboard are accessible, and captures both screens. Keeping its
+            # wait loops in Python avoids the emulator action's line-wise shell parsing.
+            python3 tool/emulator_visual_smoke.py --application-id-file build/emulator-review/application_id.txt --output-dir build/emulator-review
+
+      - name: Prepare reproducible dependency and splash review files
+        run: |
+          mkdir -p build/release-readiness/splash
+          cp pubspec.lock build/release-readiness/pubspec.lock
+          cp assets/approved_splash.webp build/release-readiness/splash/approved_splash_bundle.webp
+          mkdir -p build/release-readiness/emulator
+          cp build/emulator-review/flutter-splash.png build/release-readiness/emulator/flutter-splash.png
+          cp build/emulator-review/dashboard.png build/release-readiness/emulator/dashboard.png
+          /tmp/danestani-image-tools/bin/python - <<'PY'
+          from hashlib import sha256
+          from pathlib import Path
+          from PIL import Image
+
+          source_path = Path("assets/approved_splash.png")
+          output_dir = Path("build/release-readiness/splash")
+          original_size = source_path.stat().st_size
+
+          with Image.open(source_path) as source:
+              has_alpha = "A" in source.getbands()
+              image = source.convert("RGBA" if has_alpha else "RGB")
+              print(f"Source poster: {image.width}x{image.height}, {original_size} bytes")
+              for quality in (96, 92, 88, 84):
+                  target = output_dir / f"approved_splash_q{quality}.webp"
+                  image.save(
+                      target,
+                      format="WEBP",
+                      quality=quality,
+                      method=6,
+                      exact=True,
+                  )
+                  data = target.read_bytes()
+                  print(
+                      f"{target.name}: {len(data)} bytes "
+                      f"({len(data) / original_size:.1%} of PNG), "
+                      f"sha256={sha256(data).hexdigest()}"
+                  )
+                  if len(data) >= original_size:
+                      raise SystemExit(f"WebP candidate is not smaller: {target}")
+          PY
+
+      - name: Upload dependency lock and splash review candidates
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-readiness-${{ github.sha }}
+          path: build/release-readiness/
+          if-no-files-found: error
+          retention-days: 3
