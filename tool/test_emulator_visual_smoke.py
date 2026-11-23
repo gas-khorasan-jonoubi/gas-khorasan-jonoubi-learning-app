@@ -39,7 +39,8 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
             diagnostics.assert_called_once()
             accessibility.assert_called_once()
 
-    @patch("emulator_visual_smoke.read_accessibility_tree", return_value=None)
+    @patch("emulator_visual_smoke.read_accessibility_tree", return_value=object())
+    @patch("emulator_visual_smoke.dismiss_immersive_prompt", return_value=True)
     @patch("emulator_visual_smoke.capture_diagnostics", return_value="")
     @patch("emulator_visual_smoke.has_meaningful_dashboard", return_value=False)
     @patch("emulator_visual_smoke.has_expected_splash", return_value=True)
@@ -47,7 +48,7 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
     @patch("emulator_visual_smoke.time.monotonic", side_effect=[0, 0, 6, 40])
     @patch("emulator_visual_smoke.time.sleep")
     def test_smoke_test_rejects_splash_still_visible_after_prompt(
-        self, sleep, monotonic, screenshot, splash, dashboard, diagnostics, accessibility
+        self, sleep, monotonic, screenshot, splash, dashboard, diagnostics, dismiss_prompt, accessibility
     ):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -56,6 +57,7 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "remained on splash"):
                 run_smoke_test(package, root / "review", dashboard_timeout=30)
             diagnostics.assert_called_once()
+            dismiss_prompt.assert_called_once()
 
     def test_splash_detector_rejects_white_native_launch_screen(self):
         with tempfile.TemporaryDirectory() as temporary:
