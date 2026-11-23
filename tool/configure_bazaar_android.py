@@ -13,6 +13,9 @@ import sys
 from pathlib import Path
 
 
+DEFAULT_APPLICATION_ID = "ir.gas.khorasanjonoubi.danestanigaz"
+
+
 def _configure_jitpack(android: Path) -> None:
     kotlin_gradle = android / "build.gradle.kts"
     groovy_gradle = android / "build.gradle"
@@ -287,7 +290,10 @@ def configure_android(
 
 def main() -> int:
     android_directory = Path(__file__).resolve().parents[1] / "android"
-    application_id = os.environ.get("BAZAAR_APPLICATION_ID", "").strip() or None
+    application_id = (
+        os.environ.get("BAZAAR_APPLICATION_ID", "").strip()
+        or DEFAULT_APPLICATION_ID
+    )
     try:
         signing_environment = dict(os.environ)
         signing_names = (
