@@ -45,7 +45,7 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
     @patch("emulator_visual_smoke.has_meaningful_dashboard", return_value=False)
     @patch("emulator_visual_smoke.has_expected_splash", return_value=True)
     @patch("emulator_visual_smoke.capture_screenshot", return_value="same")
-    @patch("emulator_visual_smoke.time.monotonic", side_effect=[0, 0, 6, 40])
+    @patch("emulator_visual_smoke.time.monotonic", side_effect=[0, 0, 6, 6, 40])
     @patch("emulator_visual_smoke.time.sleep")
     def test_smoke_test_rejects_splash_still_visible_after_prompt(
         self, sleep, monotonic, screenshot, splash, dashboard, diagnostics, dismiss_prompt, accessibility
