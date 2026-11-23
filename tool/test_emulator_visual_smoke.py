@@ -8,7 +8,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from emulator_visual_smoke import EXPECTED_APPLICATION_ID, run_smoke_test
+from emulator_visual_smoke import (
+    EXPECTED_APPLICATION_ID,
+    capture_screenshot,
+    run_smoke_test,
+)
 
 
 class EmulatorVisualSmokeTest(unittest.TestCase):
@@ -78,6 +82,28 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
                 )
             screenshot.assert_not_called()
             sleep.assert_not_called()
+
+    @patch("emulator_visual_smoke.subprocess.run")
+    def test_capture_screenshot_accepts_real_png_signature(self, run) -> None:
+        def write_png(command, *, stdout, **kwargs):
+            stdout.write(b"\x89PNG\r\n\x1a\n" + b"0" * 2048)
+
+        run.side_effect = write_png
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "screen.png"
+            digest = capture_screenshot(destination)
+            self.assertEqual(len(digest), 64)
+            self.assertTrue(destination.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))
+
+    @patch("emulator_visual_smoke.subprocess.run")
+    def test_capture_screenshot_rejects_non_png_bytes(self, run) -> None:
+        def write_invalid(command, *, stdout, **kwargs):
+            stdout.write(b"not-a-png" + b"0" * 2048)
+
+        run.side_effect = write_invalid
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(RuntimeError, "invalid"):
+                capture_screenshot(Path(temporary) / "screen.png")
 
 
 if __name__ == "__main__":
