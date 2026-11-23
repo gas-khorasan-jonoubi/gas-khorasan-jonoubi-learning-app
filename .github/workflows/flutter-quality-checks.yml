@@ -58,7 +58,7 @@ jobs:
       - name: Test emulator UI smoke-test helpers
         run: |
           python3 tool/test_dismiss_immersive_prompt.py
-          python3 tool/test_emulator_visual_smoke.py
+          /tmp/danestani-image-tools/bin/python tool/test_emulator_visual_smoke.py
 
       - name: Get dependencies
         run: flutter pub get --enforce-lockfile
@@ -117,7 +117,16 @@ jobs:
             # The helper polls UIAutomator until the branded Flutter splash and
             # dashboard are accessible, and captures both screens. Keeping its
             # wait loops in Python avoids the emulator action's line-wise shell parsing.
-            python3 tool/emulator_visual_smoke.py --application-id-file build/emulator-review/application_id.txt --output-dir build/emulator-review
+            /tmp/danestani-image-tools/bin/python tool/emulator_visual_smoke.py --application-id-file build/emulator-review/application_id.txt --output-dir build/emulator-review
+
+      - name: Upload emulator diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-failure-review-${{ github.sha }}
+          path: build/emulator-review/
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Prepare reproducible dependency and splash review files
         run: |
@@ -127,6 +136,8 @@ jobs:
           mkdir -p build/release-readiness/emulator
           cp build/emulator-review/flutter-splash.png build/release-readiness/emulator/flutter-splash.png
           cp build/emulator-review/dashboard.png build/release-readiness/emulator/dashboard.png
+          cp build/emulator-review/android-errors.log build/release-readiness/emulator/android-errors.log
+          cp build/emulator-review/activity-state.txt build/release-readiness/emulator/activity-state.txt
           /tmp/danestani-image-tools/bin/python - <<'PY'
           from hashlib import sha256
           from pathlib import Path

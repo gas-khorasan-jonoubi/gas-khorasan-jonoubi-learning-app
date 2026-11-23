@@ -41,7 +41,7 @@ class SplashPage extends StatefulWidget {
 
   const SplashPage({
     super.key,
-    this.displayDuration = const Duration(seconds: 3),
+    this.displayDuration = const Duration(seconds: 5),
     this.preparePoster,
   });
   @override
@@ -67,7 +67,7 @@ class _SplashPageState extends State<SplashPage> {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // ابتدا تصویر کامل بارگذاری می‌شود؛ سپس زمان سه‌ثانیه‌ای آغاز می‌شود.
+      // ابتدا تصویر کامل بارگذاری می‌شود؛ سپس زمان پنج‌ثانیه‌ای آغاز می‌شود.
       try {
         final preparePoster = widget.preparePoster;
         if (preparePoster != null) {
