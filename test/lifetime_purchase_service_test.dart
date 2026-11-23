@@ -76,6 +76,13 @@ class _FakeIranIapClient implements IranIapClient {
 }
 
 void main() {
+  group('release purchase gate policy', () {
+    test('allows unconfigured access only in development builds', () {
+      expect(canEnterWithoutPurchaseConfiguration(isReleaseBuild: false), isTrue);
+      expect(canEnterWithoutPurchaseConfiguration(isReleaseBuild: true), isFalse);
+    });
+  });
+
   group('lifetime access ownership policy', () {
     test('restores a matching active Bazaar in-app purchase', () {
       expect(

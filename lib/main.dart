@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -180,7 +181,11 @@ class _AppStartGateState extends State<AppStartGate> {
 
     // During development, the app remains usable until the real Bazaar SKU
     // and public key are supplied to the release build.
-    if (!lifetimePurchaseService.isConfigured) return true;
+    if (!lifetimePurchaseService.isConfigured) {
+      // Only development builds may bypass billing while Bazaar is configured.
+      // A release build must never ship with free access due to missing defines.
+      return canEnterWithoutPurchaseConfiguration(isReleaseBuild: kReleaseMode);
+    }
     try {
       return await lifetimePurchaseService.restoreAccess();
     } catch (_) {
