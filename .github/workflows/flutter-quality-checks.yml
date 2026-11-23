@@ -119,6 +119,15 @@ jobs:
             # wait loops in Python avoids the emulator action's line-wise shell parsing.
             /tmp/danestani-image-tools/bin/python tool/emulator_visual_smoke.py --application-id-file build/emulator-review/application_id.txt --output-dir build/emulator-review
 
+      - name: Upload emulator diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-failure-review-${{ github.sha }}
+          path: build/emulator-review/
+          if-no-files-found: ignore
+          retention-days: 3
+
       - name: Prepare reproducible dependency and splash review files
         run: |
           mkdir -p build/release-readiness/splash
