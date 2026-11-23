@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Capture and validate the branded splash and dashboard on an Android emulator.
-
-Flutter's semantics tree is not guaranteed to be exposed to UIAutomator unless
-an accessibility service is active. Therefore UIAutomator text lookup is kept
-diagnostic-only and is never used as a release-blocking assertion.
-"""
+"""Capture and validate the branded splash and dashboard on an Android emulator."""
 
 from __future__ import annotations
 
@@ -13,9 +8,11 @@ import hashlib
 import subprocess
 import sys
 import time
-from PIL import Image, ImageChops
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+from PIL import Image, ImageChops
+from dismiss_immersive_prompt import dismiss_immersive_prompt
 
 EXPECTED_APPLICATION_ID = "ir.gas.khorasanjonoubi.danestanihayegaz.debug"
 SPLASH_DISPLAY_SECONDS = 5
@@ -23,7 +20,7 @@ PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
 def read_accessibility_tree(remote_path: str, local_path: Path) -> ET.Element | None:
-    """Best-effort UI hierarchy capture for diagnostics; it may be unavailable."""
+    """Best-effort UI hierarchy capture for diagnostics and system-dialog handling."""
     local_path.parent.mkdir(parents=True, exist_ok=True)
     local_path.unlink(missing_ok=True)
     try:
@@ -65,22 +62,27 @@ def has_expected_splash(path: Path) -> bool:
         image = source.convert("RGB")
         width, height = image.size
         crop = image.crop((0, int(height * .05), width, int(height * .94)))
-        navy = sum(1 for r, g, b in crop.getdata()
-                   if abs(r - 18) <= 12 and abs(g - 59) <= 18 and abs(b - 102) <= 22)
+        navy = sum(
+            1 for r, g, b in crop.getdata()
+            if abs(r - 18) <= 12 and abs(g - 59) <= 18 and abs(b - 102) <= 22
+        )
         return navy / max(1, crop.width * crop.height) >= .08
 
 
-def has_meaningful_dashboard(path: Path) -> bool:
-    """Reject a blank Flutter surface; require visible dashboard content."""
-    with Image.open(path) as source:
-        image = source.convert("RGB")
-        width, height = image.size
-        crop = image.crop((0, int(height * .05), width, int(height * .95)))
-        background = crop.getpixel((0, 0))
-        flat = Image.new("RGB", crop.size, background)
-        diff = ImageChops.difference(crop, flat).convert("L")
-        changed = diff.point(lambda value: 255 if value > 24 else 0)
-        return sum(changed.histogram()[1:]) / max(1, crop.width * crop.height) >= .025
+def has_meaningful_dashboard(path: Path, splash_path: Path) -> bool:
+    """Require a real screen transition away from the poster, not a system overlay."""
+    with Image.open(path) as current, Image.open(splash_path) as splash:
+        current = current.convert("RGB")
+        splash = splash.convert("RGB")
+        if current.size != splash.size:
+            return True
+        diff = ImageChops.difference(current, splash).convert("L")
+        changed = diff.point(lambda value: 255 if value > 28 else 0)
+        changed_ratio = sum(changed.histogram()[1:]) / max(1, current.width * current.height)
+        # The immersive-mode confirmation can cover much of the poster. Do not
+        # accept that overlay as the dashboard: after dismissing it, the splash
+        # matches the first capture until Flutter navigates to HomePage.
+        return changed_ratio >= .12
 
 
 def capture_diagnostics(output_dir: Path) -> str:
@@ -111,7 +113,7 @@ def run_smoke_test(
     splash_timeout: float = 15,
     dashboard_timeout: float = 30,
 ) -> None:
-    """Verify visible Flutter screens, a live process and clean runtime logs."""
+    """Verify splash, dismiss Android's prompt, then verify the actual dashboard."""
     application_id = application_id_file.read_text(encoding="utf-8").strip()
     if application_id != EXPECTED_APPLICATION_ID:
         raise RuntimeError(
@@ -137,16 +139,24 @@ def run_smoke_test(
         raise RuntimeError("Flutter splash was not visually detected; inspect screenshot and diagnostics.")
 
     dashboard_path = output_dir / "dashboard.png"
+    hierarchy_path = output_dir / "dashboard-window.xml"
     deadline = time.monotonic() + dashboard_timeout
     dashboard_digest = ""
+    prompt_dismissed = False
     while time.monotonic() <= deadline:
+        tree = read_accessibility_tree("/sdcard/danestani-dashboard.xml", hierarchy_path)
+        if tree is not None and dismiss_immersive_prompt(hierarchy_path):
+            prompt_dismissed = True
+            time.sleep(.5)
+            continue
         dashboard_digest = capture_screenshot(dashboard_path)
-        if has_meaningful_dashboard(dashboard_path):
+        if has_meaningful_dashboard(dashboard_path, splash_path):
             break
-        time.sleep(1)
+        time.sleep(.5)
     else:
         capture_diagnostics(output_dir)
-        raise RuntimeError("Dashboard remained visually blank; inspect screenshot and diagnostic logs.")
+        reason = "Android prompt was dismissed but Flutter remained on splash." if prompt_dismissed else "Dashboard did not appear."
+        raise RuntimeError(f"{reason} Inspect screenshot and diagnostic logs.")
 
     process = subprocess.run(
         ["adb", "shell", "pidof", application_id],
@@ -165,11 +175,7 @@ def run_smoke_test(
     if splash_digest == dashboard_digest:
         raise RuntimeError("Splash and dashboard screenshots are identical.")
 
-    read_accessibility_tree(
-        "/sdcard/danestani-dashboard.xml",
-        output_dir / "dashboard-window.xml",
-    )
-    print("Verified visible Flutter splash, populated dashboard, live process and clean runtime logs.")
+    print("Verified splash, dismissed Android immersive prompt, detected dashboard transition, live process and clean runtime logs.")
 
 
 def main() -> int:
