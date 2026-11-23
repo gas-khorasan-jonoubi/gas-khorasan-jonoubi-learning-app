@@ -13,6 +13,7 @@ import hashlib
 import subprocess
 import sys
 import time
+from PIL import Image, ImageChops
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -58,6 +59,51 @@ def capture_screenshot(destination: Path) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def has_expected_splash(path: Path) -> bool:
+    """Reject Android's white launch image; require Flutter's navy splash canvas."""
+    with Image.open(path) as source:
+        image = source.convert("RGB")
+        width, height = image.size
+        crop = image.crop((0, int(height * .05), width, int(height * .94)))
+        navy = sum(1 for r, g, b in crop.getdata()
+                   if abs(r - 18) <= 12 and abs(g - 59) <= 18 and abs(b - 102) <= 22)
+        return navy / max(1, crop.width * crop.height) >= .08
+
+
+def has_meaningful_dashboard(path: Path) -> bool:
+    """Reject a blank Flutter surface; require visible dashboard content."""
+    with Image.open(path) as source:
+        image = source.convert("RGB")
+        width, height = image.size
+        crop = image.crop((0, int(height * .05), width, int(height * .95)))
+        background = crop.getpixel((0, 0))
+        flat = Image.new("RGB", crop.size, background)
+        diff = ImageChops.difference(crop, flat).convert("L")
+        changed = diff.point(lambda value: 255 if value > 24 else 0)
+        return sum(changed.histogram()[1:]) / max(1, crop.width * crop.height) >= .025
+
+
+def capture_diagnostics(output_dir: Path) -> str:
+    """Save Flutter/Android errors and foreground activity state."""
+    try:
+        log = subprocess.run(
+            ["adb", "logcat", "-d", "-v", "threadtime", "-s", "flutter:E", "AndroidRuntime:E"],
+            check=False, capture_output=True, text=True, timeout=30,
+        ).stdout
+    except (OSError, subprocess.TimeoutExpired) as error:
+        log = f"Could not capture logcat: {error}"
+    (output_dir / "android-errors.log").write_text(log, encoding="utf-8")
+    try:
+        activity = subprocess.run(
+            ["adb", "shell", "dumpsys", "activity", "activities"],
+            check=False, capture_output=True, text=True, timeout=20,
+        ).stdout
+    except (OSError, subprocess.TimeoutExpired) as error:
+        activity = f"Could not capture activity state: {error}"
+    (output_dir / "activity-state.txt").write_text(activity, encoding="utf-8")
+    return log
+
+
 def run_smoke_test(
     application_id_file: Path,
     output_dir: Path,
@@ -65,56 +111,65 @@ def run_smoke_test(
     splash_timeout: float = 15,
     dashboard_timeout: float = 30,
 ) -> None:
-    """Verify package launch, capture both screens, and reject Android crashes."""
+    """Verify visible Flutter screens, a live process and clean runtime logs."""
     application_id = application_id_file.read_text(encoding="utf-8").strip()
     if application_id != EXPECTED_APPLICATION_ID:
         raise RuntimeError(
             f"Unexpected emulator application id: {application_id!r}; "
             f"expected {EXPECTED_APPLICATION_ID!r}"
         )
-
-    # Validate all timing constraints before touching the emulator or taking
-    # screenshots, so invalid test configuration fails fast and predictably.
     if splash_timeout < SPLASH_DISPLAY_SECONDS:
         raise RuntimeError("Splash timeout must allow the configured five-second display.")
-    transition_wait = min(SPLASH_DISPLAY_SECONDS + 2, dashboard_timeout)
-    if transition_wait < SPLASH_DISPLAY_SECONDS:
+    if dashboard_timeout < SPLASH_DISPLAY_SECONDS:
         raise RuntimeError("Dashboard timeout is shorter than the splash display duration.")
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    # Capture the first Flutter frame promptly, before any slow diagnostic command.
-    time.sleep(0.5)
-    splash_digest = capture_screenshot(output_dir / "flutter-splash.png")
+    splash_path = output_dir / "flutter-splash.png"
+    deadline = time.monotonic() + splash_timeout
+    splash_digest = ""
+    while time.monotonic() <= deadline:
+        splash_digest = capture_screenshot(splash_path)
+        if has_expected_splash(splash_path):
+            break
+        time.sleep(.5)
+    else:
+        capture_diagnostics(output_dir)
+        raise RuntimeError("Flutter splash was not visually detected; inspect screenshot and diagnostics.")
 
-    # The app preloads its local WebP poster before starting the five-second
-    # display timer. Wait beyond that interval, without relying on UIAutomator
-    # exposing Flutter semantics to an accessibility service.
-    time.sleep(transition_wait)
-    dashboard_digest = capture_screenshot(output_dir / "dashboard.png")
-    if splash_digest == dashboard_digest:
-        raise RuntimeError("Splash and dashboard screenshots are identical; screen transition was not observed.")
+    dashboard_path = output_dir / "dashboard.png"
+    deadline = time.monotonic() + dashboard_timeout
+    dashboard_digest = ""
+    while time.monotonic() <= deadline:
+        dashboard_digest = capture_screenshot(dashboard_path)
+        if has_meaningful_dashboard(dashboard_path):
+            break
+        time.sleep(1)
+    else:
+        capture_diagnostics(output_dir)
+        raise RuntimeError("Dashboard remained visually blank; inspect screenshot and diagnostic logs.")
 
     process = subprocess.run(
         ["adb", "shell", "pidof", application_id],
         check=False, capture_output=True, text=True, timeout=20,
     )
     if process.returncode != 0 or not process.stdout.strip():
-        raise RuntimeError("The app process is not running after the expected dashboard transition.")
+        capture_diagnostics(output_dir)
+        raise RuntimeError("The app process is not running after the dashboard transition.")
 
-    crash_log = subprocess.run(
-        ["adb", "logcat", "-d", "-s", "AndroidRuntime:E"],
-        check=True, capture_output=True, text=True, timeout=30,
-    ).stdout
-    (output_dir / "android-runtime.log").write_text(crash_log, encoding="utf-8")
-    if "FATAL EXCEPTION" in crash_log:
-        raise RuntimeError("AndroidRuntime reported a fatal exception; see android-runtime.log.")
+    crash_log = capture_diagnostics(output_dir)
+    if any(marker in crash_log for marker in (
+        "FATAL EXCEPTION", "E/flutter", "Unhandled Exception",
+        "Exception caught by widgets library",
+    )):
+        raise RuntimeError("Flutter or Android runtime errors were logged; inspect android-errors.log.")
+    if splash_digest == dashboard_digest:
+        raise RuntimeError("Splash and dashboard screenshots are identical.")
 
-    # Preserve an optional hierarchy snapshot for later manual inspection.
     read_accessibility_tree(
         "/sdcard/danestani-dashboard.xml",
         output_dir / "dashboard-window.xml",
     )
-    print("Verified app launch, distinct splash/dashboard screenshots, live process and no fatal Android exception.")
+    print("Verified visible Flutter splash, populated dashboard, live process and clean runtime logs.")
 
 
 def main() -> int:
