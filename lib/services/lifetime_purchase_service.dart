@@ -10,6 +10,10 @@ const bazaarRsaPublicKey = String.fromEnvironment(
   'BAZAAR_RSA_PUBLIC_KEY',
 );
 
+/// Development builds can be used without billing configuration; release builds cannot.
+bool canEnterWithoutPurchaseConfiguration({required bool isReleaseBuild}) =>
+    !isReleaseBuild;
+
 enum LifetimePurchaseResult {
   purchased,
   cancelled,
