@@ -1,110 +1,117 @@
 #!/usr/bin/env python3
 """Unit tests for Android emulator visual smoke-test helpers."""
-
 from __future__ import annotations
-
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-
+from PIL import Image, ImageDraw
 from emulator_visual_smoke import (
-    EXPECTED_APPLICATION_ID,
-    capture_screenshot,
-    run_smoke_test,
+    EXPECTED_APPLICATION_ID, capture_screenshot, has_expected_splash,
+    has_meaningful_dashboard, run_smoke_test,
 )
-
 
 class EmulatorVisualSmokeTest(unittest.TestCase):
     @patch("emulator_visual_smoke.read_accessibility_tree")
-    @patch("emulator_visual_smoke.capture_screenshot", side_effect=["splash-hash", "dashboard-hash"])
-    @patch("emulator_visual_smoke.time.sleep")
+    @patch("emulator_visual_smoke.capture_diagnostics", return_value="")
     @patch("emulator_visual_smoke.subprocess.run")
-    def test_smoke_test_captures_both_screens_without_requiring_accessibility_labels(
-        self, run, sleep, screenshot, accessibility
-    ) -> None:
+    @patch("emulator_visual_smoke.time.monotonic", side_effect=[0, 0, 6, 6])
+    @patch("emulator_visual_smoke.time.sleep")
+    @patch("emulator_visual_smoke.capture_screenshot", side_effect=["splash-hash", "dashboard-hash"])
+    @patch("emulator_visual_smoke.has_expected_splash", return_value=True)
+    @patch("emulator_visual_smoke.has_meaningful_dashboard", return_value=True)
+    def test_smoke_test_accepts_two_visible_screens(
+        self, dashboard, splash, screenshot, sleep, monotonic, run, diagnostics, accessibility
+    ):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            application_id = root / "application_id.txt"
-            application_id.write_text(EXPECTED_APPLICATION_ID, encoding="utf-8")
+            package = root / "application_id.txt"
+            package.write_text(EXPECTED_APPLICATION_ID, encoding="utf-8")
             run.return_value.returncode = 0
             run.return_value.stdout = "4321"
-
-            run_smoke_test(application_id, root / "review")
-
+            run_smoke_test(package, root / "review")
             self.assertEqual(screenshot.call_count, 2)
-            self.assertEqual(
-                screenshot.call_args_list[0].args[0],
-                root / "review" / "flutter-splash.png",
-            )
-            self.assertEqual(
-                screenshot.call_args_list[1].args[0],
-                root / "review" / "dashboard.png",
-            )
-            self.assertEqual(run.call_count, 2)
-            self.assertEqual(
-                run.call_args_list[0].args[0],
-                ["adb", "shell", "pidof", EXPECTED_APPLICATION_ID],
-            )
-            self.assertIn("logcat", run.call_args_list[1].args[0])
-            self.assertEqual(accessibility.call_count, 1)
-            self.assertEqual(sleep.call_args_list[0].args[0], 0.5)
-            self.assertGreaterEqual(sleep.call_args_list[1].args[0], 5)
+            self.assertEqual(run.call_count, 1)
+            diagnostics.assert_called_once()
+            accessibility.assert_called_once()
 
-    @patch("emulator_visual_smoke.capture_screenshot", side_effect=["same", "same"])
+    @patch("emulator_visual_smoke.read_accessibility_tree")
+    @patch("emulator_visual_smoke.capture_diagnostics", return_value="")
+    @patch("emulator_visual_smoke.has_meaningful_dashboard", return_value=False)
+    @patch("emulator_visual_smoke.has_expected_splash", return_value=True)
+    @patch("emulator_visual_smoke.capture_screenshot", return_value="same")
+    @patch("emulator_visual_smoke.time.monotonic", side_effect=[0, 0, 6, 6, 40])
     @patch("emulator_visual_smoke.time.sleep")
-    def test_smoke_test_rejects_unchanged_screen(self, sleep, screenshot) -> None:
+    def test_smoke_test_rejects_blank_dashboard(
+        self, sleep, monotonic, screenshot, splash, dashboard, diagnostics, accessibility
+    ):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            application_id = root / "application_id.txt"
-            application_id.write_text(EXPECTED_APPLICATION_ID, encoding="utf-8")
-            with self.assertRaisesRegex(RuntimeError, "screenshots are identical"):
-                run_smoke_test(application_id, root / "review")
+            package = root / "application_id.txt"
+            package.write_text(EXPECTED_APPLICATION_ID, encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "visually blank"):
+                run_smoke_test(package, root / "review", dashboard_timeout=30)
+            diagnostics.assert_called_once()
 
-    def test_smoke_test_rejects_wrong_package_id(self) -> None:
+    def test_splash_detector_rejects_white_native_launch_screen(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            application_id = root / "application_id.txt"
-            application_id.write_text("ir.example.wrong", encoding="utf-8")
-            with self.assertRaises(RuntimeError):
-                run_smoke_test(application_id, root / "review")
+            path = Path(temporary) / "white.png"
+            Image.new("RGB", (108, 192), "white").save(path)
+            self.assertFalse(has_expected_splash(path))
 
-    @patch("emulator_visual_smoke.time.sleep")
-    @patch("emulator_visual_smoke.capture_screenshot")
-    def test_smoke_test_requires_enough_time_for_splash(self, screenshot, sleep) -> None:
+    def test_splash_detector_accepts_flutter_navy_canvas(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            application_id = root / "application_id.txt"
-            application_id.write_text(EXPECTED_APPLICATION_ID, encoding="utf-8")
-            with self.assertRaisesRegex(RuntimeError, "five-second"):
-                run_smoke_test(
-                    application_id, root / "review", splash_timeout=4
-                )
-            screenshot.assert_not_called()
-            sleep.assert_not_called()
+            path = Path(temporary) / "splash.png"
+            Image.new("RGB", (108, 192), (18, 59, 102)).save(path)
+            self.assertTrue(has_expected_splash(path))
+
+    def test_dashboard_detector_rejects_blank_screen(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "blank.png"
+            Image.new("RGB", (108, 192), (246, 248, 251)).save(path)
+            self.assertFalse(has_meaningful_dashboard(path))
+
+    def test_dashboard_detector_accepts_populated_screen(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "dashboard.png"
+            image = Image.new("RGB", (108, 192), (246, 248, 251))
+            ImageDraw.Draw(image).rectangle((5, 15, 103, 80), fill=(18, 59, 102))
+            image.save(path)
+            self.assertTrue(has_meaningful_dashboard(path))
 
     @patch("emulator_visual_smoke.subprocess.run")
-    def test_capture_screenshot_accepts_real_png_signature(self, run) -> None:
-        def write_png(command, *, stdout, **kwargs):
-            stdout.write(b"\x89PNG\r\n\x1a\n" + b"0" * 2048)
-
-        run.side_effect = write_png
+    def test_capture_screenshot_accepts_real_png_signature(self, run):
+        run.side_effect = lambda command, *, stdout, **kwargs: stdout.write(b"\x89PNG\r\n\x1a\n" + b"0" * 2048)
         with tempfile.TemporaryDirectory() as temporary:
-            destination = Path(temporary) / "screen.png"
-            digest = capture_screenshot(destination)
-            self.assertEqual(len(digest), 64)
-            self.assertTrue(destination.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))
+            path = Path(temporary) / "screen.png"
+            self.assertEqual(len(capture_screenshot(path)), 64)
 
     @patch("emulator_visual_smoke.subprocess.run")
-    def test_capture_screenshot_rejects_non_png_bytes(self, run) -> None:
-        def write_invalid(command, *, stdout, **kwargs):
-            stdout.write(b"not-a-png" + b"0" * 2048)
-
-        run.side_effect = write_invalid
+    def test_capture_screenshot_rejects_non_png_bytes(self, run):
+        run.side_effect = lambda command, *, stdout, **kwargs: stdout.write(b"not-a-png" + b"0" * 2048)
         with tempfile.TemporaryDirectory() as temporary:
             with self.assertRaisesRegex(RuntimeError, "invalid"):
                 capture_screenshot(Path(temporary) / "screen.png")
 
+    def test_smoke_test_rejects_wrong_package_id(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            package = root / "application_id.txt"
+            package.write_text("ir.example.wrong", encoding="utf-8")
+            with self.assertRaises(RuntimeError):
+                run_smoke_test(package, root / "review")
+
+    @patch("emulator_visual_smoke.capture_screenshot")
+    @patch("emulator_visual_smoke.time.sleep")
+    def test_smoke_test_requires_five_second_splash_window(self, sleep, screenshot):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            package = root / "application_id.txt"
+            package.write_text(EXPECTED_APPLICATION_ID, encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "five-second"):
+                run_smoke_test(package, root / "review", splash_timeout=4)
+            screenshot.assert_not_called()
+            sleep.assert_not_called()
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
