@@ -57,7 +57,7 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "remained on splash"):
                 run_smoke_test(package, root / "review", dashboard_timeout=30)
             diagnostics.assert_called_once()
-            self.assertEqual(dismiss_prompt.call_count, 3)
+            self.assertEqual(dismiss_prompt.call_count, 2)
 
     def test_splash_detector_rejects_white_native_launch_screen(self):
         with tempfile.TemporaryDirectory() as temporary:
