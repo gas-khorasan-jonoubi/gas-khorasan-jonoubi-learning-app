@@ -18,6 +18,7 @@ from pathlib import Path
 
 EXPECTED_APPLICATION_ID = "ir.gas.khorasanjonoubi.danestanihayegaz.debug"
 SPLASH_DISPLAY_SECONDS = 5
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
 def read_accessibility_tree(remote_path: str, local_path: Path) -> ET.Element | None:
@@ -44,7 +45,7 @@ def read_accessibility_tree(remote_path: str, local_path: Path) -> ET.Element | 
 
 
 def capture_screenshot(destination: Path) -> str:
-    """Capture a PNG and return its SHA-256 digest."""
+    """Capture a valid PNG and return its SHA-256 digest."""
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open("wb") as output:
         subprocess.run(
@@ -52,7 +53,7 @@ def capture_screenshot(destination: Path) -> str:
             check=True, stdout=output, timeout=20,
         )
     data = destination.read_bytes()
-    if len(data) < 1024 or not data.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+    if len(data) < 1024 or not data.startswith(PNG_SIGNATURE):
         raise RuntimeError(f"Screenshot is missing, invalid, or unexpectedly small: {destination}")
     return hashlib.sha256(data).hexdigest()
 
@@ -72,6 +73,14 @@ def run_smoke_test(
             f"expected {EXPECTED_APPLICATION_ID!r}"
         )
 
+    # Validate all timing constraints before touching the emulator or taking
+    # screenshots, so invalid test configuration fails fast and predictably.
+    if splash_timeout < SPLASH_DISPLAY_SECONDS:
+        raise RuntimeError("Splash timeout must allow the configured five-second display.")
+    transition_wait = min(SPLASH_DISPLAY_SECONDS + 2, dashboard_timeout)
+    if transition_wait < SPLASH_DISPLAY_SECONDS:
+        raise RuntimeError("Dashboard timeout is shorter than the splash display duration.")
+
     output_dir.mkdir(parents=True, exist_ok=True)
     # Capture the first Flutter frame promptly, before any slow diagnostic command.
     time.sleep(0.5)
@@ -80,11 +89,6 @@ def run_smoke_test(
     # The app preloads its local WebP poster before starting the five-second
     # display timer. Wait beyond that interval, without relying on UIAutomator
     # exposing Flutter semantics to an accessibility service.
-    if splash_timeout < SPLASH_DISPLAY_SECONDS:
-        raise RuntimeError("Splash timeout must allow the configured five-second display.")
-    transition_wait = min(SPLASH_DISPLAY_SECONDS + 2, dashboard_timeout)
-    if transition_wait < SPLASH_DISPLAY_SECONDS:
-        raise RuntimeError("Dashboard timeout is shorter than the splash display duration.")
     time.sleep(transition_wait)
     dashboard_digest = capture_screenshot(output_dir / "dashboard.png")
     if splash_digest == dashboard_digest:
