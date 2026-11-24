@@ -113,6 +113,7 @@ jobs:
               "BAZAAR_RSA_PUBLIC_KEY": os.environ["BAZAAR_RSA_PUBLIC_KEY"],
           }
           Path("build").mkdir(exist_ok=True)
+          values["IRAN_IAP_STORE"] = "bazaar"
           Path("build/ci-iap-defines.json").write_text(json.dumps(values), encoding="utf-8")
           PY
           echo "BAZAAR_IAP_CONFIGURED=true" >> "$GITHUB_ENV"
@@ -126,13 +127,13 @@ jobs:
           set -euo pipefail
           flutter analyze
           flutter test --reporter expanded
-          python3 -m unittest discover -s tool -p 'test_*.py' -v
+          /tmp/danestani-image-tools/bin/python -m unittest discover -s tool -p 'test_*.py' -v
 
       - name: Build signed release APK
         run: |
           set -euo pipefail
           if [ "${BAZAAR_IAP_CONFIGURED:-false}" = "true" ]; then
-            flutter build apk --release --dart-define-from-file=build/ci-iap-defines.json
+            dart run iran_iap build apk --store bazaar -- --release --dart-define-from-file=build/ci-iap-defines.json
           else
             flutter build apk --release
           fi
@@ -143,6 +144,9 @@ jobs:
           APK=build/app/outputs/flutter-apk/app-release.apk
           test -s "$APK"
           "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)/apksigner" verify --verbose "$APK"
+          if [ "${BAZAAR_IAP_CONFIGURED:-false}" = "true" ]; then
+            dart run iran_iap verify --store bazaar "$APK"
+          fi
           sha256sum "$APK"
           ls -lh "$APK"
 
