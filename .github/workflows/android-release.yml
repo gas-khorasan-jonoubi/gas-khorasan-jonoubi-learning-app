@@ -63,7 +63,7 @@ jobs:
 
       - name: Generate Android host and configure signing
         env:
-          BAZAAR_APPLICATION_ID: ${{ secrets.BAZAAR_APPLICATION_ID }}
+          BAZAAR_APPLICATION_ID: ${{ secrets.BAZAAR_APPLICATION_ID || 'ir.gas.khorasanjonoubi.danestani_gaz' }}
           CM_KEYSTORE_PATH: ${{ runner.temp }}/android-signing/release.keystore
           CM_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           CM_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
