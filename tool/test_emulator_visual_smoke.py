@@ -28,25 +28,18 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
     @patch("emulator_visual_smoke.read_accessibility_tree")
     @patch("emulator_visual_smoke.time.sleep")
     def test_waits_until_all_expected_labels_are_visible(self, sleep, read_tree) -> None:
-        root = ET.fromstring(
-            '<hierarchy><node text="شرکت گاز خراسان جنوبی" />'
-            '<node text="شهرستان عشق آباد" /><node text="اداره گاز عشق آباد" /></hierarchy>'
-        )
+        root = ET.fromstring('<hierarchy><node text="داشبورد" /></hierarchy>')
         read_tree.return_value = root
 
         with tempfile.TemporaryDirectory() as temporary:
             labels = wait_for_labels(
-                {
-                    "شرکت گاز خراسان جنوبی",
-                    "شهرستان عشق آباد",
-                    "اداره گاز عشق آباد",
-                },
-                remote_path="/sdcard/splash.xml",
-                local_path=Path(temporary) / "splash.xml",
+                {"داشبورد"},
+                remote_path="/sdcard/dashboard.xml",
+                local_path=Path(temporary) / "dashboard.xml",
                 timeout_seconds=1,
             )
 
-        self.assertIn("اداره گاز عشق آباد", labels)
+        self.assertIn("داشبورد", labels)
         read_tree.assert_called_once()
 
     @patch("emulator_visual_smoke.read_accessibility_tree", return_value=None)
@@ -67,8 +60,9 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
     @patch("emulator_visual_smoke.capture_screenshot")
     @patch("emulator_visual_smoke.wait_for_labels")
     @patch("emulator_visual_smoke.subprocess.run")
-    def test_smoke_test_checks_expected_package_and_both_screens(
-        self, run, wait, screenshot
+    @patch("emulator_visual_smoke.time.sleep")
+    def test_smoke_test_checks_dashboard_and_both_screenshots(
+        self, sleep, run, wait, screenshot
     ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -76,9 +70,12 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
             application_id.write_text(EXPECTED_APPLICATION_ID, encoding="utf-8")
             run.return_value.returncode = 0
             run.return_value.stdout = "4321"
+            run.return_value.stderr = ""
+            run.return_value.stdout = "4321"
             run_smoke_test(application_id, root / "review")
 
-            self.assertEqual(wait.call_count, 2)
+            wait.assert_called_once()
+            self.assertEqual(wait.call_args.kwargs["timeout_seconds"], 90)
             self.assertEqual(screenshot.call_count, 2)
             self.assertEqual(run.call_count, 2)
             self.assertEqual(
