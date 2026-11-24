@@ -10,6 +10,11 @@ import 'data/quiz_models.dart';
 import 'purchase_page.dart';
 import 'services/lifetime_purchase_service.dart';
 
+const allowPrivateTestAccess = bool.fromEnvironment(
+  'ALLOW_PRIVATE_TEST_ACCESS',
+  defaultValue: false,
+);
+
 const navy = Color(0xFF123B66);
 const blue = Color(0xFF1976D2);
 const paleBlue = Color(0xFFEAF3FB);
@@ -184,7 +189,10 @@ class _AppStartGateState extends State<AppStartGate> {
     if (!lifetimePurchaseService.isConfigured) {
       // Only development builds may bypass billing while Bazaar is configured.
       // A release build must never ship with free access due to missing defines.
-      return canEnterWithoutPurchaseConfiguration(isReleaseBuild: kReleaseMode);
+      return canEnterWithoutPurchaseConfiguration(
+        isReleaseBuild: kReleaseMode,
+        allowPrivateTestAccess: allowPrivateTestAccess,
+      );
     }
     try {
       return await lifetimePurchaseService.restoreAccess();
