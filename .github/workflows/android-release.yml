@@ -91,14 +91,20 @@ jobs:
           echo 'e0310a00567f7b4877632119ceba87c862dbf67b20b53e29202fe37e84c7094a  assets/app_icon.jpg' | sha256sum --check -
           dart run flutter_launcher_icons
 
-      - name: Prepare optional Bazaar purchase configuration
+      - name: Prepare Bazaar purchase configuration or private-test mode
         env:
           BAZAAR_LIFETIME_PRODUCT_ID: ${{ secrets.BAZAAR_LIFETIME_PRODUCT_ID }}
           BAZAAR_RSA_PUBLIC_KEY: ${{ secrets.BAZAAR_RSA_PUBLIC_KEY }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
           if [ -z "${BAZAAR_LIFETIME_PRODUCT_ID:-}" ] && [ -z "${BAZAAR_RSA_PUBLIC_KEY:-}" ]; then
-            echo "Bazaar billing is not configured yet; building the signed first-submission APK with the app's safe unconfigured-access flow."
+            if [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]; then
+              echo "A tagged/public release requires both Bazaar billing secrets. Refusing to build an APK that cannot unlock."
+              exit 1
+            fi
+            echo "Private test build only: Bazaar billing is not configured. Public release remains blocked."
+            echo "ALLOW_PRIVATE_TEST_ACCESS=true" >> "$GITHUB_ENV"
             exit 0
           fi
           if [ -z "${BAZAAR_LIFETIME_PRODUCT_ID:-}" ] || [ -z "${BAZAAR_RSA_PUBLIC_KEY:-}" ]; then
@@ -134,8 +140,11 @@ jobs:
           set -euo pipefail
           if [ "${BAZAAR_IAP_CONFIGURED:-false}" = "true" ]; then
             dart run iran_iap build apk --store bazaar -- --release --dart-define-from-file=build/ci-iap-defines.json
+          elif [ "${ALLOW_PRIVATE_TEST_ACCESS:-false}" = "true" ]; then
+            flutter build apk --release --dart-define=ALLOW_PRIVATE_TEST_ACCESS=true
           else
-            flutter build apk --release
+            echo "Refusing an unconfigured release build without explicit private-test mode."
+            exit 1
           fi
 
       - name: Verify APK signature and package
@@ -153,7 +162,7 @@ jobs:
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: danestani-gaz-release-${{ github.ref_name }}
+          name: danestani-gaz-${{ env.BAZAAR_IAP_CONFIGURED == 'true' && 'iap' || 'private-test' }}-${{ github.run_number }}
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: ${{ env.BAZAAR_IAP_CONFIGURED == 'true' && 14 || 3 }}
