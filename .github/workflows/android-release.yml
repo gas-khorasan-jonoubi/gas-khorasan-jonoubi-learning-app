@@ -34,23 +34,20 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Validate release secrets
+      - name: Validate Android signing secrets
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           CM_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           CM_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           CM_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          BAZAAR_APPLICATION_ID: ${{ secrets.BAZAAR_APPLICATION_ID }}
-          BAZAAR_LIFETIME_PRODUCT_ID: ${{ secrets.BAZAAR_LIFETIME_PRODUCT_ID }}
-          BAZAAR_RSA_PUBLIC_KEY: ${{ secrets.BAZAAR_RSA_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           missing=()
-          for name in ANDROID_KEYSTORE_BASE64 CM_KEYSTORE_PASSWORD CM_KEY_ALIAS CM_KEY_PASSWORD BAZAAR_APPLICATION_ID BAZAAR_LIFETIME_PRODUCT_ID BAZAAR_RSA_PUBLIC_KEY; do
+          for name in ANDROID_KEYSTORE_BASE64 CM_KEYSTORE_PASSWORD CM_KEY_ALIAS CM_KEY_PASSWORD; do
             if [ -z "${!name:-}" ]; then missing+=("$name"); fi
           done
           if [ "${#missing[@]}" -ne 0 ]; then
-            printf 'Release is safely blocked. Missing GitHub Actions secrets: %s\\n' "${missing[*]}"
+            printf 'Release is safely blocked. Missing GitHub Actions secrets: %s\n' "${missing[*]}"
             exit 1
           fi
 
@@ -64,9 +61,9 @@ jobs:
           test -s "$RUNNER_TEMP/android-signing/release.keystore"
           echo "CM_KEYSTORE_PATH=$RUNNER_TEMP/android-signing/release.keystore" >> "$GITHUB_ENV"
 
-      - name: Generate Android host and configure Bazaar and signing
+      - name: Generate Android host and configure signing
         env:
-          BAZAAR_APPLICATION_ID: ${{ secrets.BAZAAR_APPLICATION_ID }}
+          BAZAAR_APPLICATION_ID: ${{ secrets.BAZAAR_APPLICATION_ID || 'ir.gas.khorasanjonoubi.danestani_gaz' }}
           CM_KEYSTORE_PATH: ${{ runner.temp }}/android-signing/release.keystore
           CM_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           CM_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -94,41 +91,62 @@ jobs:
           echo 'e0310a00567f7b4877632119ceba87c862dbf67b20b53e29202fe37e84c7094a  assets/app_icon.jpg' | sha256sum --check -
           dart run flutter_launcher_icons
 
-      - name: Validate Bazaar configuration and prepare compile-time defines
+      - name: Prepare optional Bazaar purchase configuration
         env:
           BAZAAR_LIFETIME_PRODUCT_ID: ${{ secrets.BAZAAR_LIFETIME_PRODUCT_ID }}
           BAZAAR_RSA_PUBLIC_KEY: ${{ secrets.BAZAAR_RSA_PUBLIC_KEY }}
         run: |
           set -euo pipefail
-          dart run iran_iap doctor --store bazaar
+          if [ -z "${BAZAAR_LIFETIME_PRODUCT_ID:-}" ] && [ -z "${BAZAAR_RSA_PUBLIC_KEY:-}" ]; then
+            echo "Bazaar billing is not configured yet; building the signed first-submission APK with the app's safe unconfigured-access flow."
+            exit 0
+          fi
+          if [ -z "${BAZAAR_LIFETIME_PRODUCT_ID:-}" ] || [ -z "${BAZAAR_RSA_PUBLIC_KEY:-}" ]; then
+            echo "Both BAZAAR_LIFETIME_PRODUCT_ID and BAZAAR_RSA_PUBLIC_KEY must be configured together."
+            exit 1
+          fi
           python3 - <<'PY'
           import json, os
           from pathlib import Path
           values = {
-              "IRAN_IAP_STORE": "bazaar",
               "BAZAAR_LIFETIME_PRODUCT_ID": os.environ["BAZAAR_LIFETIME_PRODUCT_ID"],
               "BAZAAR_RSA_PUBLIC_KEY": os.environ["BAZAAR_RSA_PUBLIC_KEY"],
           }
           Path("build").mkdir(exist_ok=True)
+          values["IRAN_IAP_STORE"] = "bazaar"
           Path("build/ci-iap-defines.json").write_text(json.dumps(values), encoding="utf-8")
           PY
+          echo "BAZAAR_IAP_CONFIGURED=true" >> "$GITHUB_ENV"
+
+      - name: Validate configured Bazaar purchase integration
+        if: env.BAZAAR_IAP_CONFIGURED == 'true'
+        run: dart run iran_iap doctor --store bazaar
 
       - name: Analyze and test
         run: |
           set -euo pipefail
           flutter analyze
           flutter test --reporter expanded
+          /tmp/danestani-image-tools/bin/python -m unittest discover -s tool -p 'test_*.py' -v
 
       - name: Build signed release APK
-        run: dart run iran_iap build apk --store bazaar -- --release --dart-define-from-file=build/ci-iap-defines.json
+        run: |
+          set -euo pipefail
+          if [ "${BAZAAR_IAP_CONFIGURED:-false}" = "true" ]; then
+            dart run iran_iap build apk --store bazaar -- --release --dart-define-from-file=build/ci-iap-defines.json
+          else
+            flutter build apk --release
+          fi
 
-      - name: Verify Bazaar SDK and APK signature
+      - name: Verify APK signature and package
         run: |
           set -euo pipefail
           APK=build/app/outputs/flutter-apk/app-release.apk
           test -s "$APK"
-          dart run iran_iap verify --store bazaar "$APK"
           "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)/apksigner" verify --verbose "$APK"
+          if [ "${BAZAAR_IAP_CONFIGURED:-false}" = "true" ]; then
+            dart run iran_iap verify --store bazaar "$APK"
+          fi
           sha256sum "$APK"
           ls -lh "$APK"
 
