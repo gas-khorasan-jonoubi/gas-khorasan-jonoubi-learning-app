@@ -723,6 +723,30 @@ class _QuizPageState extends State<QuizPage> {
   }
 }
 
+bool _hasValidQuestionBreakdown(Map<String, dynamic> record) {
+  final questions = record['questions'];
+  final answers = record['answers'];
+  if (questions is! List || answers is! List || questions.length != answers.length) {
+    return false;
+  }
+  for (var i = 0; i < questions.length; i++) {
+    final question = questions[i];
+    final answer = answers[i];
+    if (question is! Map || answer is! int || answer < -1) return false;
+    final prompt = question['q'];
+    final options = question['a'];
+    final correct = question['correct'];
+    if (prompt is! String || prompt.trim().isEmpty ||
+        options is! List || options.length != 4 ||
+        options.any((option) => option is! String || option.trim().isEmpty) ||
+        correct is! int || correct < 0 || correct >= options.length ||
+        answer >= options.length) {
+      return false;
+    }
+  }
+  return questions.isNotEmpty;
+}
+
 class ResultDetailPage extends StatelessWidget {
   final Map<String, dynamic> record;
   const ResultDetailPage({super.key, required this.record});
@@ -734,8 +758,7 @@ class ResultDetailPage extends StatelessWidget {
     final correct = (record['correct'] as int?) ?? (record['score'] as int?) ?? 0;
     final wrong = (record['wrong'] as int?) ?? (total - correct).clamp(0, total).toInt();
     final unanswered = (record['unanswered'] as int?) ?? 0;
-    final hasQuestionBreakdown =
-        record['questions'] is List && record['answers'] is List;
+    final hasQuestionBreakdown = _hasValidQuestionBreakdown(record);
 
     return Scaffold(
       appBar: AppBar(title: const Text('جزئیات نتیجه آزمون')),
@@ -887,26 +910,40 @@ class ResultsPage extends StatefulWidget {
 class _ResultsPageState extends State<ResultsPage> {
   late final Future<List<String>> _results = _load();
 
-  Future<List<String>> _load() async {
+  Future<List<Map<String, dynamic>>> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getStringList('exam_results') ?? <String>[];
+    final values = prefs.getStringList('exam_results') ?? <String>[];
+    final records = <Map<String, dynamic>>[];
+    for (final value in values) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is! Map<String, dynamic>) continue;
+        if (decoded['date'] is! String ||
+            DateTime.tryParse(decoded['date'] as String) == null) {
+          continue;
+        }
+        records.add(decoded);
+      } catch (_) {
+        // A damaged history entry must not hide other valid exam results.
+      }
+    }
+    return records;
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<List<String>>(
+  Widget build(BuildContext context) => FutureBuilder<List<Map<String, dynamic>>>(
         future: _results,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
-          final values = snapshot.data ?? <String>[];
+          final values = snapshot.data ?? <Map<String, dynamic>>[];
           if (values.isEmpty) {
             return const Center(child: Text('هنوز نتیجه‌ای ثبت نشده است'));
           }
           return ListView(
             padding: const EdgeInsets.all(16),
-            children: values.map((value) {
-              final record = jsonDecode(value) as Map<String, dynamic>;
+            children: values.map((record) {
               final date = DateTime.parse(record['date'] as String);
               final total = (record['total'] as int?) ?? 0;
               final correct = (record['correct'] as int?) ?? (record['score'] as int?) ?? 0;
