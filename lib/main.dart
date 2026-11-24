@@ -908,7 +908,7 @@ class ResultsPage extends StatefulWidget {
 }
 
 class _ResultsPageState extends State<ResultsPage> {
-  late final Future<List<String>> _results = _load();
+  late final Future<List<Map<String, dynamic>>> _results = _load();
 
   Future<List<Map<String, dynamic>>> _load() async {
     final prefs = await SharedPreferences.getInstance();
