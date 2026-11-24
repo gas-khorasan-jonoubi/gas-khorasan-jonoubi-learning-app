@@ -10,9 +10,13 @@ const bazaarRsaPublicKey = String.fromEnvironment(
   'BAZAAR_RSA_PUBLIC_KEY',
 );
 
-/// Development builds can be used without billing configuration; release builds cannot.
-bool canEnterWithoutPurchaseConfiguration({required bool isReleaseBuild}) =>
-    !isReleaseBuild;
+/// A release build may bypass billing only when it is explicitly produced
+/// for private testing. Public/tagged releases must require Bazaar ownership.
+bool canEnterWithoutPurchaseConfiguration({
+  required bool isReleaseBuild,
+  bool allowPrivateTestAccess = false,
+}) =>
+    !isReleaseBuild || allowPrivateTestAccess;
 
 enum LifetimePurchaseResult {
   purchased,
