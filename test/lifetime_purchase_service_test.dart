@@ -77,9 +77,22 @@ class _FakeIranIapClient implements IranIapClient {
 
 void main() {
   group('release purchase gate policy', () {
-    test('allows unconfigured access only in development builds', () {
+    test('allows unconfigured access in development builds', () {
       expect(canEnterWithoutPurchaseConfiguration(isReleaseBuild: false), isTrue);
+    });
+
+    test('blocks unconfigured access in ordinary release builds', () {
       expect(canEnterWithoutPurchaseConfiguration(isReleaseBuild: true), isFalse);
+    });
+
+    test('allows unconfigured access only when explicitly marked private-test', () {
+      expect(
+        canEnterWithoutPurchaseConfiguration(
+          isReleaseBuild: true,
+          allowPrivateTestAccess: true,
+        ),
+        isTrue,
+      );
     });
   });
 
