@@ -198,7 +198,7 @@ class _BillSharePageState extends State<BillSharePage> {
         title: const Text('تأیید نهایی ارسال قبض'),
         content: SingleChildScrollView(
           child: SelectableText(
-            '\${_sms ? 'شماره گیرنده: $phone\\n\\n' : ''}$text',
+            '${_sms ? 'شماره گیرنده: $phone\\n\\n' : ''}$text',
           ),
         ),
         actions: [
