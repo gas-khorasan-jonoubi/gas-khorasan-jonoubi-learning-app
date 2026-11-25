@@ -10,6 +10,7 @@ import 'data/quiz_models.dart';
 import 'purchase_page.dart';
 import 'services/lifetime_purchase_service.dart';
 import 'bill_share_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const allowPrivateTestAccess = bool.fromEnvironment(
   'ALLOW_PRIVATE_TEST_ACCESS',
@@ -364,6 +365,27 @@ class DashboardPage extends StatelessWidget {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const BillSharePage()),
             ),
+          ),
+          _MenuTile(
+            icon: Icons.receipt_long_outlined,
+            title: 'مشاهده قبض از سایت',
+            subtitle: 'ورود به سامانه رسمی خدمات مشترکین و مشاهده سوابق قبض',
+            onTap: () async {
+              final uri = Uri.parse(
+                'https://southkhorasan.artadata.ir/index.php/site/loginmoshtarak',
+              );
+              final opened = await launchUrl(
+                uri,
+                mode: LaunchMode.externalApplication,
+              );
+              if (!opened && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('باز کردن سامانه در مرورگر امکان‌پذیر نشد.'),
+                  ),
+                );
+              }
+            },
           ),
           _MenuTile(
             icon: Icons.help_outline,
