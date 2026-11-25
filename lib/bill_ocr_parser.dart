@@ -1,6 +1,3 @@
-import 'package:meta/meta.dart';
-
-@immutable
 class ParsedGasBill {
   const ParsedGasBill({
     this.name,
@@ -70,7 +67,7 @@ class BillOcrParser {
   static String? _numericValue(
     List<String> lines,
     List<String> labels, {
-    bool joinGroups = false,
+    int minDigits = 3,
   }) {
     for (var index = 0; index < lines.length; index++) {
       final line = lines[index];
@@ -84,7 +81,7 @@ class BillOcrParser {
           remainder = lines[index + 1];
           digits = remainder.replaceAll(RegExp(r'[^0-9]'), '');
         }
-        if (digits.length >= 3) return digits;
+        if (digits.length >= minDigits) return digits;
       }
     }
     return null;
@@ -122,7 +119,7 @@ class BillOcrParser {
         'تعداد دوره',
         'دوره بدهی',
         'ماه بدهی',
-      ]),
+      ], minDigits: 1),
       mobile: mobile,
     );
   }
