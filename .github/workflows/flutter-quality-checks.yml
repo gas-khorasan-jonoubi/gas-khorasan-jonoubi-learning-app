@@ -61,7 +61,7 @@ jobs:
           /tmp/danestani-image-tools/bin/python tool/test_emulator_visual_smoke.py
 
       - name: Get dependencies
-        run: flutter pub get --enforce-lockfile
+        run: flutter pub get
 
       - name: Verify selected NIGC launcher artwork
         run: |
