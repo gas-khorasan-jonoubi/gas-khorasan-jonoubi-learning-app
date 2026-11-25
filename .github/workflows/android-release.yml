@@ -143,6 +143,11 @@ jobs:
           /tmp/danestani-image-tools/bin/python -m unittest discover -s tool -p 'test_*.py' -v
 
       - name: Build signed release APK
+        env:
+          CM_KEYSTORE_PATH: ${{ runner.temp }}/android-signing/release.keystore
+          CM_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          CM_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          CM_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           if [ "${BAZAAR_IAP_CONFIGURED:-false}" = "true" ]; then
