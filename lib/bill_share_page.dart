@@ -166,6 +166,12 @@ class _BillSharePageState extends State<BillSharePage> {
       );
       return;
     }
+    if (_social && (_savedImagePath ?? _imagePath) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('برای ارسال در شبکه‌های اجتماعی ابتدا تصویر قبض را اسکن کنید.')),
+      );
+      return;
+    }
     setState(() => _busy = true);
     try {
       await _saveArchive();
@@ -200,12 +206,13 @@ class _BillSharePageState extends State<BillSharePage> {
     }
   }
 
-  Widget _field(String label, TextEditingController controller, {TextInputType keyboard = TextInputType.text}) {
+  Widget _field(String label, TextEditingController controller, {TextInputType keyboard = TextInputType.text, bool required = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboard,
+        validator: required ? (value) => (value == null || value.trim().isEmpty) ? 'این فیلد الزامی است' : null : null,
         textDirection: TextDirection.rtl,
         decoration: InputDecoration(
           labelText: label,
@@ -273,10 +280,10 @@ class _BillSharePageState extends State<BillSharePage> {
         Form(
           key: _formKey,
           child: Column(children: [
-            _field('نام مشترک', _name),
-            _field('شناسه قبض', _billId, keyboard: TextInputType.number),
-            _field('شناسه پرداخت', _paymentId, keyboard: TextInputType.number),
-            _field('مبلغ بدهی (ریال)', _amount, keyboard: TextInputType.number),
+            _field('نام مشترک', _name, required: true),
+            _field('شناسه قبض', _billId, keyboard: TextInputType.number, required: true),
+            _field('شناسه پرداخت', _paymentId, keyboard: TextInputType.number, required: true),
+            _field('مبلغ بدهی (ریال)', _amount, keyboard: TextInputType.number, required: true),
             _field('تعداد دوره‌های بدهی', _periods, keyboard: TextInputType.number),
             _field('شماره موبایل دریافت‌کننده (اختیاری)', _mobile, keyboard: TextInputType.phone),
           ]),
