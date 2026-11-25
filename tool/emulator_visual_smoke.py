@@ -129,7 +129,18 @@ def run_smoke_test(
     splash_path = output_dir / "flutter-splash.png"
     deadline = time.monotonic() + splash_timeout
     splash_digest = ""
+    hierarchy_path = output_dir / "dashboard-window.xml"
+    prompt_dismissed = False
     while time.monotonic() <= deadline:
+        # Android may show its one-time immersive-mode "Got it" confirmation
+        # as soon as Flutter enters immersiveSticky mode. Dismiss it during
+        # the splash phase; waiting until the dashboard phase can let the
+        # five-second splash expire behind the dimmed system dialog.
+        tree = read_accessibility_tree("/sdcard/danestani-splash.xml", output_dir / "splash-window.xml")
+        if tree is not None and dismiss_immersive_prompt(output_dir / "splash-window.xml"):
+            prompt_dismissed = True
+            time.sleep(.5)
+            continue
         splash_digest = capture_screenshot(splash_path)
         if has_expected_splash(splash_path):
             break
@@ -139,10 +150,8 @@ def run_smoke_test(
         raise RuntimeError("Flutter splash was not visually detected; inspect screenshot and diagnostics.")
 
     dashboard_path = output_dir / "dashboard.png"
-    hierarchy_path = output_dir / "dashboard-window.xml"
     deadline = time.monotonic() + dashboard_timeout
     dashboard_digest = ""
-    prompt_dismissed = False
     while time.monotonic() <= deadline:
         tree = read_accessibility_tree("/sdcard/danestani-dashboard.xml", hierarchy_path)
         if tree is not None and dismiss_immersive_prompt(hierarchy_path):

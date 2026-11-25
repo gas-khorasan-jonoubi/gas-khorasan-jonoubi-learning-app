@@ -37,10 +37,10 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
             self.assertEqual(screenshot.call_count, 2)
             self.assertEqual(run.call_count, 1)
             diagnostics.assert_called_once()
-            accessibility.assert_called_once()
+            accessibility.assert_has_calls([unittest.mock.call("/sdcard/danestani-splash.xml", root / "review" / "splash-window.xml"), unittest.mock.call("/sdcard/danestani-dashboard.xml", root / "review" / "dashboard-window.xml")])
 
-    @patch("emulator_visual_smoke.read_accessibility_tree", return_value=object())
-    @patch("emulator_visual_smoke.dismiss_immersive_prompt", return_value=True)
+    @patch("emulator_visual_smoke.read_accessibility_tree", side_effect=[object(), object(), object()])
+    @patch("emulator_visual_smoke.dismiss_immersive_prompt", side_effect=[True, False, True])
     @patch("emulator_visual_smoke.capture_diagnostics", return_value="")
     @patch("emulator_visual_smoke.has_meaningful_dashboard", return_value=False)
     @patch("emulator_visual_smoke.has_expected_splash", return_value=True)
@@ -57,7 +57,7 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "remained on splash"):
                 run_smoke_test(package, root / "review", dashboard_timeout=30)
             diagnostics.assert_called_once()
-            dismiss_prompt.assert_called_once()
+            self.assertEqual(dismiss_prompt.call_count, 2)
 
     def test_splash_detector_rejects_white_native_launch_screen(self):
         with tempfile.TemporaryDirectory() as temporary:
