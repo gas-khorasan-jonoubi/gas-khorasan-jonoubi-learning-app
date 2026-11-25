@@ -51,14 +51,18 @@ jobs:
             exit 1
           fi
 
-      - name: Restore private Android signing key
+      - name: Restore and validate private Android signing key
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          CM_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          CM_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           set -euo pipefail
+          umask 077
           mkdir -p "$RUNNER_TEMP/android-signing"
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/android-signing/release.keystore"
           test -s "$RUNNER_TEMP/android-signing/release.keystore"
+          keytool -list -keystore "$RUNNER_TEMP/android-signing/release.keystore" -storepass "$CM_KEYSTORE_PASSWORD" -alias "$CM_KEY_ALIAS" >/dev/null
           echo "CM_KEYSTORE_PATH=$RUNNER_TEMP/android-signing/release.keystore" >> "$GITHUB_ENV"
 
       - name: Generate Android host and configure signing
