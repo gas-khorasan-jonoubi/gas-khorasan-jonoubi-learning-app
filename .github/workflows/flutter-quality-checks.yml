@@ -60,6 +60,9 @@ jobs:
           python3 tool/test_dismiss_immersive_prompt.py
           /tmp/danestani-image-tools/bin/python tool/test_emulator_visual_smoke.py
 
+      - name: Prepare offline Persian OCR models
+        run: bash tool/prepare_fas_ocr_model.sh
+
       - name: Get dependencies
         run: flutter pub get
 
