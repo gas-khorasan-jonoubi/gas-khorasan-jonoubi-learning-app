@@ -86,12 +86,12 @@ class _BillSharePageState extends State<BillSharePage> {
       _recognizedText = text;
       _fillRecognizedFields(text);
       final directory = await getApplicationDocumentsDirectory();
-      final billsDir = Directory('\${directory.path}/bill_archive');
+      final billsDir = Directory('${directory.path}/bill_archive');
       if (!await billsDir.exists()) {
         await billsDir.create(recursive: true);
       }
       final saved = await File(photo.path).copy(
-        '\${billsDir.path}/bill_\${DateTime.now().millisecondsSinceEpoch}.jpg',
+        '${billsDir.path}/bill_${DateTime.now().millisecondsSinceEpoch}.jpg',
       );
       _savedImagePath = saved.path;
       if (mounted) {
@@ -201,10 +201,33 @@ class _BillSharePageState extends State<BillSharePage> {
       return;
     }
 
+    final text = _message();
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تأیید نهایی ارسال قبض'),
+        content: SingleChildScrollView(
+          child: SelectableText(
+            '\${_sms ? 'شماره گیرنده: $phone\\n\\n' : ''}$text',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('بازبینی و انصراف'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('تأیید و ادامه'),
+          ),
+        ],
+      ),
+    );
+    if (approved != true || !mounted) return;
+
     setState(() => _busy = true);
     try {
       await _saveArchive();
-      final text = _message();
       if (_sms) {
         final smsUri = Uri(
           scheme: 'sms',
