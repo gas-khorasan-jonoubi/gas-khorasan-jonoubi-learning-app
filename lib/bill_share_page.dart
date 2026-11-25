@@ -82,7 +82,7 @@ class _BillSharePageState extends State<BillSharePage> {
         config: const OCRConfig(
           language: 'fas+eng',
           engine: OCREngine.tesseract,
-          options: const {
+          options: {
             'preserve_interword_spaces': '1',
             'tessedit_pageseg_mode': '6',
           },
