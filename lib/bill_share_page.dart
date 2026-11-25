@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const _billNavy = Color(0xFF123B66);
 const _billYellow = Color(0xFFFFD54F);
@@ -61,9 +62,13 @@ class _BillSharePageState extends State<BillSharePage> {
     }).join();
   }
 
-  Future<void> _scan() async {
+  Future<void> _scan() => _chooseImage(ImageSource.camera);
+
+  Future<void> _pickFromGallery() => _chooseImage(ImageSource.gallery);
+
+  Future<void> _chooseImage(ImageSource source) async {
     final photo = await _picker.pickImage(
-      source: ImageSource.camera,
+      source: source,
       imageQuality: 82,
       maxWidth: 1800,
     );
@@ -71,28 +76,38 @@ class _BillSharePageState extends State<BillSharePage> {
     setState(() {
       _busy = true;
       _imagePath = photo.path;
+      _savedImagePath = null;
     });
     try {
-      final result = await _recognizer.processImage(InputImage.fromFilePath(photo.path));
+      final result = await _recognizer.processImage(
+        InputImage.fromFilePath(photo.path),
+      );
       final text = result.text;
       _recognizedText = text;
       _fillRecognizedFields(text);
       final directory = await getApplicationDocumentsDirectory();
-      final billsDir = Directory('${directory.path}/bill_archive');
-      if (!await billsDir.exists()) await billsDir.create(recursive: true);
+      final billsDir = Directory('\${directory.path}/bill_archive');
+      if (!await billsDir.exists()) {
+        await billsDir.create(recursive: true);
+      }
       final saved = await File(photo.path).copy(
-        '${billsDir.path}/bill_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        '\${billsDir.path}/bill_\${DateTime.now().millisecondsSinceEpoch}.jpg',
       );
       _savedImagePath = saved.path;
       if (mounted) {
+        setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تصویر قبض اسکن شد؛ لطفاً اطلاعات تشخیص‌داده‌شده را بررسی کنید.')),
+          const SnackBar(
+            content: Text(
+              'تصویر دریافت شد؛ اطلاعات تشخیص‌داده‌شده را بررسی و در صورت نیاز اصلاح کنید.',
+            ),
+          ),
         );
       }
-    } catch (error) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('اسکن انجام نشد. دوباره تلاش کنید.')),
+          const SnackBar(content: Text('خواندن تصویر انجام نشد. دوباره تلاش کنید.')),
         );
       }
     } finally {
@@ -163,45 +178,64 @@ class _BillSharePageState extends State<BillSharePage> {
 
   Future<void> _share() async {
     if (!_formKey.currentState!.validate()) return;
+    final phone = _digits(_mobile.text).replaceAll(RegExp(r'[^0-9+]'), '');
+    if (_sms && !RegExp(r'^09[0-9]{9}$').hasMatch(phone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('برای ارسال پیامک، شماره موبایل معتبر ۱۱ رقمی با ۰۹ وارد کنید.'),
+        ),
+      );
+      return;
+    }
     if (!_sms && !_social) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('حداقل یک روش اشتراک‌گذاری را انتخاب کنید.')),
       );
       return;
     }
-    if (_social && (_savedImagePath ?? _imagePath) == null) {
+    final imagePath = _savedImagePath ?? _imagePath;
+    if (_social && (imagePath == null || !await File(imagePath).exists())) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('برای ارسال در شبکه‌های اجتماعی ابتدا تصویر قبض را اسکن کنید.')),
+        const SnackBar(content: Text('برای ارسال اجتماعی ابتدا تصویر قبض را انتخاب کنید.')),
       );
       return;
     }
+
     setState(() => _busy = true);
     try {
       await _saveArchive();
       final text = _message();
       if (_sms) {
-        await SharePlus.instance.share(ShareParams(text: text, title: 'اطلاعات قبض - پیامک'));
-      }
-      if (_social) {
-        final path = _savedImagePath ?? _imagePath;
-        if (path == null || !await File(path).exists()) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('برای ارسال در شبکه‌های اجتماعی ابتدا تصویر قبض را اسکن کنید.')),
-            );
-          }
-          return;
+        final smsUri = Uri(
+          scheme: 'sms',
+          path: phone,
+          queryParameters: <String, String>{'body': text},
+        );
+        final opened = await launchUrl(
+          smsUri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!opened && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('برنامه پیامک گوشی باز نشد.')),
+          );
         }
-        await SharePlus.instance.share(ShareParams(
-          text: text,
-          title: 'تصویر و اطلاعات قبض',
-          files: [XFile(path)],
-        ));
+      }
+      if (_social && imagePath != null) {
+        await SharePlus.instance.share(
+          ShareParams(
+            text: text,
+            title: 'تصویر و اطلاعات قبض',
+            files: <XFile>[XFile(imagePath)],
+          ),
+        );
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('اشتراک‌گذاری کامل نشد. برنامه مقصد را بررسی کنید.')),
+          const SnackBar(
+            content: Text('اشتراک‌گذاری کامل نشد. برنامه مقصد را بررسی کنید.'),
+          ),
         );
       }
     } finally {
@@ -268,6 +302,12 @@ class _BillSharePageState extends State<BillSharePage> {
           icon: const Icon(Icons.camera_alt),
           label: const Text('اسکن قبض با دوربین'),
         ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: _busy ? null : _pickFromGallery,
+          icon: const Icon(Icons.photo_library_outlined),
+          label: const Text('انتخاب تصویر قبض از گالری'),
+        ),
         if (_busy) const Padding(
           padding: EdgeInsets.all(12),
           child: Center(child: CircularProgressIndicator()),
@@ -288,7 +328,7 @@ class _BillSharePageState extends State<BillSharePage> {
             _field('شناسه پرداخت', _paymentId, keyboard: TextInputType.number, required: true),
             _field('مبلغ بدهی (ریال)', _amount, keyboard: TextInputType.number, required: true),
             _field('تعداد دوره‌های بدهی', _periods, keyboard: TextInputType.number),
-            _field('شماره موبایل دریافت‌کننده (اختیاری)', _mobile, keyboard: TextInputType.phone),
+            _field('شماره موبایل دریافت‌کننده (برای پیامک الزامی)', _mobile, keyboard: TextInputType.phone),
           ]),
         ),
         if (_recognizedText.isNotEmpty)
@@ -333,7 +373,7 @@ class _BillSharePageState extends State<BillSharePage> {
         ),
         const SizedBox(height: 12),
         const Text(
-          'توجه: متن و اعداد تشخیص‌داده‌شده را پیش از ارسال کنترل کنید. تشخیص خودکار فارسی ممکن است کامل نباشد؛ همه کادرها قابل ویرایش‌اند.',
+          'توجه: متن و اعداد تشخیص‌داده‌شده را پیش از ارسال کنترل کنید. تشخیص متن فارسی در موتور آفلاین فعلی محدود است؛ نام و شناسه‌ها را حتماً بررسی و در صورت نیاز اصلاح کنید.',
           style: TextStyle(color: Colors.black54, fontSize: 12),
           textAlign: TextAlign.center,
         ),
