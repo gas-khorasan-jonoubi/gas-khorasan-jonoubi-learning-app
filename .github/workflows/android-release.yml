@@ -84,6 +84,9 @@ jobs:
           /tmp/danestani-image-tools/bin/python tool/test_prepare_splash_asset.py
           test -s assets/approved_splash.webp
 
+      - name: Prepare offline Persian OCR models
+        run: bash tool/prepare_fas_ocr_model.sh
+
       - name: Get dependencies and verify launcher artwork
         run: |
           set -euo pipefail
