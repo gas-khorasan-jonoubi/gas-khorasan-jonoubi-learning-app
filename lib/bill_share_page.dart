@@ -164,7 +164,7 @@ class _BillSharePageState extends State<BillSharePage> {
       );
       return;
     }
-    if (_social && _imagePath == null) {\n      ScaffoldMessenger.of(context).showSnackBar(\n        const SnackBar(content: Text('برای ارسال متن و تصویر، ابتدا قبض را با دوربین اسکن کنید.')),\n      );\n      return;\n    }\n    if (_social && _imagePath == null) {
+    if (_social && _imagePath == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('برای ارسال متن و تصویر، ابتدا قبض را با دوربین اسکن کنید.')),
       );
