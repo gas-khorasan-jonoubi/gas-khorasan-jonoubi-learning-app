@@ -64,8 +64,6 @@ class _BillSharePageState extends State<BillSharePage> {
 
   Future<void> _scan() => _chooseImage(ImageSource.camera);
 
-  Future<void> _pickFromGallery() => _chooseImage(ImageSource.gallery);
-
   Future<void> _chooseImage(ImageSource source) async {
     final photo = await _picker.pickImage(
       source: source,
@@ -193,14 +191,6 @@ class _BillSharePageState extends State<BillSharePage> {
       );
       return;
     }
-    final imagePath = _savedImagePath ?? _imagePath;
-    if (_social && (imagePath == null || !await File(imagePath).exists())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('برای ارسال اجتماعی ابتدا تصویر قبض را انتخاب کنید.')),
-      );
-      return;
-    }
-
     final text = _message();
     final approved = await showDialog<bool>(
       context: context,
@@ -244,13 +234,9 @@ class _BillSharePageState extends State<BillSharePage> {
           );
         }
       }
-      if (_social && imagePath != null) {
+      if (_social) {
         await SharePlus.instance.share(
-          ShareParams(
-            text: text,
-            title: 'تصویر و اطلاعات قبض',
-            files: <XFile>[XFile(imagePath)],
-          ),
+          ShareParams(text: text, title: 'اطلاعات قبض گاز'),
         );
       }
     } catch (_) {
@@ -326,11 +312,6 @@ class _BillSharePageState extends State<BillSharePage> {
           label: const Text('اسکن قبض با دوربین'),
         ),
         const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: _busy ? null : _pickFromGallery,
-          icon: const Icon(Icons.photo_library_outlined),
-          label: const Text('انتخاب تصویر قبض از گالری'),
-        ),
         if (_busy) const Padding(
           padding: EdgeInsets.all(12),
           child: Center(child: CircularProgressIndicator()),
@@ -381,7 +362,7 @@ class _BillSharePageState extends State<BillSharePage> {
                 value: _social,
                 onChanged: _busy ? null : (v) => setState(() => _social = v ?? false),
                 title: const Text('شبکه‌های اجتماعی'),
-                subtitle: const Text('عکس قبض به همراه متن؛ انتخاب گیرنده در برنامه مقصد'),
+                subtitle: const Text('فقط متن اطلاعات قبض؛ انتخاب برنامه و گیرنده در مقصد'),
                 controlAffinity: ListTileControlAffinity.leading,
               ),
             ]),
