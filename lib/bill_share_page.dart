@@ -134,12 +134,15 @@ class _BillSharePageState extends State<BillSharePage> {
 
   String _message() {
     String v(TextEditingController c) => c.text.trim().isEmpty ? 'ثبت نشده' : c.text.trim();
-    return 'اطلاعات قبض\n'
+    return 'سلام\n\n'
+        'لطفاً نسبت به پرداخت قبض زیر اقدام فرمایید:\n\n'
+        'نوع قبض: گاز\n'
         'نام مشترک: ${v(_name)}\n'
         'شناسه قبض: ${v(_billId)}\n'
         'شناسه پرداخت: ${v(_paymentId)}\n'
-        'مبلغ بدهی: ${v(_amount)}\n'
-        'تعداد دوره‌های بدهی: ${v(_periods)}';
+        'مبلغ قابل پرداخت: ${v(_amount)} ریال\n'
+        'تعداد دوره بدهی: ${v(_periods)}\n\n'
+        'با تشکر';
   }
 
   Future<void> _saveArchive() async {
@@ -421,7 +424,7 @@ class _BillArchivePageState extends State<BillArchivePage> {
                       'نام مشترک: ${item['name'] ?? '-'}\n'
                       'شناسه قبض: ${item['billId'] ?? '-'}\n'
                       'شناسه پرداخت: ${item['paymentId'] ?? '-'}\n'
-                      'مبلغ: ${item['amount'] ?? '-'}\n'
+                      'مبلغ قابل پرداخت: ${item['amount'] ?? '-'} ریال\n'
                       'دوره‌ها: ${item['periods'] ?? '-'}\n'
                       'موبایل: ${item['mobile'] ?? '-'}',
                     )),
