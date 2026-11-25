@@ -120,61 +120,26 @@ class _BillSharePageState extends State<BillSharePage> {
   }
 
   void _fillRecognizedFields(String raw) {
-    final normalized = _digits(raw);
-    final lines = normalized.split(RegExp(r'[\r\n]+')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    String? findAfter(List<String> labels) {
-      for (var i = 0; i < lines.length; i++) {
-        final line = lines[i];
-        if (labels.any(line.contains)) {
-          final sameLine = line.replaceAll(const RegExp(r'[^0-9]'), '');
-          if (sameLine.length >= 4) return sameLine;
-          if (i + 1 < lines.length) {
-            final next = lines[i + 1].replaceAll(RegExp(r'[^0-9]'), '');
-            if (next.length >= 4) return next;
-          }
-        }
-      }
-      return null;
-    }
-
-    String? findTextAfter(List<String> labels) {
-      for (var i = 0; i < lines.length; i++) {
-        final line = lines[i].replaceAll('ي', 'ی').replaceAll('ك', 'ک');
-        if (!labels.any(line.contains)) continue;
-        final separator = line.indexOf(RegExp(r'[:：]'));
-        if (separator >= 0 && separator + 1 < line.length) {
-          final value = line.substring(separator + 1).trim();
-          if (value.isNotEmpty && !RegExp(r'[0-9]{4,}').hasMatch(value)) {
-            return value;
-          }
-        }
-        if (i + 1 < lines.length) {
-          final next = lines[i + 1].trim();
-          if (next.isNotEmpty && !RegExp(r'^[0-9۰-۹٠-٩\\s.,٬]+
+    final parsed = BillOcrParser.parse(raw);
+    setState(() {
+      if (parsed.name != null && _name.text.isEmpty) _name.text = parsed.name!;
+      if (parsed.mobile != null && _mobile.text.isEmpty) _mobile.text = parsed.mobile!;
+      if (parsed.billId != null && _billId.text.isEmpty) _billId.text = parsed.billId!;
+      if (parsed.paymentId != null && _paymentId.text.isEmpty) _paymentId.text = parsed.paymentId!;
+      if (parsed.amount != null && _amount.text.isEmpty) _amount.text = parsed.amount!;
+      if (parsed.periods != null && _periods.text.isEmpty) _periods.text = parsed.periods!;
+    });
   }
 
-  String _formatRial(String raw) {
-    final digits = _digits(raw).replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.isEmpty) return raw.trim();
-    final grouped = digits.replaceAllMapped(
-      RegExp(r'\B(?=(\d{3})+(?!\d))'),
-      (_) => '٬',
-    );
-    return grouped;
-  }
+  String _formatRial(String raw) => BillOcrParser.formatRial(raw);
 
-  String _message() {
-    String v(TextEditingController c) => c.text.trim().isEmpty ? 'ثبت نشده' : c.text.trim();
-    return 'سلام\n\n'
-        'لطفاً نسبت به پرداخت قبض زیر اقدام فرمایید:\n\n'
-        'نوع قبض: گاز\n'
-        'نام مشترک: ${v(_name)}\n'
-        'شناسه قبض: ${v(_billId)}\n'
-        'شناسه پرداخت: ${v(_paymentId)}\n'
-        'مبلغ قابل پرداخت: ${_formatRial(_amount.text)} ریال\n'
-        'تعداد دوره بدهی: ${v(_periods)}\n\n'
-        'با تشکر';
-  }
+  String _message() => BillOcrParser.buildMessage(
+    name: _name.text,
+    billId: _billId.text,
+    paymentId: _paymentId.text,
+    amount: _amount.text,
+    periods: _periods.text,
+  );
 
   Future<void> _saveArchive() async {
     final prefs = await SharedPreferences.getInstance();
@@ -209,7 +174,7 @@ class _BillSharePageState extends State<BillSharePage> {
       );
       return;
     }
-    final text = _message();
+    if (_social && _imagePath == null) {\n      ScaffoldMessenger.of(context).showSnackBar(\n        const SnackBar(content: Text('برای ارسال متن و تصویر، ابتدا قبض را با دوربین اسکن کنید.')),\n      );\n      return;\n    }\n    final text = _message();
     final approved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -370,7 +335,7 @@ class _BillSharePageState extends State<BillSharePage> {
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _sms,
-                onChanged: _busy ? null : (v) => setState(() => _sms = v ?? false),
+                onChanged: _busy ? null : (v) => setState(() { _sms = v ?? false; if (v == true) _social = false; }),
                 title: const Text('پیامک'),
                 subtitle: const Text('فقط متن اطلاعات قبض'),
                 controlAffinity: ListTileControlAffinity.leading,
@@ -378,9 +343,9 @@ class _BillSharePageState extends State<BillSharePage> {
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _social,
-                onChanged: _busy ? null : (v) => setState(() => _social = v ?? false),
+                onChanged: _busy ? null : (v) => setState(() { _social = v ?? false; if (v == true) _sms = false; }),
                 title: const Text('شبکه‌های اجتماعی'),
-                subtitle: const Text('فقط متن اطلاعات قبض؛ انتخاب برنامه و گیرنده در مقصد'),
+                subtitle: const Text('متن و تصویر قبض؛ انتخاب برنامه و گیرنده در مقصد'),
                 controlAffinity: ListTileControlAffinity.leading,
               ),
             ]),
