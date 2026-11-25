@@ -145,6 +145,16 @@ class _BillSharePageState extends State<BillSharePage> {
     });
   }
 
+  String _formatRial(String raw) {
+    final digits = _digits(raw).replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return raw.trim();
+    final grouped = digits.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => '٬',
+    );
+    return grouped;
+  }
+
   String _message() {
     String v(TextEditingController c) => c.text.trim().isEmpty ? 'ثبت نشده' : c.text.trim();
     return 'سلام\n\n'
@@ -153,7 +163,7 @@ class _BillSharePageState extends State<BillSharePage> {
         'نام مشترک: ${v(_name)}\n'
         'شناسه قبض: ${v(_billId)}\n'
         'شناسه پرداخت: ${v(_paymentId)}\n'
-        'مبلغ قابل پرداخت: ${v(_amount)} ریال\n'
+        'مبلغ قابل پرداخت: ${_formatRial(_amount.text)} ریال\n'
         'تعداد دوره بدهی: ${v(_periods)}\n\n'
         'با تشکر';
   }
