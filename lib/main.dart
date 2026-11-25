@@ -360,7 +360,7 @@ class DashboardPage extends StatelessWidget {
           _MenuTile(
             icon: Icons.document_scanner_outlined,
             title: 'اسکن و اشتراک‌گذاری قبض',
-            subtitle: 'اسکن قبض، تکمیل اطلاعات، ارسال پیامک یا عکس و متن',
+            subtitle: 'اسکن با دوربین، اصلاح اطلاعات و ارسال متن قبض',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const BillSharePage()),
             ),
