@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEST="$ROOT/assets/tessdata"
 mkdir -p "$DEST"
 
-BASE="https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main"
+BASE="https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/main"
 for language in fas eng; do
   target="$DEST/${language}.traineddata"
   if [[ ! -s "$target" ]]; then
