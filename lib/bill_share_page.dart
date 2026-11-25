@@ -56,18 +56,19 @@ class _BillSharePageState extends State<BillSharePage> {
   Future<void> _scan() => _chooseImage(ImageSource.camera);
 
   Future<void> _chooseImage(ImageSource source) async {
-    final photo = await _picker.pickImage(
-      source: source,
-      imageQuality: 82,
-      maxWidth: 1800,
-    );
-    if (photo == null || !mounted) return;
-    setState(() {
-      _busy = true;
-      _imagePath = photo.path;
-      _savedImagePath = null;
-    });
+    if (_busy) return;
+    setState(() => _busy = true);
     try {
+      final photo = await _picker.pickImage(
+        source: source,
+        imageQuality: 82,
+        maxWidth: 1800,
+      );
+      if (photo == null || !mounted) return;
+      setState(() {
+        _imagePath = photo.path;
+        _savedImagePath = null;
+      });
       final directory = await getApplicationDocumentsDirectory();
       final billsDir = Directory('${directory.path}/bill_archive');
       if (!await billsDir.exists()) {
@@ -103,7 +104,7 @@ class _BillSharePageState extends State<BillSharePage> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('خواندن تصویر انجام نشد. دوباره تلاش کنید.')),
+          const SnackBar(content: Text('دسترسی به دوربین یا خواندن تصویر انجام نشد. مجوز دوربین را بررسی و دوباره تلاش کنید.')),
         );
       }
     } finally {
@@ -164,12 +165,6 @@ class _BillSharePageState extends State<BillSharePage> {
       );
       return;
     }
-    if (_social && _imagePath == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('برای ارسال متن و تصویر، ابتدا قبض را با دوربین اسکن کنید.')),
-      );
-      return;
-    }
     final text = _message();
     final approved = await showDialog<bool>(
       context: context,
@@ -214,15 +209,10 @@ class _BillSharePageState extends State<BillSharePage> {
         }
       }
       if (_social) {
-        final imagePath = _savedImagePath ?? _imagePath;
-        if (imagePath == null || !await File(imagePath).exists()) {
-          throw StateError('ابتدا قبض را با دوربین اسکن کنید.');
-        }
         await SharePlus.instance.share(
           ShareParams(
             text: text,
             title: 'اطلاعات قبض گاز',
-            files: <XFile>[XFile(imagePath)],
           ),
         );
       }
@@ -349,7 +339,7 @@ class _BillSharePageState extends State<BillSharePage> {
                 value: _social,
                 onChanged: _busy ? null : (v) => setState(() { _social = v ?? false; if (v == true) _sms = false; }),
                 title: const Text('شبکه‌های اجتماعی'),
-                subtitle: const Text('متن و تصویر قبض؛ انتخاب برنامه و گیرنده در مقصد'),
+                subtitle: const Text('فقط متن اطلاعات قبض؛ انتخاب برنامه و گیرنده در مقصد'),
                 controlAffinity: ListTileControlAffinity.leading,
               ),
             ]),
