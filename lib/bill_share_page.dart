@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:tesseract_ocr/ocr_engine_config.dart';
+import 'package:tesseract_ocr/tesseract_ocr.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -29,7 +30,6 @@ class _BillSharePageState extends State<BillSharePage> {
   final _periods = TextEditingController();
   final _mobile = TextEditingController();
   final _picker = ImagePicker();
-  final _recognizer = TextRecognizer(script: TextRecognitionScript.latin);
 
   bool _sms = true;
   bool _social = false;
@@ -40,7 +40,6 @@ class _BillSharePageState extends State<BillSharePage> {
 
   @override
   void dispose() {
-    _recognizer.close();
     _name.dispose();
     _billId.dispose();
     _paymentId.dispose();
@@ -77,10 +76,17 @@ class _BillSharePageState extends State<BillSharePage> {
       _savedImagePath = null;
     });
     try {
-      final result = await _recognizer.processImage(
-        InputImage.fromFilePath(photo.path),
+      final text = await TesseractOcr.extractText(
+        photo.path,
+        config: OCRConfig(
+          language: 'fas+eng',
+          engine: OCREngine.tesseract,
+          options: const {
+            'preserve_interword_spaces': '1',
+            'tessedit_pageseg_mode': '6',
+          },
+        ),
       );
-      final text = result.text;
       _recognizedText = text;
       _fillRecognizedFields(text);
       final directory = await getApplicationDocumentsDirectory();
@@ -120,7 +126,7 @@ class _BillSharePageState extends State<BillSharePage> {
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
         if (labels.any(line.contains)) {
-          final sameLine = line.replaceAll(RegExp(r'[^0-9]'), '');
+          final sameLine = line.replaceAll(const RegExp(r'[^0-9]'), '');
           if (sameLine.length >= 4) return sameLine;
           if (i + 1 < lines.length) {
             final next = lines[i + 1].replaceAll(RegExp(r'[^0-9]'), '');
