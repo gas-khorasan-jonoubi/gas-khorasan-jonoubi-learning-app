@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'bill_ocr_parser.dart';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:tesseract_ocr/ocr_engine_config.dart';
 import 'package:tesseract_ocr/tesseract_ocr.dart';
@@ -49,17 +51,7 @@ class _BillSharePageState extends State<BillSharePage> {
     super.dispose();
   }
 
-  String _digits(String value) {
-    const fa = '۰۱۲۳۴۵۶۷۸۹';
-    const ar = '٠١٢٣٤٥٦٧٨٩';
-    return value.split('').map((c) {
-      final f = fa.indexOf(c);
-      if (f >= 0) return '$f';
-      final a = ar.indexOf(c);
-      if (a >= 0) return '$a';
-      return c;
-    }).join();
-  }
+  String _digits(String value) => BillOcrParser.normalizeDigits(value);
 
   Future<void> _scan() => _chooseImage(ImageSource.camera);
 
@@ -76,6 +68,15 @@ class _BillSharePageState extends State<BillSharePage> {
       _savedImagePath = null;
     });
     try {
+      final directory = await getApplicationDocumentsDirectory();
+      final billsDir = Directory('${directory.path}/bill_archive');
+      if (!await billsDir.exists()) {
+        await billsDir.create(recursive: true);
+      }
+      final saved = await File(photo.path).copy(
+        '${billsDir.path}/bill_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+      _savedImagePath = saved.path;
       final text = await TesseractOcr.extractText(
         photo.path,
         config: OCRConfig(
@@ -89,15 +90,6 @@ class _BillSharePageState extends State<BillSharePage> {
       );
       _recognizedText = text;
       _fillRecognizedFields(text);
-      final directory = await getApplicationDocumentsDirectory();
-      final billsDir = Directory('${directory.path}/bill_archive');
-      if (!await billsDir.exists()) {
-        await billsDir.create(recursive: true);
-      }
-      final saved = await File(photo.path).copy(
-        '${billsDir.path}/bill_${DateTime.now().millisecondsSinceEpoch}.jpg',
-      );
-      _savedImagePath = saved.path;
       if (mounted) {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
@@ -174,7 +166,13 @@ class _BillSharePageState extends State<BillSharePage> {
       );
       return;
     }
-    if (_social && _imagePath == null) {\n      ScaffoldMessenger.of(context).showSnackBar(\n        const SnackBar(content: Text('برای ارسال متن و تصویر، ابتدا قبض را با دوربین اسکن کنید.')),\n      );\n      return;\n    }\n    final text = _message();
+    if (_social && _imagePath == null) {\n      ScaffoldMessenger.of(context).showSnackBar(\n        const SnackBar(content: Text('برای ارسال متن و تصویر، ابتدا قبض را با دوربین اسکن کنید.')),\n      );\n      return;\n    }\n    if (_social && _imagePath == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('برای ارسال متن و تصویر، ابتدا قبض را با دوربین اسکن کنید.')),
+      );
+      return;
+    }
+    final text = _message();
     final approved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -218,8 +216,16 @@ class _BillSharePageState extends State<BillSharePage> {
         }
       }
       if (_social) {
+        final imagePath = _savedImagePath ?? _imagePath;
+        if (imagePath == null || !await File(imagePath).exists()) {
+          throw StateError('ابتدا قبض را با دوربین اسکن کنید.');
+        }
         await SharePlus.instance.share(
-          ShareParams(text: text, title: 'اطلاعات قبض گاز'),
+          ShareParams(
+            text: text,
+            title: 'اطلاعات قبض گاز',
+            files: <XFile>[XFile(imagePath)],
+          ),
         );
       }
     } catch (_) {
