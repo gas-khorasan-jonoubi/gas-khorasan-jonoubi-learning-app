@@ -9,6 +9,7 @@ import 'data/quiz_registry.dart';
 import 'data/quiz_models.dart';
 import 'purchase_page.dart';
 import 'services/lifetime_purchase_service.dart';
+import 'bill_share_page.dart';
 
 const allowPrivateTestAccess = bool.fromEnvironment(
   'ALLOW_PRIVATE_TEST_ACCESS',
@@ -354,6 +355,14 @@ class DashboardPage extends StatelessWidget {
             subtitle: 'خرید یک‌باره و بازیابی با حساب کافه‌بازار',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const PurchasePage()),
+            ),
+          ),
+          _MenuTile(
+            icon: Icons.document_scanner_outlined,
+            title: 'اسکن و اشتراک‌گذاری قبض',
+            subtitle: 'اسکن قبض، تکمیل اطلاعات، ارسال پیامک یا عکس و متن',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const BillSharePage()),
             ),
           ),
           _MenuTile(
