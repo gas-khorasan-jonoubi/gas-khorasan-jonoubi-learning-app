@@ -79,7 +79,7 @@ class _BillSharePageState extends State<BillSharePage> {
       _savedImagePath = saved.path;
       final text = await TesseractOcr.extractText(
         photo.path,
-        config: OCRConfig(
+        config: const OCRConfig(
           language: 'fas+eng',
           engine: OCREngine.tesseract,
           options: {
