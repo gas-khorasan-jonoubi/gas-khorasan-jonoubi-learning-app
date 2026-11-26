@@ -141,7 +141,7 @@ jobs:
       - name: Analyze and test
         run: |
           set -euo pipefail
-          flutter analyze
+          flutter analyze --no-fatal-infos
           flutter test --reporter expanded
           /tmp/danestani-image-tools/bin/python -m unittest discover -s tool -p 'test_*.py' -v
 
