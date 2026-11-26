@@ -7,6 +7,16 @@ void main() {
       expect(BillOcrParser.normalizeDigits('۱۲۳٤۵۶'), '123456');
     });
 
+    test('accepts only Iranian mobile numbers with exactly 11 digits', () {
+      expect(BillOcrParser.isValidIranianMobile('09123456789'), isTrue);
+      expect(BillOcrParser.isValidIranianMobile('۰۹۱۲۳۴۵۶۷۸۹'), isTrue);
+      expect(BillOcrParser.isValidIranianMobile('٠٩١٢٣٤٥٦٧٨٩'), isTrue);
+      expect(BillOcrParser.isValidIranianMobile('0912345678'), isFalse);
+      expect(BillOcrParser.isValidIranianMobile('091234567890'), isFalse);
+      expect(BillOcrParser.isValidIranianMobile('08123456789'), isFalse);
+      expect(BillOcrParser.isValidIranianMobile('09 123 456 789'), isFalse);
+    });
+
     test('extracts Persian bill fields from multi-line OCR text', () {
       const sample = '''
 نام و نام خانوادگی: علی محمدی
