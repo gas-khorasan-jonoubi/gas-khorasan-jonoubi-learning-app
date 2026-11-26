@@ -185,3 +185,37 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: ${{ env.BAZAAR_IAP_CONFIGURED == 'true' && 14 || 3 }}
+
+      - name: Build optimized arm64 release APK
+        env:
+          CM_KEYSTORE_PATH: ${{ runner.temp }}/android-signing/release.keystore
+          CM_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          CM_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          CM_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ "${BAZAAR_IAP_CONFIGURED:-false}" = "true" ]; then
+            dart run iran_iap build apk --store bazaar -- --release --target-platform android-arm64 --dart-define-from-file=build/ci-iap-defines.json
+          elif [ "${ALLOW_PRIVATE_TEST_ACCESS:-false}" = "true" ]; then
+            flutter build apk --release --target-platform android-arm64 --dart-define=ALLOW_PRIVATE_TEST_ACCESS=true
+          else
+            echo "Refusing an unconfigured optimized release build."
+            exit 1
+          fi
+
+      - name: Verify optimized arm64 APK signature and package
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)/apksigner" verify --verbose "$APK"
+          sha256sum "$APK"
+          ls -lh "$APK"
+
+      - name: Upload optimized arm64 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: danestani-gaz-${{ env.BAZAAR_IAP_CONFIGURED == 'true' && 'iap' || 'private-test' }}-arm64-${{ github.run_number }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: ${{ env.BAZAAR_IAP_CONFIGURED == 'true' && 14 || 3 }}
