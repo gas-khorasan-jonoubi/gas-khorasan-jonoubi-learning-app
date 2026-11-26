@@ -4,8 +4,8 @@ import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
 
 void main() {
   testWidgets('splash shows the approved artwork full screen without extra labels', (tester) async {
-    await tester.view.physicalSize = const Size(432, 900);
-    await tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(432, 900);
+    tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
