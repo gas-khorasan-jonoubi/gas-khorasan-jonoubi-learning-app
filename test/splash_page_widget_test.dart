@@ -1,9 +1,14 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
 
 void main() {
-  testWidgets('splash uses neutral app wording without organization labels', (tester) async {
+  testWidgets('splash shows the approved artwork full screen without extra labels', (tester) async {
+    await tester.view.setPhysicalSize(const Size(432, 900));
+    await tester.view.setDevicePixelRatio(1);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(
       MaterialApp(
         home: SplashPage(
@@ -14,8 +19,15 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('به دانستنی‌های گاز خوش آمدید'), findsOneWidget);
-    expect(find.text('آموزش، مطالعه و سنجش آموخته‌ها'), findsOneWidget);
+    final imageFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is Image &&
+          widget.image is AssetImage &&
+          (widget.image as AssetImage).assetName == 'assets/approved_splash.png',
+    );
+    expect(imageFinder, findsOneWidget);
+    final image = tester.widget<Image>(imageFinder);
+    expect(image.fit, BoxFit.cover);
     expect(find.textContaining('شرکت'), findsNothing);
     expect(find.textContaining('اداره'), findsNothing);
     expect(find.textContaining('شهرستان'), findsNothing);
@@ -33,7 +45,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('به دانستنی‌های گاز خوش آمدید'), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 2999));
     expect(find.text('داشبورد'), findsNothing);
 
