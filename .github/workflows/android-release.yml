@@ -81,15 +81,6 @@ jobs:
           fi
           python3 tool/configure_bazaar_android.py
 
-      - name: Prepare compact splash asset
-        run: |
-          set -euo pipefail
-          python3 -m venv /tmp/danestani-image-tools
-          /tmp/danestani-image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
-          /tmp/danestani-image-tools/bin/python tool/prepare_splash_asset.py --quality 92
-          /tmp/danestani-image-tools/bin/python tool/test_prepare_splash_asset.py
-          test -s assets/approved_splash.webp
-
       - name: Prepare offline Persian OCR models
         run: bash tool/prepare_fas_ocr_model.sh
 
