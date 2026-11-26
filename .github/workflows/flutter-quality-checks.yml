@@ -41,6 +41,11 @@ jobs:
             flutter create --platforms=android --project-name gas_khorasan_jonoubi_learning_app .
           fi
 
+      - name: Install screenshot analysis tools
+        run: |
+          python3 -m venv /tmp/danestani-image-tools
+          /tmp/danestani-image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
+
       - name: Configure Cafe Bazaar Android host
         run: BAZAAR_APPLICATION_ID=ir.gas.khorasanjonoubi.danestanihayegaz.debug python3 tool/configure_bazaar_android.py
 
@@ -109,7 +114,7 @@ jobs:
             adb install -r build/app/outputs/flutter-apk/app-debug.apk
             adb logcat -c
             adb shell monkey -p "$(cat build/emulator-review/application_id.txt)" -c android.intent.category.LAUNCHER 1
-            # The helper polls UIAutomator until the branded Flutter splash and
+            # The helper polls UIAutomator until the Flutter splash and
             # dashboard are accessible, and captures both screens. Keeping its
             # wait loops in Python avoids the emulator action's line-wise shell parsing.
             /tmp/danestani-image-tools/bin/python tool/emulator_visual_smoke.py --application-id-file build/emulator-review/application_id.txt --output-dir build/emulator-review
