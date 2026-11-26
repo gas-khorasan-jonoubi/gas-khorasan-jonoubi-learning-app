@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
 
 void main() {
+  // Keep the splash widget test compatible with the current Flutter test view API.
   testWidgets('splash shows the approved artwork full screen without extra labels', (tester) async {
     tester.view.physicalSize = const Size(432, 900);
     tester.view.devicePixelRatio = 1;
