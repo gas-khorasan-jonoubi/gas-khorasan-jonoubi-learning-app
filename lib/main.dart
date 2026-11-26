@@ -885,9 +885,9 @@ class HelpPage extends StatelessWidget {
         bottom: true,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
-          children: const [
+          children: [
             Container(
-              margin: EdgeInsets.only(bottom: 4),
+              margin: const EdgeInsets.only(bottom: 4),
               padding: EdgeInsets.symmetric(horizontal: 18, vertical: 16),
               decoration: BoxDecoration(
                 color: paleBlue,
