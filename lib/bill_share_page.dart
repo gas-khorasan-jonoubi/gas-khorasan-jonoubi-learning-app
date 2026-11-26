@@ -17,6 +17,57 @@ const _billNavy = Color(0xFF123B66);
 const _billYellow = Color(0xFFFFD54F);
 const _archiveKey = 'scanned_bill_archive_v1';
 
+class _ThousandsSeparatorInputFormatter extends TextInputFormatter {
+  String _group(String digits) {
+    if (digits.isEmpty) return '';
+    final result = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) result.write('.');
+      result.write(digits[i]);
+    }
+    return result.toString();
+  }
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = BillOcrParser.normalizeDigits(newValue.text)
+        .replaceAll(RegExp(r'[^0-9]'), '');
+    final formatted = _group(digits);
+    final digitsBeforeCursor = BillOcrParser.normalizeDigits(
+      newValue.text.substring(0, newValue.selection.extentOffset.clamp(0, newValue.text.length)),
+    ).replaceAll(RegExp(r'[^0-9]'), '').length;
+
+    var cursor = 0;
+    var seenDigits = 0;
+    while (cursor < formatted.length && seenDigits < digitsBeforeCursor) {
+      if (formatted.codeUnitAt(cursor) >= 48 && formatted.codeUnitAt(cursor) <= 57) {
+        seenDigits++;
+      }
+      cursor++;
+    }
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: cursor),
+      composing: TextRange.empty,
+    );
+  }
+
+  static String format(String value) {
+    final digits = BillOcrParser.normalizeDigits(value)
+        .replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return '';
+    final result = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) result.write('.');
+      result.write(digits[i]);
+    }
+    return result.toString();
+  }
+}
+
 class BillSharePage extends StatefulWidget {
   const BillSharePage({super.key});
 
@@ -120,7 +171,7 @@ class _BillSharePageState extends State<BillSharePage> {
       if (parsed.mobile != null && _mobile.text.isEmpty) _mobile.text = parsed.mobile!;
       if (parsed.billId != null && _billId.text.isEmpty) _billId.text = parsed.billId!;
       if (parsed.paymentId != null && _paymentId.text.isEmpty) _paymentId.text = parsed.paymentId!;
-      if (parsed.amount != null && _amount.text.isEmpty) _amount.text = parsed.amount!;
+      if (parsed.amount != null && _amount.text.isEmpty) _amount.text = _ThousandsSeparatorInputFormatter.format(parsed.amount!);
       if (parsed.periods != null && _periods.text.isEmpty) _periods.text = parsed.periods!;
     });
   }
@@ -236,6 +287,7 @@ class _BillSharePageState extends State<BillSharePage> {
     TextInputType keyboard = TextInputType.text,
     bool required = false,
     bool mobile = false,
+    bool rialAmount = false,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -247,7 +299,9 @@ class _BillSharePageState extends State<BillSharePage> {
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9۰-۹٠-٩]')),
                 LengthLimitingTextInputFormatter(11),
               ]
-            : null,
+            : rialAmount
+                ? [_ThousandsSeparatorInputFormatter()]
+                : null,
         validator: mobile
             ? (value) {
                 final normalized = _digits(value ?? '');
@@ -334,7 +388,7 @@ class _BillSharePageState extends State<BillSharePage> {
             _field('نام مشترک', _name, required: true),
             _field('شناسه قبض', _billId, keyboard: TextInputType.number, required: true),
             _field('شناسه پرداخت', _paymentId, keyboard: TextInputType.number, required: true),
-            _field('مبلغ بدهی (ریال)', _amount, keyboard: TextInputType.number, required: true),
+            _field('مبلغ بدهی (ریال) — جداکنندهٔ سه‌رقمی', _amount, keyboard: TextInputType.number, required: true, rialAmount: true),
             _field('تعداد دوره‌های بدهی', _periods, keyboard: TextInputType.number),
             _field('شماره موبایل دریافت‌کننده (۱۱ رقم)', _mobile, keyboard: TextInputType.phone, mobile: true),
           ]),
