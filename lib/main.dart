@@ -45,12 +45,12 @@ class GasLearningApp extends StatelessWidget {
 
 class SplashPage extends StatefulWidget {
   final Duration displayDuration;
-  final Future<void> Function(BuildContext context)? preparePoster;
+  final Future<void> Function(BuildContext context)? prepareSplash;
 
   const SplashPage({
     super.key,
     this.displayDuration = const Duration(seconds: 5),
-    this.preparePoster,
+    this.prepareSplash,
   });
   @override
   State<SplashPage> createState() => _SplashPageState();
@@ -75,19 +75,11 @@ class _SplashPageState extends State<SplashPage> {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // ابتدا تصویر کامل بارگذاری می‌شود؛ سپس زمان پنج‌ثانیه‌ای آغاز می‌شود.
+      // پس از آماده‌شدن صفحهٔ آغازین، زمان نمایش آن شروع می‌شود.
       try {
-        final preparePoster = widget.preparePoster;
-        if (preparePoster != null) {
-          await preparePoster(context);
-        } else {
-          await precacheImage(
-            const AssetImage('assets/approved_splash.webp'),
-            context,
-          );
-        }
+        await widget.prepareSplash?.call(context);
       } catch (_) {
-        // اگر بارگذاری تصویر به هر علت شکست خورد، برنامه همچنان قابل ورود است.
+        // خطای آماده‌سازی نباید مانع ورود به برنامه شود.
       }
       if (!mounted) return;
       await _waitForDisplayDuration();
@@ -118,43 +110,44 @@ class _SplashPageState extends State<SplashPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: navy,
-        body: SizedBox.expand(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-            child: Column(
-              children: [
-                Expanded(
-                  child: Center(
-                    child: Image.asset(
-                      'assets/approved_splash.webp',
-                      fit: BoxFit.contain,
-                      filterQuality: FilterQuality.high,
-                      alignment: Alignment.center,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 104,
+                    height: 104,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: const Icon(
+                      Icons.menu_book_rounded,
+                      color: blue,
+                      size: 64,
                     ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'شرکت گاز خراسان جنوبی',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(height: 26),
+                  const Text(
+                    'به دانستنی‌های گاز خوش آمدید',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 5),
-                const Text(
-                  'شهرستان عشق آباد',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-                const Text(
-                  'اداره گاز عشق آباد',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  const Text(
+                    'آموزش، مطالعه و سنجش آموخته‌ها',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 15),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
