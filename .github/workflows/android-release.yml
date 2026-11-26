@@ -105,11 +105,16 @@ jobs:
           BAZAAR_LIFETIME_PRODUCT_ID: ${{ secrets.BAZAAR_LIFETIME_PRODUCT_ID }}
           BAZAAR_RSA_PUBLIC_KEY: ${{ secrets.BAZAAR_RSA_PUBLIC_KEY }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
         run: |
           set -euo pipefail
           if [ -z "${BAZAAR_LIFETIME_PRODUCT_ID:-}" ] && [ -z "${BAZAAR_RSA_PUBLIC_KEY:-}" ]; then
-            if [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]; then
+            if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF" != "refs/heads/feature/bill-scan-share" ]; then
               echo "A tagged/public release requires both Bazaar billing secrets. Refusing to build an APK that cannot unlock."
+              exit 1
+            fi
+            if [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ] && [ "$GITHUB_REF" != "refs/heads/feature/bill-scan-share" ]; then
+              echo "Private test builds are allowed only from workflow_dispatch or the designated feature branch."
               exit 1
             fi
             echo "Private test build only: Bazaar billing is not configured. Public release remains blocked."
