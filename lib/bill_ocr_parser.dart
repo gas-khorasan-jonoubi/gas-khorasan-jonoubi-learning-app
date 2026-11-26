@@ -32,15 +32,15 @@ class BillOcrParser {
   }
 
   static bool isValidIranianMobile(String value) {
-    final normalized = normalizeDigits(value).replaceAll(RegExp(r'\\s+'), '');
+    final normalized = normalizeDigits(value).replaceAll(RegExp(r'\s+'), '');
     return RegExp(r'^09[0-9]{9}$').hasMatch(normalized);
   }
 
   static String _normalizeText(String value) => normalizeDigits(value)
       .replaceAll('ي', 'ی')
       .replaceAll('ك', 'ک')
-      .replaceAll('\\u200c', ' ')
-      .replaceAll(RegExp(r'\\s+'), ' ')
+      .replaceAll('\u200c', ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
 
   static List<String> _lines(String value) => value
