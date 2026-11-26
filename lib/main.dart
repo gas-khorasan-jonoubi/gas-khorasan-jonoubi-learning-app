@@ -109,46 +109,13 @@ class _SplashPageState extends State<SplashPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: navy,
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 104,
-                    height: 104,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: const Icon(
-                      Icons.menu_book_rounded,
-                      color: blue,
-                      size: 64,
-                    ),
-                  ),
-                  const SizedBox(height: 26),
-                  const Text(
-                    'به دانستنی‌های گاز خوش آمدید',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'آموزش، مطالعه و سنجش آموخته‌ها',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 15),
-                  ),
-                ],
-              ),
-            ),
+        backgroundColor: Colors.black,
+        body: SizedBox.expand(
+          child: Image.asset(
+            'assets/approved_splash.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            filterQuality: FilterQuality.high,
           ),
         ),
       );
