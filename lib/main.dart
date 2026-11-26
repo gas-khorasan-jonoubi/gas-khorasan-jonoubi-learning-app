@@ -893,12 +893,39 @@ class HelpPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
           children: const [
-            Padding(
-              padding: EdgeInsets.only(bottom: 4),
-              child: Text(
-                'راهنمای استفاده از برنامه',
-                textAlign: TextAlign.right,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Container(
+              margin: EdgeInsets.only(bottom: 4),
+              padding: EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              decoration: BoxDecoration(
+                color: paleBlue,
+                borderRadius: BorderRadius.all(Radius.circular(18)),
+                border: Border.all(color: Color(0xFFD7E6F4)),
+              ),
+              child: Row(
+                textDirection: TextDirection.rtl,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.all(Radius.circular(14)),
+                    ),
+                    child: Icon(Icons.help_outline_rounded, color: navy, size: 28),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'راهنمای استفاده از برنامه',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        color: navy,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             _InfoCard(
