@@ -134,7 +134,7 @@ class BillOcrParser {
     if (digits.isEmpty) return raw.trim();
     return digits.replaceAllMapped(
       RegExp(r'\B(?=(\d{3})+(?!\d))'),
-      (_) => '٬',
+      (_) => '.',
     );
   }
 
