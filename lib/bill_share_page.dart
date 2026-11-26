@@ -4,6 +4,7 @@ import 'dart:io';
 import 'bill_ocr_parser.dart';
 
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:tesseract_ocr/ocr_engine_config.dart';
 import 'package:tesseract_ocr/tesseract_ocr.dart';
 import 'package:image_picker/image_picker.dart';
