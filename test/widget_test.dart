@@ -20,6 +20,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('راهنمای استفاده از برنامه'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate((widget) => widget is SafeArea && widget.bottom),
+      findsOneWidget,
+    );
 
     final quizInfo = find.textContaining('۲۰ آزمون مستقل');
     await tester.scrollUntilVisible(
@@ -52,6 +56,14 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(restoreGuidance, findsOneWidget);
+
+    final finalGuide = find.text('مثال کاربردی');
+    await tester.scrollUntilVisible(
+      finalGuide,
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(finalGuide, findsOneWidget);
   });
 
   testWidgets('app opens dashboard only after lifetime access is confirmed', (tester) async {
