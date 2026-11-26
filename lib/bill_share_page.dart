@@ -151,7 +151,7 @@ class _BillSharePageState extends State<BillSharePage> {
   Future<void> _share() async {
     if (!_formKey.currentState!.validate()) return;
     final phone = _digits(_mobile.text).replaceAll(RegExp(r'[^0-9+]'), '');
-    if (_sms && !RegExp(r'^09[0-9]{9}$').hasMatch(phone)) {
+    if (_sms && !BillOcrParser.isValidIranianMobile(phone)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('برای ارسال پیامک، شماره موبایل معتبر ۱۱ رقمی با ۰۹ وارد کنید.'),
@@ -229,13 +229,39 @@ class _BillSharePageState extends State<BillSharePage> {
     }
   }
 
-  Widget _field(String label, TextEditingController controller, {TextInputType keyboard = TextInputType.text, bool required = false}) {
+  Widget _field(
+    String label,
+    TextEditingController controller, {
+    TextInputType keyboard = TextInputType.text,
+    bool required = false,
+    bool mobile = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboard,
-        validator: required ? (value) => (value == null || value.trim().isEmpty) ? 'این فیلد الزامی است' : null : null,
+        inputFormatters: mobile
+            ? [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9۰-۹٠-٩]')),
+                LengthLimitingTextInputFormatter(11),
+              ]
+            : null,
+        validator: mobile
+            ? (value) {
+                final normalized = _digits(value ?? '');
+                if (normalized.isEmpty) {
+                  return _sms ? 'برای ارسال پیامک، شماره موبایل را وارد کنید.' : null;
+                }
+                return BillOcrParser.isValidIranianMobile(normalized)
+                    ? null
+                    : 'شماره موبایل باید دقیقاً ۱۱ رقم و با ۰۹ شروع شود.';
+              }
+            : required
+                ? (value) => (value == null || value.trim().isEmpty)
+                    ? 'این فیلد الزامی است'
+                    : null
+                : null,
         textDirection: TextDirection.rtl,
         decoration: InputDecoration(
           labelText: label,
@@ -309,7 +335,7 @@ class _BillSharePageState extends State<BillSharePage> {
             _field('شناسه پرداخت', _paymentId, keyboard: TextInputType.number, required: true),
             _field('مبلغ بدهی (ریال)', _amount, keyboard: TextInputType.number, required: true),
             _field('تعداد دوره‌های بدهی', _periods, keyboard: TextInputType.number),
-            _field('شماره موبایل دریافت‌کننده (برای پیامک الزامی)', _mobile, keyboard: TextInputType.phone),
+            _field('شماره موبایل دریافت‌کننده (۱۱ رقم)', _mobile, keyboard: TextInputType.phone, mobile: true),
           ]),
         ),
         if (_recognizedText.isNotEmpty)
