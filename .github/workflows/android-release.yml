@@ -81,6 +81,11 @@ jobs:
           fi
           python3 tool/configure_bazaar_android.py
 
+      - name: Install screenshot analysis tools
+        run: |
+          python3 -m venv /tmp/danestani-image-tools
+          /tmp/danestani-image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
+
       - name: Prepare offline Persian OCR models
         run: bash tool/prepare_fas_ocr_model.sh
 
