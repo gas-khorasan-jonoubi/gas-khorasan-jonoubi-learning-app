@@ -54,7 +54,7 @@ void main() {
     });
 
     test('formats amount as rial without converting to toman', () {
-      expect(BillOcrParser.formatRial('۲۸۷۵۰۰۰'), '2٬875٬000');
+      expect(BillOcrParser.formatRial('۲۸۷۵۰۰۰'), '2.875.000');
       final message = BillOcrParser.buildMessage(
         name: 'علی محمدی',
         billId: '123',
@@ -62,7 +62,7 @@ void main() {
         amount: '2875000',
         periods: '2',
       );
-      expect(message, contains('مبلغ قابل پرداخت: 2٬875٬000 ریال'));
+      expect(message, contains('مبلغ قابل پرداخت: 2.875.000 ریال'));
       expect(message, isNot(contains('تومان')));
     });
   });
