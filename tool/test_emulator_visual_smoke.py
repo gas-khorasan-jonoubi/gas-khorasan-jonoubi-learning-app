@@ -89,6 +89,24 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
             white.save(dashboard)
             self.assertFalse(has_expected_splash(dashboard, reference))
 
+    def test_splash_detector_matches_flutter_box_fit_contain_letterboxing(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            reference = root / "approved.png"
+            captured = root / "captured.png"
+            artwork = Image.new("RGB", (100, 200), (18, 59, 102))
+            draw = ImageDraw.Draw(artwork)
+            draw.ellipse((20, 70, 80, 130), fill=(230, 180, 40))
+            artwork.save(reference)
+
+            # 108x192 screen: BoxFit.contain scales the 100x200 image
+            # to 96x192 and centers it, leaving six black pixels per side.
+            screen = Image.new("RGB", (108, 192), (0, 0, 0))
+            fitted = artwork.resize((96, 192), Image.Resampling.BILINEAR)
+            screen.paste(fitted, (6, 0))
+            screen.save(captured)
+            self.assertTrue(has_expected_splash(captured, reference))
+
     def test_dashboard_detector_rejects_splash_and_accepts_transition(self):
         with tempfile.TemporaryDirectory() as temporary:
             splash = Path(temporary) / "splash.png"
