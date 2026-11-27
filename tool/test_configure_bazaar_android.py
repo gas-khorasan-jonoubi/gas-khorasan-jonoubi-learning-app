@@ -19,6 +19,10 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         android = Path(temporary.name) / "android"
         app_main = android / "app" / "src" / "main"
         app_main.mkdir(parents=True)
+        (app_main / "AndroidManifest.xml").write_text(
+            '<?xml version="1.0" encoding="utf-8"?>\\n<manifest xmlns:android="http://schemas.android.com/apk/res/android">\\n</manifest>\\n',
+            encoding="utf-8",
+        )
 
         if kotlin_dsl:
             (android / "build.gradle.kts").write_text(
@@ -88,7 +92,13 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         self.assertIn("minSdk = 24", app_gradle)
         self.assertIn('applicationId = "ir.gas.khorasanjonoubi.danestani_gaz"', app_gradle)
         self.assertIn("FlutterFragmentActivity", activity_text)
+        manifest = (android / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
+        self.assertIn("<queries>", manifest)
+        self.assertIn("android.speech.RecognitionService", manifest)
         self.assertNotIn("class MainActivity : FlutterActivity", activity_text)
+        manifest = (android / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
+        self.assertIn("<queries>", manifest)
+        self.assertIn("android.speech.RecognitionService", manifest)
 
     def test_configures_groovy_gradle_host(self) -> None:
         android = self._make_project(kotlin_dsl=False)
@@ -150,6 +160,9 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         root_gradle = (android / "build.gradle.kts").read_text(encoding="utf-8")
         app_gradle = (android / "app" / "build.gradle.kts").read_text(encoding="utf-8")
         self.assertEqual(root_gradle.count("https://jitpack.io"), 1)
+        manifest = (android / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
+        self.assertEqual(manifest.count("<queries>"), 1)
+        self.assertEqual(manifest.count("android.speech.RecognitionService"), 1)
         self.assertEqual(app_gradle.count('create("release")'), 1)
         self.assertEqual(
             app_gradle.count('signingConfig = signingConfigs.getByName("release")'),
