@@ -209,7 +209,15 @@ jobs:
           else:
               block = '\n' + indent + "ndk {\n" + indent + "    abiFilters 'arm64-v8a'\n" + indent + '}\n'
           gradle.write_text(source[:match.end()] + block + source[match.end():], encoding='utf-8')
-          print('Configured arm64-v8a only')
+          if gradle.suffix == '.kts':
+              packaging = '\n    packaging { jniLibs { excludes += setOf("**/armeabi-v7a/**", "**/x86_64/**") } }\n'
+          else:
+              packaging = '\n    packaging { jniLibs { excludes += ["**/armeabi-v7a/**", "**/x86_64/**"] } }\n'
+          android_match = re.search(r'(?m)^android\s*\{', source)
+          if android_match is None: raise SystemExit('android block not found')
+          source = source[:android_match.end()] + packaging + source[android_match.end():]
+          gradle.write_text(source, encoding='utf-8')
+          print('Configured arm64-v8a packaging exclusions')
           PY
           if [ "${BAZAAR_IAP_CONFIGURED:-false}" = "true" ]; then
             dart run iran_iap build apk --store bazaar -- --release --target-platform android-arm64 --dart-define-from-file=build/ci-iap-defines.json
