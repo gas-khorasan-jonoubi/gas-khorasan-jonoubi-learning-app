@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:material_ui/material_ui.dart' show GlobalMaterialLocalizations;
-import 'package:flutter_localizations/flutter_localizations.dart' show GlobalCupertinoLocalizations;
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
 
 void main() {
