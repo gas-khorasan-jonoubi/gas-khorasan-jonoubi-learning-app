@@ -286,7 +286,7 @@ class _BillSharePageState extends State<BillSharePage> {
         onResult: (result) {
           if (!mounted || result.recognizedWords.trim().isEmpty) return;
           final spoken = result.recognizedWords.trim();
-          final isNumericField = controller == _periods || controller == _mobile;
+          final isNumericField = controller == _billId || controller == _paymentId || controller == _periods || controller == _mobile;
           controller.text = isNumericField ? _spokenDigits(spoken) : spoken;
           controller.selection = TextSelection.collapsed(offset: controller.text.length);
           setState(() {});
@@ -309,6 +309,7 @@ class _BillSharePageState extends State<BillSharePage> {
     bool required = false,
     bool mobile = false,
     bool periods = false,
+    bool numericOnly = false,
     bool rialAmount = false,
   }) {
     return Padding(
@@ -316,10 +317,11 @@ class _BillSharePageState extends State<BillSharePage> {
       child: TextFormField(
         controller: controller,
         keyboardType: keyboard,
-        inputFormatters: mobile || periods
+        inputFormatters: mobile || periods || numericOnly
             ? [
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9۰-۹٠-٩]')),
-                LengthLimitingTextInputFormatter(mobile ? 11 : 3),
+                if (mobile) LengthLimitingTextInputFormatter(11),
+                if (periods) LengthLimitingTextInputFormatter(3),
               ]
             : rialAmount
                 ? [_ThousandsSeparatorInputFormatter()]
@@ -339,8 +341,8 @@ class _BillSharePageState extends State<BillSharePage> {
                     ? 'این فیلد الزامی است'
                     : null
                 : null,
-        textDirection: mobile || periods ? TextDirection.ltr : TextDirection.rtl,
-        textAlign: mobile || periods ? TextAlign.right : TextAlign.start,
+        textDirection: mobile || periods || numericOnly ? TextDirection.ltr : TextDirection.rtl,
+        textAlign: mobile || periods || numericOnly ? TextAlign.right : TextAlign.start,
         decoration: InputDecoration(
           labelText: label,
           filled: true,
@@ -410,8 +412,8 @@ class _BillSharePageState extends State<BillSharePage> {
           key: _formKey,
           child: Column(children: [
             _field('نام مشترک', _name, required: true),
-            _field('شناسه قبض', _billId, keyboard: TextInputType.number, required: true),
-            _field('شناسه پرداخت', _paymentId, keyboard: TextInputType.number, required: true),
+            _field('شناسه قبض', _billId, keyboard: TextInputType.number, required: true, numericOnly: true),
+            _field('شناسه پرداخت', _paymentId, keyboard: TextInputType.number, required: true, numericOnly: true),
             _field('مبلغ بدهی (ریال) — جداکنندهٔ سه‌رقمی', _amount, keyboard: TextInputType.number, required: true, rialAmount: true),
             _field('تعداد دوره‌های بدهی (حداکثر ۳ رقم)', _periods, keyboard: TextInputType.number, periods: true),
             _field('شماره موبایل دریافت‌کننده (۱۱ رقم)', _mobile, keyboard: TextInputType.phone, mobile: true),
