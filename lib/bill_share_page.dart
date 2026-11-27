@@ -104,7 +104,7 @@ class _BillSharePageState extends State<BillSharePage> {
     final tokens = normalized
         .replaceAll('،', ' ')
         .replaceAll(',', ' ')
-        .split(RegExp(r'\\s+'))
+        .split(RegExp(r'\s+'))
         .where((part) => part.isNotEmpty);
     final result = StringBuffer();
     for (final token in tokens) {
