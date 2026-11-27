@@ -63,6 +63,10 @@ void main() {
         periods: '2',
       );
       expect(message, contains('مبلغ قابل پرداخت: 2.875.000 ریال'));
+      expect(message, contains('نام مشترک: علی محمدی\\n\\nشناسه قبض: 123'));
+      expect(message, contains('شناسه قبض: 123\\n\\nشناسه پرداخت: 456'));
+      expect(message, contains('شناسه پرداخت: 456\\n\\nمبلغ قابل پرداخت: 2.875.000 ریال'));
+      expect(message, contains('مبلغ قابل پرداخت: 2.875.000 ریال\\n\\nتعداد دوره بدهی: 2'));
       expect(message, isNot(contains('تومان')));
     });
   });
