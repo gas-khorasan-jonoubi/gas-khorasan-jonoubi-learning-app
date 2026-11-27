@@ -95,6 +95,7 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         manifest = (android / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
         self.assertIn("<queries>", manifest)
         self.assertIn("android.speech.RecognitionService", manifest)
+        self.assertIn("android.permission.RECORD_AUDIO", manifest)
         self.assertNotIn("class MainActivity : FlutterActivity", activity_text)
         manifest = (android / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
         self.assertIn("<queries>", manifest)
@@ -110,6 +111,9 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
 
         self.assertIn("https://jitpack.io", root_gradle)
         self.assertIn("minSdkVersion 24", app_gradle)
+        manifest = (android / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
+        self.assertIn("android.permission.RECORD_AUDIO", manifest)
+        self.assertIn("android.speech.RecognitionService", manifest)
         self.assertIn('applicationId "ir.gas.khorasanjonoubi.danestani_gaz"', app_gradle)
         self.assertIn("FlutterFragmentActivity", activity_text)
 
@@ -163,6 +167,7 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         manifest = (android / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
         self.assertEqual(manifest.count("<queries>"), 1)
         self.assertEqual(manifest.count("android.speech.RecognitionService"), 1)
+        self.assertEqual(manifest.count("android.permission.RECORD_AUDIO"), 1)
         self.assertEqual(app_gradle.count('create("release")'), 1)
         self.assertEqual(
             app_gradle.count('signingConfig = signingConfigs.getByName("release")'),
