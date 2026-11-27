@@ -133,6 +133,193 @@ def _configure_speech_queries(android: Path) -> None:
     manifest.write_text(updated, encoding="utf-8")
 
 
+
+def _configure_contact_picker(android: Path) -> None:
+    """Install a native, single-number contact picker with URI-grant access."""
+    source_root = android / "app" / "src" / "main"
+    candidates = [
+        path
+        for path in source_root.rglob("*")
+        if path.is_file() and path.name in {"MainActivity.kt", "MainActivity.java"}
+    ] if source_root.is_dir() else []
+    if len(candidates) != 1:
+        raise RuntimeError(
+            f"Expected exactly one MainActivity.kt or MainActivity.java, found {len(candidates)}."
+        )
+
+    activity_file = candidates[0]
+    source = activity_file.read_text(encoding="utf-8")
+    if "danestani_gaz/contact_picker" in source:
+        return
+
+    if activity_file.suffix == ".kt":
+        extra_imports = """import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.provider.ContactsContract
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel"""
+        package_match = re.search(r"(?m)^package\s+[\w.]+\s*$", source)
+        if package_match is None:
+            raise RuntimeError("Could not find the MainActivity Kotlin package declaration.")
+        source = source[:package_match.end()] + "\n\n" + extra_imports + source[package_match.end():]
+        activity = r'''class MainActivity : FlutterFragmentActivity() {
+    companion object {
+        private const val CONTACT_PICK_REQUEST = 7321
+        private const val CONTACT_CHANNEL = "danestani_gaz/contact_picker"
+    }
+
+    private var pendingContactResult: MethodChannel.Result? = null
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CONTACT_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                if (call.method != "pickPhone") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                if (pendingContactResult != null) {
+                    result.error("PICKER_BUSY", "A contact selection is already in progress.", null)
+                    return@setMethodCallHandler
+                }
+                pendingContactResult = result
+                val intent = Intent(
+                    Intent.ACTION_PICK,
+                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI
+                )
+                try {
+                    startActivityForResult(intent, CONTACT_PICK_REQUEST)
+                } catch (error: ActivityNotFoundException) {
+                    pendingContactResult?.error(
+                        "NO_CONTACT_PICKER",
+                        error.message,
+                        null
+                    )
+                    pendingContactResult = null
+                }
+            }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != CONTACT_PICK_REQUEST) return
+
+        val result = pendingContactResult
+        pendingContactResult = null
+        val contactUri = if (resultCode == Activity.RESULT_OK) data?.data else null
+        if (contactUri == null) {
+            result?.success(null)
+            return
+        }
+
+        try {
+            contentResolver.query(
+                contactUri,
+                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                result?.success(
+                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                )
+            } ?: result?.success(null)
+        } catch (error: Exception) {
+            result?.error("CONTACT_READ_FAILED", error.message, null)
+        }
+    }
+}'''
+        pattern = r"class\s+MainActivity\s*:\s*FlutterFragmentActivity\s*\(\s*\)\s*(?:\{\s*\})?"
+        updated, count = re.subn(pattern, lambda _: activity, source, count=1)
+    else:
+        extra_imports = """import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.database.Cursor;
+import android.provider.ContactsContract;
+import androidx.annotation.NonNull;
+import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.plugin.common.MethodChannel;"""
+        package_match = re.search(r"(?m)^package\s+[\w.]+;\s*$", source)
+        if package_match is None:
+            raise RuntimeError("Could not find the MainActivity Java package declaration.")
+        source = source[:package_match.end()] + "\n\n" + extra_imports + source[package_match.end():]
+        activity = r'''public class MainActivity extends FlutterFragmentActivity {
+    private static final int CONTACT_PICK_REQUEST = 7321;
+    private static final String CONTACT_CHANNEL = "danestani_gaz/contact_picker";
+    private MethodChannel.Result pendingContactResult;
+
+    @Override
+    public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
+        super.configureFlutterEngine(flutterEngine);
+        new MethodChannel(
+            flutterEngine.getDartExecutor().getBinaryMessenger(),
+            CONTACT_CHANNEL
+        ).setMethodCallHandler((call, result) -> {
+            if (!"pickPhone".equals(call.method)) {
+                result.notImplemented();
+                return;
+            }
+            if (pendingContactResult != null) {
+                result.error("PICKER_BUSY", "A contact selection is already in progress.", null);
+                return;
+            }
+            pendingContactResult = result;
+            Intent intent = new Intent(
+                Intent.ACTION_PICK,
+                ContactsContract.CommonDataKinds.Phone.CONTENT_URI
+            );
+            try {
+                startActivityForResult(intent, CONTACT_PICK_REQUEST);
+            } catch (ActivityNotFoundException error) {
+                pendingContactResult.error("NO_CONTACT_PICKER", error.getMessage(), null);
+                pendingContactResult = null;
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != CONTACT_PICK_REQUEST) return;
+
+        MethodChannel.Result result = pendingContactResult;
+        pendingContactResult = null;
+        if (resultCode != Activity.RESULT_OK || data == null || data.getData() == null) {
+            if (result != null) result.success(null);
+            return;
+        }
+
+        Cursor cursor = null;
+        try {
+            cursor = getContentResolver().query(
+                data.getData(),
+                new String[]{ContactsContract.CommonDataKinds.Phone.NUMBER},
+                null,
+                null,
+                null
+            );
+            if (cursor != null && cursor.moveToFirst()) {
+                if (result != null) result.success(cursor.getString(0));
+            } else if (result != null) {
+                result.success(null);
+            }
+        } catch (Exception error) {
+            if (result != null) result.error("CONTACT_READ_FAILED", error.getMessage(), null);
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+    }
+}'''
+        pattern = r"public\s+class\s+MainActivity\s+extends\s+FlutterFragmentActivity\s*\{\s*\}"
+        updated, count = re.subn(pattern, lambda _: activity, source, count=1)
+
+    if count != 1:
+        raise RuntimeError("Could not add the native phone contact picker to MainActivity.")
+    activity_file.write_text(updated, encoding="utf-8")
+
 def _configure_min_sdk(android: Path) -> None:
     kotlin_gradle = android / "app" / "build.gradle.kts"
     groovy_gradle = android / "app" / "build.gradle"
@@ -309,6 +496,7 @@ def configure_android(
         raise RuntimeError(f"Android directory does not exist: {android_directory}")
     _configure_jitpack(android_directory)
     _configure_activity(android_directory)
+    _configure_contact_picker(android_directory)
     _configure_min_sdk(android_directory)
     _configure_speech_queries(android_directory)
     _configure_application_id(android_directory, application_id)
