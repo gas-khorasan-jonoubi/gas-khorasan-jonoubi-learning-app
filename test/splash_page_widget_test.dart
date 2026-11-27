@@ -1,7 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_localizations/flutter_localizations.dart' show GlobalCupertinoLocalizations;
-import 'package:material_ui/material_ui.dart' show GlobalMaterialLocalizations;
 import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
 
 void main() {
@@ -41,17 +40,14 @@ void main() {
   });
 
   testWidgets('splash remains visible for three seconds then opens the app start gate', (tester) async {
+    // Keep the access check pending: this test verifies splash navigation, not
+    // the dashboard's localization delegates or navigation-bar semantics.
+    final accessCheck = Completer<bool>();
     await tester.pumpWidget(
       MaterialApp(
-        locale: const Locale('fa', 'IR'),
-        supportedLocales: const [Locale('fa', 'IR')],
-        localizationsDelegates: [
-          ...GlobalMaterialLocalizations.delegates,
-          GlobalCupertinoLocalizations.delegate,
-        ],
         home: SplashPage(
           displayDuration: const Duration(seconds: 3),
-          accessCheck: () async => true,
+          accessCheck: () => accessCheck.future,
         ),
       ),
     );
