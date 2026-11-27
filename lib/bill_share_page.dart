@@ -5,12 +5,8 @@ import 'bill_ocr_parser.dart';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
-import 'package:tesseract_ocr/ocr_engine_config.dart';
-import 'package:tesseract_ocr/tesseract_ocr.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -85,16 +81,12 @@ class _BillSharePageState extends State<BillSharePage> {
   final _amount = TextEditingController();
   final _periods = TextEditingController();
   final _mobile = TextEditingController();
-  final _picker = ImagePicker();
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechReady = false;
 
   bool _sms = true;
   bool _social = false;
   bool _busy = false;
-  String _recognizedText = '';
-  String? _imagePath;
-  String? _savedImagePath;
 
   @override
   void dispose() {
@@ -109,77 +101,6 @@ class _BillSharePageState extends State<BillSharePage> {
   }
 
   String _digits(String value) => BillOcrParser.normalizeDigits(value);
-
-  Future<void> _scan() => _chooseImage(ImageSource.camera);
-
-  Future<void> _chooseImage(ImageSource source) async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      final photo = await _picker.pickImage(
-        source: source,
-        imageQuality: 82,
-        maxWidth: 1800,
-      );
-      if (photo == null || !mounted) return;
-      setState(() {
-        _imagePath = photo.path;
-        _savedImagePath = null;
-      });
-      final directory = await getApplicationDocumentsDirectory();
-      final billsDir = Directory('${directory.path}/bill_archive');
-      if (!await billsDir.exists()) {
-        await billsDir.create(recursive: true);
-      }
-      final saved = await File(photo.path).copy(
-        '${billsDir.path}/bill_${DateTime.now().millisecondsSinceEpoch}.jpg',
-      );
-      _savedImagePath = saved.path;
-      final text = await TesseractOcr.extractText(
-        photo.path,
-        config: const OCRConfig(
-          language: 'fas+eng',
-          engine: OCREngine.tesseract,
-          options: {
-            'preserve_interword_spaces': '1',
-            'tessedit_pageseg_mode': '6',
-          },
-        ),
-      );
-      _recognizedText = text;
-      _fillRecognizedFields(text);
-      if (mounted) {
-        setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'تصویر دریافت شد؛ اطلاعات تشخیص‌داده‌شده را بررسی و در صورت نیاز اصلاح کنید.',
-            ),
-          ),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('دسترسی به دوربین یا خواندن تصویر انجام نشد. مجوز دوربین را بررسی و دوباره تلاش کنید.')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  void _fillRecognizedFields(String raw) {
-    final parsed = BillOcrParser.parse(raw);
-    setState(() {
-      if (parsed.name != null && _name.text.isEmpty) _name.text = parsed.name!;
-      if (parsed.mobile != null && _mobile.text.isEmpty) _mobile.text = parsed.mobile!;
-      if (parsed.billId != null && _billId.text.isEmpty) _billId.text = parsed.billId!;
-      if (parsed.paymentId != null && _paymentId.text.isEmpty) _paymentId.text = parsed.paymentId!;
-      if (parsed.amount != null && _amount.text.isEmpty) _amount.text = _ThousandsSeparatorInputFormatter.format(parsed.amount!);
-      if (parsed.periods != null && _periods.text.isEmpty) _periods.text = parsed.periods!;
-    });
-  }
 
   String _message() => BillOcrParser.buildMessage(
     name: _name.text,
@@ -464,24 +385,10 @@ class _BillSharePageState extends State<BillSharePage> {
           ]),
         ),
         const SizedBox(height: 14),
-        FilledButton.icon(
-          style: FilledButton.styleFrom(backgroundColor: _billNavy, padding: const EdgeInsets.all(14)),
-          onPressed: _busy ? null : _scan,
-          icon: const Icon(Icons.camera_alt),
-          label: const Text('اسکن قبض با دوربین'),
-        ),
-        const SizedBox(height: 8),
         if (_busy) const Padding(
           padding: EdgeInsets.all(12),
           child: Center(child: CircularProgressIndicator()),
         ),
-        if (_imagePath != null) ...[
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.file(File(_imagePath!), height: 180, fit: BoxFit.contain),
-          ),
-        ],
         const SizedBox(height: 18),
         Form(
           key: _formKey,
@@ -494,14 +401,6 @@ class _BillSharePageState extends State<BillSharePage> {
             _field('شماره موبایل دریافت‌کننده (۱۱ رقم)', _mobile, keyboard: TextInputType.phone, mobile: true),
           ]),
         ),
-        if (_recognizedText.isNotEmpty)
-          ExpansionTile(
-            title: const Text('متن خام تشخیص‌داده‌شده'),
-            children: [Padding(
-              padding: const EdgeInsets.all(12),
-              child: SelectableText(_recognizedText),
-            )],
-          ),
         const SizedBox(height: 8),
         Card(
           child: Padding(
