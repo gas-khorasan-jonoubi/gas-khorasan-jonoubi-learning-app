@@ -267,6 +267,53 @@ class _BillSharePageState extends State<BillSharePage> {
     }
   }
 
+  void _showSpeechFailure({String? errorCode}) {
+    if (!mounted) return;
+    final code = (errorCode ?? '').toLowerCase();
+
+    if (code == 'error_no_match' || code == 'error_speech_timeout') {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('صدا تشخیص داده نشد؛ لطفاً دوباره و واضح‌تر صحبت کنید.'),
+          ),
+        );
+      return;
+    }
+
+    if (code == 'error_permission' || code == 'error_audio_error') {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('مجوز میکروفون یا دسترسی ضبط صدا را در تنظیمات گوشی بررسی کنید.'),
+          ),
+        );
+      return;
+    }
+
+    const networkErrors = <String>{
+      'error_network',
+      'error_network_timeout',
+      'error_server',
+      'error_server_disconnected',
+      'error_language_unavailable',
+      'error_language_not_supported',
+    };
+    final isNetworkProblem = networkErrors.contains(code) ||
+        code.contains('network') ||
+        code.contains('server');
+
+    final message = isNetworkProblem
+        ? 'تشخیص گفتار آفلاین در دسترس نیست؛ لطفاً اینترنت خود را متصل کنید و دوباره تلاش کنید.'
+        : 'ورود صوتی در دسترس نیست؛ لطفاً اینترنت خود را متصل کنید و فعال بودن سرویس گفتار فارسی و مجوز میکروفون را بررسی کنید.';
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _listenInto(TextEditingController controller) async {
     if (_speech.isListening) {
       await _speech.stop();
@@ -276,20 +323,12 @@ class _BillSharePageState extends State<BillSharePage> {
     try {
       _speechReady = await _speech.initialize(
         onStatus: (_) { if (mounted) setState(() {}); },
-        onError: (_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('تشخیص گفتار در گوشی در دسترس نیست.')),
-            );
-          }
+        onError: (error) {
+          _showSpeechFailure(errorCode: error.errorMsg);
         },
       );
       if (!_speechReady) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('سرویس تشخیص گفتار فارسی روی گوشی فعال نیست.')),
-          );
-        }
+        _showSpeechFailure();
         return;
       }
       await _speech.listen(
@@ -307,11 +346,7 @@ class _BillSharePageState extends State<BillSharePage> {
       );
       if (mounted) setState(() {});
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('شروع ورود صوتی ممکن نشد؛ مجوز میکروفون و سرویس گفتار گوشی را بررسی کنید.')),
-        );
-      }
+      _showSpeechFailure();
     }
   }
 
