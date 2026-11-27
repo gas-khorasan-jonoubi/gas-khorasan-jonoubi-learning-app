@@ -46,11 +46,13 @@ class GasLearningApp extends StatelessWidget {
 class SplashPage extends StatefulWidget {
   final Duration displayDuration;
   final Future<void> Function(BuildContext context)? prepareSplash;
+  final Future<bool> Function()? accessCheck;
 
   const SplashPage({
     super.key,
     this.displayDuration = const Duration(seconds: 5),
     this.prepareSplash,
+    this.accessCheck,
   });
   @override
   State<SplashPage> createState() => _SplashPageState();
@@ -87,7 +89,7 @@ class _SplashPageState extends State<SplashPage> {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       Navigator.of(context).pushReplacement(
         PageRouteBuilder<void>(
-          pageBuilder: (_, __, ___) => const AppStartGate(),
+          pageBuilder: (_, __, ___) => AppStartGate(accessCheck: widget.accessCheck),
           transitionDuration: Duration.zero,
           reverseTransitionDuration: Duration.zero,
         ),
