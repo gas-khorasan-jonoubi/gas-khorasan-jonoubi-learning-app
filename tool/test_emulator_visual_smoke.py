@@ -31,9 +31,11 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
             root = Path(temporary)
             package = root / "application_id.txt"
             package.write_text(EXPECTED_APPLICATION_ID, encoding="utf-8")
+            reference = root / "approved_splash.png"
+            Image.new("RGB", (108, 192), (18, 59, 102)).save(reference)
             run.return_value.returncode = 0
             run.return_value.stdout = "4321"
-            run_smoke_test(package, root / "review")
+            run_smoke_test(package, root / "review", splash_reference=reference)
             self.assertEqual(screenshot.call_count, 2)
             self.assertEqual(run.call_count, 1)
             diagnostics.assert_called_once()
@@ -54,22 +56,38 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
             root = Path(temporary)
             package = root / "application_id.txt"
             package.write_text(EXPECTED_APPLICATION_ID, encoding="utf-8")
+            reference = root / "approved_splash.png"
+            Image.new("RGB", (108, 192), (18, 59, 102)).save(reference)
             with self.assertRaisesRegex(RuntimeError, "remained on splash"):
-                run_smoke_test(package, root / "review", dashboard_timeout=30)
+                run_smoke_test(package, root / "review", dashboard_timeout=30, splash_reference=reference)
             diagnostics.assert_called_once()
             dismiss_prompt.assert_called_once()
 
-    def test_splash_detector_rejects_white_native_launch_screen(self):
+    def test_splash_detector_matches_approved_artwork_not_just_navy_color(self):
         with tempfile.TemporaryDirectory() as temporary:
-            path = Path(temporary) / "white.png"
-            Image.new("RGB", (108, 192), "white").save(path)
-            self.assertFalse(has_expected_splash(path))
+            root = Path(temporary)
+            reference = root / "approved.png"
+            splash = root / "splash.png"
+            dashboard = root / "dashboard.png"
+            artwork = Image.new("RGB", (108, 192), "white")
+            draw = ImageDraw.Draw(artwork)
+            draw.rectangle((0, 0, 107, 35), fill=(18, 59, 102))
+            draw.ellipse((25, 55, 82, 112), fill=(230, 180, 40))
+            draw.rectangle((8, 130, 100, 175), fill=(30, 90, 140))
+            artwork.save(reference)
+            artwork.save(splash)
+            self.assertTrue(has_expected_splash(splash, reference))
 
-    def test_splash_detector_accepts_flutter_navy_canvas(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            path = Path(temporary) / "splash.png"
-            Image.new("RGB", (108, 192), (18, 59, 102)).save(path)
-            self.assertTrue(has_expected_splash(path))
+            # A dashboard with the same navy app bar must not pass as splash.
+            home = Image.new("RGB", (108, 192), (246, 248, 251))
+            ImageDraw.Draw(home).rectangle((0, 0, 107, 35), fill=(18, 59, 102))
+            ImageDraw.Draw(home).rounded_rectangle((5, 45, 103, 180), radius=8, fill=(240, 240, 245))
+            home.save(dashboard)
+            self.assertFalse(has_expected_splash(dashboard, reference))
+
+            white = Image.new("RGB", (108, 192), "white")
+            white.save(dashboard)
+            self.assertFalse(has_expected_splash(dashboard, reference))
 
     def test_dashboard_detector_rejects_splash_and_accepts_transition(self):
         with tempfile.TemporaryDirectory() as temporary:
