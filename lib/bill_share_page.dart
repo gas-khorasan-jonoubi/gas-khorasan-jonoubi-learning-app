@@ -214,8 +214,8 @@ class _BillSharePageState extends State<BillSharePage> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('اسکن QR برای همین فیلد'),
         content: SizedBox(
-          width: 320,
-          height: 320,
+          width: 160,
+          height: 160,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: MobileScanner(
