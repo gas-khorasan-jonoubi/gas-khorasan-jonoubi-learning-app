@@ -61,11 +61,19 @@ def has_expected_splash(path: Path, reference_path: Path) -> bool:
     try:
         with Image.open(path) as captured, Image.open(reference_path) as reference:
             current = captured.convert("RGB")
-            expected = ImageOps.fit(
+            # Flutter renders this asset with BoxFit.contain on a black
+            # Scaffold. ImageOps.fit crops the artwork and causes a false
+            # negative whenever the device and asset aspect ratios differ.
+            contained = ImageOps.contain(
                 reference.convert("RGB"),
                 current.size,
                 method=Image.Resampling.BILINEAR,
-                centering=(0.5, 0.5),
+            )
+            expected = Image.new("RGB", current.size, (0, 0, 0))
+            expected.paste(
+                contained,
+                ((current.width - contained.width) // 2,
+                 (current.height - contained.height) // 2),
             )
             difference = ImageChops.difference(current, expected)
             mean_error = sum(ImageStat.Stat(difference).mean) / 3
