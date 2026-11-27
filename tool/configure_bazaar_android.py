@@ -104,6 +104,26 @@ def _configure_activity(android: Path) -> None:
     activity_file.write_text(source, encoding="utf-8")
 
 
+def _configure_speech_queries(android: Path) -> None:
+    manifest = android / "app" / "src" / "main" / "AndroidManifest.xml"
+    if not manifest.is_file():
+        raise RuntimeError("AndroidManifest.xml was not generated.")
+    source = manifest.read_text(encoding="utf-8")
+    if "android.speech.RecognitionService" in source:
+        return
+    queries = """
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+"""
+    source = re.sub(r"(<manifest\\b[^>]*>)", r"\\1" + queries, source, count=1)
+    if source == manifest.read_text(encoding="utf-8"):
+        raise RuntimeError("Could not add speech recognition package visibility query.")
+    manifest.write_text(source, encoding="utf-8")
+
+
 def _configure_min_sdk(android: Path) -> None:
     kotlin_gradle = android / "app" / "build.gradle.kts"
     groovy_gradle = android / "app" / "build.gradle"
@@ -281,6 +301,7 @@ def configure_android(
     _configure_jitpack(android_directory)
     _configure_activity(android_directory)
     _configure_min_sdk(android_directory)
+    _configure_speech_queries(android_directory)
     _configure_application_id(android_directory, application_id)
     _configure_release_signing(android_directory, signing_environment or {})
 
