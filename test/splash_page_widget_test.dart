@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
 
 void main() {
@@ -41,6 +42,9 @@ void main() {
   testWidgets('splash remains visible for three seconds then opens the app start gate', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('fa', 'IR'),
+        supportedLocales: const [Locale('fa', 'IR')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         home: SplashPage(
           displayDuration: const Duration(seconds: 3),
           accessCheck: () async => true,
