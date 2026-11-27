@@ -41,7 +41,10 @@ void main() {
   testWidgets('splash remains visible for three seconds then opens dashboard', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: SplashPage(displayDuration: const Duration(seconds: 3)),
+        home: SplashPage(
+          displayDuration: const Duration(seconds: 3),
+          accessCheck: () async => true,
+        ),
       ),
     );
     await tester.pump();
