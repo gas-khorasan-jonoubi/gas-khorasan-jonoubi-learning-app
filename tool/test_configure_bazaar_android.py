@@ -20,7 +20,7 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         app_main = android / "app" / "src" / "main"
         app_main.mkdir(parents=True)
         (app_main / "AndroidManifest.xml").write_text(
-            '<?xml version="1.0" encoding="utf-8"?>\\n<manifest xmlns:android="http://schemas.android.com/apk/res/android">\\n</manifest>\\n',
+            '<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n</manifest>\n',
             encoding="utf-8",
         )
 
