@@ -58,7 +58,7 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
             package.write_text(EXPECTED_APPLICATION_ID, encoding="utf-8")
             reference = root / "approved_splash.png"
             Image.new("RGB", (108, 192), (18, 59, 102)).save(reference)
-            with self.assertRaisesRegex(RuntimeError, "remained on splash"):
+            with self.assertRaisesRegex(RuntimeError, "never transitioned"):
                 run_smoke_test(package, root / "review", dashboard_timeout=30, splash_reference=reference)
             diagnostics.assert_called_once()
             dismiss_prompt.assert_called_once()
