@@ -92,18 +92,8 @@ class _BillSharePageState extends State<BillSharePage> {
 
   String _digits(String value) => BillOcrParser.normalizeDigits(value);
 
-  String _normalizeIranianMobile(String raw) {
-    var digits = _digits(raw).replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.startsWith('0098')) {
-      digits = digits.substring(4);
-    } else if (digits.startsWith('98')) {
-      digits = digits.substring(2);
-    }
-    if (digits.length == 10 && digits.startsWith('9')) {
-      digits = '0$digits';
-    }
-    return digits;
-  }
+  String _normalizeIranianMobile(String raw) =>
+      BillOcrParser.normalizeIranianMobile(raw);
 
   Future<void> _pickContactMobile() async {
     if (_busy) return;
