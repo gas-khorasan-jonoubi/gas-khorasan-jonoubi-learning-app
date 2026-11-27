@@ -91,6 +91,30 @@ class _BillSharePageState extends State<BillSharePage> {
 
   String _digits(String value) => BillOcrParser.normalizeDigits(value);
 
+  String _spokenDigits(String value) {
+    final normalized = BillOcrParser.normalizeDigits(value);
+    final directDigits = normalized.replaceAll(RegExp(r'[^0-9]'), '');
+    if (directDigits.isNotEmpty) return directDigits;
+    const words = <String, String>{
+      'صفر': '0', 'یک': '1', 'یه': '1', 'اول': '1',
+      'دو': '2', 'دوتا': '2', 'سه': '3', 'سه‌تا': '3',
+      'چهار': '4', 'پنج': '5', 'شش': '6', 'شیش': '6',
+      'هفت': '7', 'هشت': '8', 'نه': '9',
+    };
+    final tokens = normalized
+        .replaceAll('،', ' ')
+        .replaceAll(',', ' ')
+        .split(RegExp(r'\\s+'))
+        .where((part) => part.isNotEmpty);
+    final result = StringBuffer();
+    for (final token in tokens) {
+      final digit = words[token];
+      if (digit == null) return '';
+      result.write(digit);
+    }
+    return result.toString();
+  }
+
   String _message() => BillOcrParser.buildMessage(
     name: _name.text,
     billId: _billId.text,
@@ -261,7 +285,9 @@ class _BillSharePageState extends State<BillSharePage> {
         pauseFor: const Duration(seconds: 3),
         onResult: (result) {
           if (!mounted || result.recognizedWords.trim().isEmpty) return;
-          controller.text = result.recognizedWords.trim();
+          final spoken = result.recognizedWords.trim();
+          final isNumericField = controller == _periods || controller == _mobile;
+          controller.text = isNumericField ? _spokenDigits(spoken) : spoken;
           controller.selection = TextSelection.collapsed(offset: controller.text.length);
           setState(() {});
         },
@@ -282,6 +308,7 @@ class _BillSharePageState extends State<BillSharePage> {
     TextInputType keyboard = TextInputType.text,
     bool required = false,
     bool mobile = false,
+    bool periods = false,
     bool rialAmount = false,
   }) {
     return Padding(
@@ -289,10 +316,10 @@ class _BillSharePageState extends State<BillSharePage> {
       child: TextFormField(
         controller: controller,
         keyboardType: keyboard,
-        inputFormatters: mobile
+        inputFormatters: mobile || periods
             ? [
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9۰-۹٠-٩]')),
-                LengthLimitingTextInputFormatter(11),
+                LengthLimitingTextInputFormatter(mobile ? 11 : 3),
               ]
             : rialAmount
                 ? [_ThousandsSeparatorInputFormatter()]
@@ -312,7 +339,8 @@ class _BillSharePageState extends State<BillSharePage> {
                     ? 'این فیلد الزامی است'
                     : null
                 : null,
-        textDirection: TextDirection.rtl,
+        textDirection: mobile || periods ? TextDirection.ltr : TextDirection.rtl,
+        textAlign: mobile || periods ? TextAlign.right : TextAlign.start,
         decoration: InputDecoration(
           labelText: label,
           filled: true,
@@ -385,7 +413,7 @@ class _BillSharePageState extends State<BillSharePage> {
             _field('شناسه قبض', _billId, keyboard: TextInputType.number, required: true),
             _field('شناسه پرداخت', _paymentId, keyboard: TextInputType.number, required: true),
             _field('مبلغ بدهی (ریال) — جداکنندهٔ سه‌رقمی', _amount, keyboard: TextInputType.number, required: true, rialAmount: true),
-            _field('تعداد دوره‌های بدهی', _periods, keyboard: TextInputType.number),
+            _field('تعداد دوره‌های بدهی (حداکثر ۳ رقم)', _periods, keyboard: TextInputType.number, periods: true),
             _field('شماره موبایل دریافت‌کننده (۱۱ رقم)', _mobile, keyboard: TextInputType.phone, mobile: true),
           ]),
         ),
