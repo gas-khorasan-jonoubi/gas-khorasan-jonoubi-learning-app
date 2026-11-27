@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart' show GlobalCupertinoLocalizations;
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'knowledge_pages.dart';
@@ -31,7 +32,10 @@ class GasLearningApp extends StatelessWidget {
     title: 'دانستنی‌های گاز',
     locale: const Locale('fa', 'IR'),
     supportedLocales: const [Locale('fa', 'IR')],
-    localizationsDelegates: GlobalMaterialLocalizations.delegates,
+    localizationsDelegates: [
+      ...GlobalMaterialLocalizations.delegates,
+      GlobalCupertinoLocalizations.delegate,
+    ],
     theme: ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(seedColor: blue, primary: navy),
