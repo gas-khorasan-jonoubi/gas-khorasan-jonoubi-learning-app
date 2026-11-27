@@ -8,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:tesseract_ocr/ocr_engine_config.dart';
 import 'package:tesseract_ocr/tesseract_ocr.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -84,6 +86,8 @@ class _BillSharePageState extends State<BillSharePage> {
   final _periods = TextEditingController();
   final _mobile = TextEditingController();
   final _picker = ImagePicker();
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _speechReady = false;
 
   bool _sms = true;
   bool _social = false;
@@ -281,6 +285,87 @@ class _BillSharePageState extends State<BillSharePage> {
     }
   }
 
+  Future<void> _scanQrInto(TextEditingController controller) async {
+    if (_busy) return;
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('اسکن QR برای همین فیلد'),
+        content: SizedBox(
+          width: 320,
+          height: 320,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: MobileScanner(
+              onDetect: (capture) {
+                if (capture.barcodes.isEmpty) return;
+                final raw = capture.barcodes.first.rawValue?.trim();
+                if (raw == null || raw.isEmpty) return;
+                Navigator.of(dialogContext).pop(raw);
+              },
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('انصراف'),
+          ),
+        ],
+      ),
+    );
+    if (value != null && value.isNotEmpty && mounted) {
+      controller.text = value;
+      controller.selection = TextSelection.collapsed(offset: value.length);
+    }
+  }
+
+  Future<void> _listenInto(TextEditingController controller) async {
+    if (_speech.isListening) {
+      await _speech.stop();
+      if (mounted) setState(() {});
+      return;
+    }
+    try {
+      _speechReady = await _speech.initialize(
+        onStatus: (_) { if (mounted) setState(() {}); },
+        onError: (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('تشخیص گفتار در گوشی در دسترس نیست.')),
+            );
+          }
+        },
+      );
+      if (!_speechReady) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('سرویس تشخیص گفتار فارسی روی گوشی فعال نیست.')),
+          );
+        }
+        return;
+      }
+      await _speech.listen(
+        localeId: 'fa_IR',
+        listenFor: const Duration(seconds: 15),
+        pauseFor: const Duration(seconds: 3),
+        onResult: (result) {
+          if (!mounted || result.recognizedWords.trim().isEmpty) return;
+          controller.text = result.recognizedWords.trim();
+          controller.selection = TextSelection.collapsed(offset: controller.text.length);
+          setState(() {});
+        },
+      );
+      if (mounted) setState(() {});
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('شروع ورود صوتی ممکن نشد؛ مجوز میکروفون و سرویس گفتار گوشی را بررسی کنید.')),
+        );
+      }
+    }
+  }
+
   Widget _field(
     String label,
     TextEditingController controller, {
@@ -323,6 +408,21 @@ class _BillSharePageState extends State<BillSharePage> {
           filled: true,
           fillColor: Colors.white,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(13)),
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'اسکن QR برای $label',
+                onPressed: _busy ? null : () => _scanQrInto(controller),
+                icon: const Icon(Icons.qr_code_scanner),
+              ),
+              IconButton(
+                tooltip: 'ورود صوتی برای $label',
+                onPressed: _busy ? null : () => _listenInto(controller),
+                icon: Icon(_speech.isListening ? Icons.mic_off : Icons.mic),
+              ),
+            ],
+          ),
         ),
       ),
     );
