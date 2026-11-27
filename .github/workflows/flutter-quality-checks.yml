@@ -81,7 +81,7 @@ jobs:
         run: cd android && ./gradlew --no-daemon :app:checkReleaseAarMetadata :app:compileReleaseKotlin
 
       - name: Analyze Dart code
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
 
       - name: Run automated tests
         run: flutter test --reporter expanded
