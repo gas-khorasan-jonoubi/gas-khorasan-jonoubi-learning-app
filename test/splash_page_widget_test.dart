@@ -38,7 +38,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('splash remains visible for three seconds then opens dashboard', (tester) async {
+  testWidgets('splash remains visible for three seconds then opens the app start gate', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: SplashPage(
@@ -54,8 +54,8 @@ void main() {
     expect(find.text('داشبورد'), findsNothing);
 
     await tester.pump(const Duration(milliseconds: 1));
-    await tester.pumpAndSettle();
-    expect(find.text('داشبورد'), findsOneWidget);
+    await tester.pump();
+    expect(find.byType(AppStartGate), findsOneWidget);
   });
 
   testWidgets('splash timer is cancelled safely when the page is disposed', (tester) async {
