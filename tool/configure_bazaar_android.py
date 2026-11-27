@@ -109,19 +109,28 @@ def _configure_speech_queries(android: Path) -> None:
     if not manifest.is_file():
         raise RuntimeError("AndroidManifest.xml was not generated.")
     source = manifest.read_text(encoding="utf-8")
-    if "android.speech.RecognitionService" in source:
-        return
-    queries = """
+    additions = ""
+    if "android.permission.RECORD_AUDIO" not in source:
+        additions += '\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n'
+    if "android.speech.RecognitionService" not in source:
+        additions += """
     <queries>
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
     </queries>
 """
-    source, count = re.subn(r"(<manifest\b[^>]*>)", lambda match: match.group(1) + queries, source, count=1)
-    if source == manifest.read_text(encoding="utf-8"):
-        raise RuntimeError("Could not add speech recognition package visibility query.")
-    manifest.write_text(source, encoding="utf-8")
+    if not additions:
+        return
+    updated, count = re.subn(
+        r"(<manifest\\b[^>]*>)",
+        lambda match: match.group(1) + additions,
+        source,
+        count=1,
+    )
+    if count != 1:
+        raise RuntimeError("Could not configure Android microphone permission and speech recognition visibility.")
+    manifest.write_text(updated, encoding="utf-8")
 
 
 def _configure_min_sdk(android: Path) -> None:
