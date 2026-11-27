@@ -93,7 +93,7 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         self.assertIn('applicationId = "ir.gas.khorasanjonoubi.danestani_gaz"', app_gradle)
         self.assertIn("FlutterFragmentActivity", activity_text)
         self.assertIn("danestani_gaz/contact_picker", activity_text)
-        self.assertIn("ContactsContract.CommonDataKinds.Phone.CONTENT_URI", activity_text)
+        self.assertIn("ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE", activity_text)
         self.assertIn("CONTACT_PICK_REQUEST", activity_text)
         manifest = (android / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
         self.assertIn("<queries>", manifest)
@@ -120,7 +120,7 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         self.assertIn('applicationId "ir.gas.khorasanjonoubi.danestani_gaz"', app_gradle)
         self.assertIn("FlutterFragmentActivity", activity_text)
         self.assertIn("danestani_gaz/contact_picker", activity_text)
-        self.assertIn("ContactsContract.CommonDataKinds.Phone.CONTENT_URI", activity_text)
+        self.assertIn("ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE", activity_text)
 
     def _signing_environment(self) -> dict[str, str]:
         return {
