@@ -29,7 +29,7 @@ void main() {
     );
     expect(imageFinder, findsOneWidget);
     final image = tester.widget<Image>(imageFinder);
-    expect(image.fit, BoxFit.cover);
+    expect(image.fit, BoxFit.contain);
     expect(find.textContaining('شرکت'), findsNothing);
     expect(find.textContaining('اداره'), findsNothing);
     expect(find.textContaining('شهرستان'), findsNothing);
