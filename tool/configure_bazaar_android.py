@@ -118,7 +118,7 @@ def _configure_speech_queries(android: Path) -> None:
         </intent>
     </queries>
 """
-    source = re.sub(r"(<manifest\\b[^>]*>)", r"\\1" + queries, source, count=1)
+    source, count = re.subn(r"(<manifest\b[^>]*>)", lambda match: match.group(1) + queries, source, count=1)
     if source == manifest.read_text(encoding="utf-8"):
         raise RuntimeError("Could not add speech recognition package visibility query.")
     manifest.write_text(source, encoding="utf-8")
