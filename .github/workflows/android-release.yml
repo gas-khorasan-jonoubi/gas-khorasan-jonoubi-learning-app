@@ -138,6 +138,7 @@ jobs:
         if: env.BAZAAR_IAP_CONFIGURED == 'true'
         run: dart run iran_iap doctor --store bazaar
 
+      # Keep static analysis and the complete test suite as hard gates before signing.
       - name: Analyze and test
         run: |
           set -euo pipefail
