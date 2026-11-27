@@ -150,11 +150,11 @@ class BillOcrParser {
         input.trim().isEmpty ? 'ثبت نشده' : input.trim();
     return 'سلام\n\n'
         'لطفاً نسبت به پرداخت قبض زیر اقدام فرمایید:\n\n'
-        'نوع قبض: گاز\n'
-        'نام مشترک: ${value(name)}\n'
-        'شناسه قبض: ${value(billId)}\n'
-        'شناسه پرداخت: ${value(paymentId)}\n'
-        'مبلغ قابل پرداخت: ${formatRial(amount)} ریال\n'
+        'نوع قبض: گاز\n\n'
+        'نام مشترک: ${value(name)}\n\n'
+        'شناسه قبض: ${value(billId)}\n\n'
+        'شناسه پرداخت: ${value(paymentId)}\n\n'
+        'مبلغ قابل پرداخت: ${formatRial(amount)} ریال\n\n'
         'تعداد دوره بدهی: ${value(periods)}\n\n'
         'با تشکر';
   }
