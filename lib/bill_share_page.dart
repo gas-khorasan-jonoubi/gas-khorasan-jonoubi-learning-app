@@ -98,6 +98,7 @@ class _BillSharePageState extends State<BillSharePage> {
 
   @override
   void dispose() {
+    _speech.stop();
     _name.dispose();
     _billId.dispose();
     _paymentId.dispose();
