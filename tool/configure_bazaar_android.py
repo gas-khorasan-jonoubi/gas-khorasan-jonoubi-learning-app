@@ -123,7 +123,7 @@ def _configure_speech_queries(android: Path) -> None:
     if not additions:
         return
     updated, count = re.subn(
-        r"(<manifest\\b[^>]*>)",
+        r"(<manifest\b[^>]*>)",
         lambda match: match.group(1) + additions,
         source,
         count=1,
