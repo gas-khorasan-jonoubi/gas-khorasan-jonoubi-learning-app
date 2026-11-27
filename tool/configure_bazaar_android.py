@@ -184,10 +184,9 @@ import io.flutter.plugin.common.MethodChannel"""
                     return@setMethodCallHandler
                 }
                 pendingContactResult = result
-                val intent = Intent(
-                    Intent.ACTION_PICK,
-                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI
-                )
+                val intent = Intent(Intent.ACTION_PICK).apply {
+                    type = ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE
+                }
                 try {
                     startActivityForResult(intent, CONTACT_PICK_REQUEST)
                 } catch (error: ActivityNotFoundException) {
@@ -267,10 +266,8 @@ import io.flutter.plugin.common.MethodChannel;"""
                 return;
             }
             pendingContactResult = result;
-            Intent intent = new Intent(
-                Intent.ACTION_PICK,
-                ContactsContract.CommonDataKinds.Phone.CONTENT_URI
-            );
+            Intent intent = new Intent(Intent.ACTION_PICK);
+            intent.setType(ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE);
             try {
                 startActivityForResult(intent, CONTACT_PICK_REQUEST);
             } catch (ActivityNotFoundException error) {
