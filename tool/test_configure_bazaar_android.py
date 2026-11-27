@@ -92,6 +92,9 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         self.assertIn("minSdk = 24", app_gradle)
         self.assertIn('applicationId = "ir.gas.khorasanjonoubi.danestani_gaz"', app_gradle)
         self.assertIn("FlutterFragmentActivity", activity_text)
+        self.assertIn("danestani_gaz/contact_picker", activity_text)
+        self.assertIn("ContactsContract.CommonDataKinds.Phone.CONTENT_URI", activity_text)
+        self.assertIn("CONTACT_PICK_REQUEST", activity_text)
         manifest = (android / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
         self.assertIn("<queries>", manifest)
         self.assertIn("android.speech.RecognitionService", manifest)
@@ -116,6 +119,8 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         self.assertIn("android.speech.RecognitionService", manifest)
         self.assertIn('applicationId "ir.gas.khorasanjonoubi.danestani_gaz"', app_gradle)
         self.assertIn("FlutterFragmentActivity", activity_text)
+        self.assertIn("danestani_gaz/contact_picker", activity_text)
+        self.assertIn("ContactsContract.CommonDataKinds.Phone.CONTENT_URI", activity_text)
 
     def _signing_environment(self) -> dict[str, str]:
         return {
@@ -164,6 +169,9 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         root_gradle = (android / "build.gradle.kts").read_text(encoding="utf-8")
         app_gradle = (android / "app" / "build.gradle.kts").read_text(encoding="utf-8")
         self.assertEqual(root_gradle.count("https://jitpack.io"), 1)
+        activity = next((android / "app" / "src" / "main").rglob("MainActivity.kt"))
+        activity_text = activity.read_text(encoding="utf-8")
+        self.assertEqual(activity_text.count("danestani_gaz/contact_picker"), 1)
         manifest = (android / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
         self.assertEqual(manifest.count("<queries>"), 1)
         self.assertEqual(manifest.count("android.speech.RecognitionService"), 1)
