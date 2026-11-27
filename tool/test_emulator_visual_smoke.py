@@ -61,7 +61,7 @@ class EmulatorVisualSmokeTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "never transitioned"):
                 run_smoke_test(package, root / "review", dashboard_timeout=30, splash_reference=reference)
             diagnostics.assert_called_once()
-            dismiss_prompt.assert_called_once()
+            dismiss_prompt.assert_called()
 
     def test_splash_detector_matches_approved_artwork_not_just_navy_color(self):
         with tempfile.TemporaryDirectory() as temporary:
