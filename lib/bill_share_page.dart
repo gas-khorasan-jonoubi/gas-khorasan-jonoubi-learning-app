@@ -53,17 +53,6 @@ class _ThousandsSeparatorInputFormatter extends TextInputFormatter {
     );
   }
 
-  static String format(String value) {
-    final digits = BillOcrParser.normalizeDigits(value)
-        .replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.isEmpty) return '';
-    final result = StringBuffer();
-    for (var i = 0; i < digits.length; i++) {
-      if (i > 0 && (digits.length - i) % 3 == 0) result.write('.');
-      result.write(digits[i]);
-    }
-    return result.toString();
-  }
 }
 
 class BillSharePage extends StatefulWidget {
@@ -121,7 +110,6 @@ class _BillSharePageState extends State<BillSharePage> {
       'amount': _amount.text.trim(),
       'periods': _periods.text.trim(),
       'mobile': _mobile.text.trim(),
-      'imagePath': _savedImagePath ?? _imagePath,
     }));
     await prefs.setStringList(_archiveKey, items.take(100).toList());
   }
