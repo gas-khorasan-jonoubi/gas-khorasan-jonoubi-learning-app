@@ -226,8 +226,8 @@ class _BillSharePageState extends State<BillSharePage> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('اسکن QR برای همین فیلد'),
         content: SizedBox(
-          width: 216,
-          height: 80,
+          width: 160,
+          height: 160,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: MobileScanner(
@@ -300,15 +300,8 @@ class _BillSharePageState extends State<BillSharePage> {
           if (!mounted || result.recognizedWords.trim().isEmpty) return;
           final spoken = result.recognizedWords.trim();
           final isNumericField = controller == _billId || controller == _paymentId || controller == _periods || controller == _mobile;
-          var accepted = isNumericField ? _spokenDigits(spoken) : spoken;
-          if (controller == _periods && accepted.length > 3) {
-            accepted = accepted.substring(0, 3);
-          }
-          if (controller == _mobile && accepted.length > 11) {
-            accepted = accepted.substring(0, 11);
-          }
-          controller.text = accepted;
-          controller.selection = TextSelection.collapsed(offset: accepted.length);
+          controller.text = isNumericField ? _spokenDigits(spoken) : spoken;
+          controller.selection = TextSelection.collapsed(offset: controller.text.length);
           setState(() {});
         },
       );
@@ -356,238 +349,11 @@ class _BillSharePageState extends State<BillSharePage> {
                     ? null
                     : 'شماره موبایل باید دقیقاً ۱۱ رقم و با ۰۹ شروع شود.';
               }
-            : numericOnly
-                ? (value) {
-                    final digits = _digits(value ?? '');
-                    if (digits.isEmpty) return required ? 'این فیلد الزامی است' : null;
-                    return RegExp(r'^[0-9]+
-        textDirection: mobile || periods || numericOnly ? TextDirection.ltr : TextDirection.rtl,
-        textAlign: mobile || periods || numericOnly ? TextAlign.right : TextAlign.start,
-        decoration: InputDecoration(
-          labelText: label,
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(13)),
-          suffixIcon: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                tooltip: 'اسکن QR برای $label',
-                onPressed: _busy ? null : () => _scanQrInto(controller),
-                icon: const Icon(Icons.qr_code_scanner),
-              ),
-              IconButton(
-                tooltip: 'ورود صوتی برای $label',
-                onPressed: _busy ? null : () => _listenInto(controller),
-                icon: Icon(_speech.isListening ? Icons.mic_off : Icons.mic),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      backgroundColor: _billNavy,
-      foregroundColor: Colors.white,
-      title: const Text('اسکن و اشتراک‌گذاری قبض'),
-      actions: [
-        IconButton(
-          tooltip: 'آرشیو قبض‌ها',
-          icon: const Icon(Icons.archive_outlined),
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const BillArchivePage()),
-          ),
-        ),
-      ],
-    ),
-    body: ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: _billNavy,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: const Row(children: [
-            Icon(Icons.document_scanner_outlined, color: _billYellow, size: 36),
-            SizedBox(width: 12),
-            Expanded(child: Text(
-              'برای ورود اطلاعات، QR کنار همان فیلد یا میکروفون را بزنید؛ اطلاعات را بررسی و اصلاح کنید، سپس روش ارسال را انتخاب کنید.',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-            )),
-          ]),
-        ),
-        const SizedBox(height: 14),
-        if (_busy) const Padding(
-          padding: EdgeInsets.all(12),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-        const SizedBox(height: 18),
-        Form(
-          key: _formKey,
-          child: Column(children: [
-            _field('نام مشترک', _name, required: true),
-            _field('شناسه قبض', _billId, keyboard: TextInputType.number, required: true, numericOnly: true),
-            _field('شناسه پرداخت', _paymentId, keyboard: TextInputType.number, required: true, numericOnly: true),
-            _field('مبلغ بدهی (ریال) — جداکنندهٔ سه‌رقمی', _amount, keyboard: TextInputType.number, required: true, rialAmount: true),
-            _field('تعداد دوره‌های بدهی (حداکثر ۳ رقم)', _periods, keyboard: TextInputType.number, periods: true),
-            _field('شماره موبایل دریافت‌کننده (۱۱ رقم)', _mobile, keyboard: TextInputType.phone, mobile: true),
-          ]),
-        ),
-        const SizedBox(height: 8),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('روش اشتراک‌گذاری', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _sms,
-                onChanged: _busy ? null : (v) => setState(() { _sms = v ?? false; if (v == true) _social = false; }),
-                title: const Text('پیامک'),
-                subtitle: const Text('فقط متن اطلاعات قبض'),
-                controlAffinity: ListTileControlAffinity.leading,
-              ),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _social,
-                onChanged: _busy ? null : (v) => setState(() { _social = v ?? false; if (v == true) _sms = false; }),
-                title: const Text('شبکه‌های اجتماعی'),
-                subtitle: const Text('فقط متن اطلاعات قبض؛ انتخاب برنامه و گیرنده در مقصد'),
-                controlAffinity: ListTileControlAffinity.leading,
-              ),
-            ]),
-          ),
-        ),
-        const SizedBox(height: 12),
-        FilledButton.icon(
-          style: FilledButton.styleFrom(backgroundColor: _billYellow, foregroundColor: Colors.black, padding: const EdgeInsets.all(15)),
-          onPressed: _busy ? null : _share,
-          icon: const Icon(Icons.share),
-          label: const Text('اشتراک‌گذاری قبض', style: TextStyle(fontWeight: FontWeight.bold)),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'توجه: متن و اعداد تشخیص‌داده‌شده را پیش از ارسال کنترل کنید. تشخیص متن فارسی در موتور آفلاین فعلی محدود است؛ نام و شناسه‌ها را حتماً بررسی و در صورت نیاز اصلاح کنید.',
-          style: TextStyle(color: Colors.black54, fontSize: 12),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    ),
-  );
-}
-
-class BillArchivePage extends StatefulWidget {
-  const BillArchivePage({super.key});
-
-  @override
-  State<BillArchivePage> createState() => _BillArchivePageState();
-}
-
-class _BillArchivePageState extends State<BillArchivePage> {
-  Future<List<Map<String, dynamic>>> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final values = prefs.getStringList(_archiveKey) ?? <String>[];
-    final records = <Map<String, dynamic>>[];
-    for (final value in values) {
-      try {
-        final item = jsonDecode(value);
-        if (item is Map<String, dynamic>) records.add(item);
-      } catch (_) {}
-    }
-    return records;
-  }
-
-  Future<void> _delete(Map<String, dynamic> item) async {
-    final prefs = await SharedPreferences.getInstance();
-    final values = prefs.getStringList(_archiveKey) ?? <String>[];
-    values.removeWhere((value) {
-      try {
-        final decoded = jsonDecode(value);
-        return decoded is Map && decoded['date'] == item['date'];
-      } catch (_) {
-        return false;
-      }
-    });
-    await prefs.setStringList(_archiveKey, values);
-    final path = item['imagePath'];
-    if (path is String) {
-      try { final file = File(path); if (await file.exists()) await file.delete(); } catch (_) {}
-    }
-    if (mounted) setState(() {});
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('آرشیو قبض‌های اسکن‌شده')),
-    body: FutureBuilder<List<Map<String, dynamic>>>(
-      future: _load(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final records = snapshot.data ?? [];
-        if (records.isEmpty) return const Center(child: Text('هنوز قبضی ذخیره نشده است.'));
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: records.length,
-          itemBuilder: (context, index) {
-            final item = records[index];
-            final date = DateTime.tryParse(item['date'] as String? ?? '');
-            final path = item['imagePath'];
-            return Card(
-              child: ListTile(
-                leading: path is String && File(path).existsSync()
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: Image.file(File(path), width: 52, height: 52, fit: BoxFit.cover),
-                      )
-                    : const CircleAvatar(child: Icon(Icons.receipt_long)),
-                title: Text((item['name'] as String?)?.isNotEmpty == true ? item['name'] as String : 'قبض بدون نام'),
-                subtitle: Text('شناسه قبض: ${item['billId'] ?? '-'}\n${date == null ? '' : '${date.year}/${date.month}/${date.day}'}'),
-                isThreeLine: true,
-                trailing: IconButton(
-                  tooltip: 'حذف از آرشیو',
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () => _delete(item),
-                ),
-                onTap: () => showDialog<void>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('اطلاعات قبض'),
-                    content: SingleChildScrollView(child: Text(
-                      'نام مشترک: ${item['name'] ?? '-'}\n'
-                      'شناسه قبض: ${item['billId'] ?? '-'}\n'
-                      'شناسه پرداخت: ${item['paymentId'] ?? '-'}\n'
-                      'مبلغ قابل پرداخت: ${item['amount'] ?? '-'} ریال\n'
-                      'دوره‌ها: ${item['periods'] ?? '-'}\n'
-                      'موبایل: ${item['mobile'] ?? '-'}',
-                    )),
-                    actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('بستن'))],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    ),
-  );
-}
-).hasMatch(digits)
-                        ? null
-                        : 'فقط عدد وارد کنید.';
-                  }
-                : required
-                    ? (value) => (value == null || value.trim().isEmpty)
-                        ? 'این فیلد الزامی است'
-                        : null
-                    : null,
+            : required
+                ? (value) => (value == null || value.trim().isEmpty)
+                    ? 'این فیلد الزامی است'
+                    : null
+                : null,
         textDirection: mobile || periods || numericOnly ? TextDirection.ltr : TextDirection.rtl,
         textAlign: mobile || periods || numericOnly ? TextAlign.right : TextAlign.start,
         decoration: InputDecoration(
