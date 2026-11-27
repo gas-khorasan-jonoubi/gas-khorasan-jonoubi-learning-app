@@ -119,7 +119,7 @@ class _SplashPageState extends State<SplashPage> {
         body: SizedBox.expand(
           child: Image.asset(
             'assets/approved_splash.png',
-            fit: BoxFit.cover,
+            fit: BoxFit.contain,
             alignment: Alignment.center,
             filterQuality: FilterQuality.high,
           ),
