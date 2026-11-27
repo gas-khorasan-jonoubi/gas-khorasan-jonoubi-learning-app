@@ -7,6 +7,16 @@ void main() {
       expect(BillOcrParser.normalizeDigits('۱۲۳٤۵۶'), '123456');
     });
 
+    test('normalizes Iranian mobile numbers from international formats', () {
+      expect(BillOcrParser.normalizeIranianMobile('+989123456789'), '09123456789');
+      expect(BillOcrParser.normalizeIranianMobile('00989123456789'), '09123456789');
+      expect(BillOcrParser.normalizeIranianMobile('98 912-345-6789'), '09123456789');
+      expect(BillOcrParser.normalizeIranianMobile('۰۹۱۲۳۴۵۶۷۸۹'), '09123456789');
+      expect(BillOcrParser.normalizeIranianMobile('09123456789'), '09123456789');
+      expect(BillOcrParser.isValidIranianMobile('+98 (912) 345-6789'), isTrue);
+      expect(BillOcrParser.isValidIranianMobile('00989123456789'), isTrue);
+    });
+
     test('accepts only Iranian mobile numbers with exactly 11 digits', () {
       expect(BillOcrParser.isValidIranianMobile('09123456789'), isTrue);
       expect(BillOcrParser.isValidIranianMobile('۰۹۱۲۳۴۵۶۷۸۹'), isTrue);
