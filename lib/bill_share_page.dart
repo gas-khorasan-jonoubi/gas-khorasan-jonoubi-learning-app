@@ -71,6 +71,7 @@ class _BillSharePageState extends State<BillSharePage> {
   final _periods = TextEditingController();
   final _mobile = TextEditingController();
   final stt.SpeechToText _speech = stt.SpeechToText();
+  static const MethodChannel _contactPicker = MethodChannel('danestani_gaz/contact_picker');
   bool _speechReady = false;
 
   bool _sms = true;
@@ -90,6 +91,59 @@ class _BillSharePageState extends State<BillSharePage> {
   }
 
   String _digits(String value) => BillOcrParser.normalizeDigits(value);
+
+  String _normalizeIranianMobile(String raw) {
+    var digits = _digits(raw).replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('0098')) {
+      digits = digits.substring(4);
+    } else if (digits.startsWith('98')) {
+      digits = digits.substring(2);
+    }
+    if (digits.length == 10 && digits.startsWith('9')) {
+      digits = '0$digits';
+    }
+    return digits;
+  }
+
+  Future<void> _pickContactMobile() async {
+    if (_busy) return;
+    try {
+      final selected = await _contactPicker.invokeMethod<String>('pickPhone');
+      if (!mounted || selected == null || selected.trim().isEmpty) return;
+
+      final mobile = _normalizeIranianMobile(selected);
+      if (!BillOcrParser.isValidIranianMobile(mobile)) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('شماره انتخاب‌شده معتبر نیست؛ مخاطبی با شماره موبایل ۱۱ رقمی ایران انتخاب کنید.'),
+            ),
+          );
+        return;
+      }
+
+      setState(() {
+        _mobile.text = mobile;
+        _mobile.selection = TextSelection.collapsed(offset: mobile.length);
+      });
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      final message = error.code == 'NO_CONTACT_PICKER'
+          ? 'برنامه مخاطبین در این گوشی در دسترس نیست.'
+          : 'دریافت شماره مخاطب انجام نشد؛ دوباره تلاش کنید.';
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('باز کردن فهرست مخاطبین ممکن نشد.')),
+        );
+    }
+  }
 
   String _spokenDigits(String value) {
     final normalized = BillOcrParser.normalizeDigits(value);
@@ -140,7 +194,7 @@ class _BillSharePageState extends State<BillSharePage> {
 
   Future<void> _share() async {
     if (!_formKey.currentState!.validate()) return;
-    final phone = _digits(_mobile.text).replaceAll(RegExp(r'[^0-9+]'), '');
+    final phone = _normalizeIranianMobile(_mobile.text);
     if (_sms && !BillOcrParser.isValidIranianMobile(phone)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -259,8 +313,9 @@ class _BillSharePageState extends State<BillSharePage> {
       if (controller == _periods && accepted.length > 3) {
         accepted = accepted.substring(0, 3);
       }
-      if (controller == _mobile && accepted.length > 11) {
-        accepted = accepted.substring(0, 11);
+      if (controller == _mobile) {
+        accepted = _normalizeIranianMobile(accepted);
+        if (accepted.length > 11) accepted = accepted.substring(0, 11);
       }
       controller.text = accepted;
       controller.selection = TextSelection.collapsed(offset: accepted.length);
@@ -339,7 +394,9 @@ class _BillSharePageState extends State<BillSharePage> {
           if (!mounted || result.recognizedWords.trim().isEmpty) return;
           final spoken = result.recognizedWords.trim();
           final isNumericField = controller == _billId || controller == _paymentId || controller == _periods || controller == _mobile;
-          controller.text = isNumericField ? _spokenDigits(spoken) : spoken;
+          controller.text = controller == _mobile
+              ? _normalizeIranianMobile(_spokenDigits(spoken))
+              : isNumericField ? _spokenDigits(spoken) : spoken;
           controller.selection = TextSelection.collapsed(offset: controller.text.length);
           setState(() {});
         },
@@ -376,7 +433,7 @@ class _BillSharePageState extends State<BillSharePage> {
                 : null,
         validator: mobile
             ? (value) {
-                final normalized = _digits(value ?? '');
+                final normalized = _normalizeIranianMobile(value ?? '');
                 if (normalized.isEmpty) {
                   return _sms ? 'برای ارسال پیامک، شماره موبایل را وارد کنید.' : null;
                 }
@@ -409,6 +466,12 @@ class _BillSharePageState extends State<BillSharePage> {
                 onPressed: _busy ? null : () => _listenInto(controller),
                 icon: Icon(_speech.isListening ? Icons.mic_off : Icons.mic),
               ),
+              if (mobile)
+                IconButton(
+                  tooltip: 'انتخاب شماره از مخاطبین گوشی',
+                  onPressed: _busy ? null : _pickContactMobile,
+                  icon: const Icon(Icons.contacts_outlined),
+                ),
             ],
           ),
         ),
