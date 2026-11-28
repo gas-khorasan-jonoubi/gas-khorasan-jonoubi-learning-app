@@ -520,6 +520,7 @@ def configure_android(
     _configure_contact_picker(android_directory)
     _configure_min_sdk(android_directory)
     _configure_speech_queries(android_directory)
+    _configure_cropper_activity(android_directory)
     _configure_application_id(android_directory, application_id)
     _configure_release_signing(android_directory, signing_environment or {})
 
