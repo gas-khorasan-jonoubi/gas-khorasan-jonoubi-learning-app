@@ -111,15 +111,15 @@ def _configure_app_label(android: Path) -> None:
     if not manifest.is_file():
         raise RuntimeError("AndroidManifest.xml was not generated.")
     source = manifest.read_text(encoding="utf-8")
-    application_pattern = re.compile(r"<application\\b[^>]*>")
+    application_pattern = re.compile(r"<application\b[^>]*>")
     match = application_pattern.search(source)
     if match is None:
         raise RuntimeError("Could not find the Android application element.")
 
     application_tag = match.group(0)
-    if re.search(r"\\bandroid:label\\s*=", application_tag):
+    if re.search(r"\bandroid:label\s*=", application_tag):
         updated_tag = re.sub(
-            r'android:label\\s*=\\s*("[^"]*"|\\'[^\\']*\\')',
+            r'android:label\s*=\s*("[^"]*"|\'[^\']*\')',
             'android:label="@string/app_name"',
             application_tag,
             count=1,
@@ -132,11 +132,11 @@ def _configure_app_label(android: Path) -> None:
     values = source_root / "res" / "values"
     values.mkdir(parents=True, exist_ok=True)
     strings = values / "strings.xml"
-    strings_source = strings.read_text(encoding="utf-8") if strings.exists() else '<?xml version="1.0" encoding="utf-8"?>\\n<resources>\\n</resources>\\n'
+    strings_source = strings.read_text(encoding="utf-8") if strings.exists() else '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n</resources>\n'
     label = "دانستنی‌های گاز"
-    if re.search(r'<string\\s+name="app_name">.*?</string>', strings_source, re.DOTALL):
+    if re.search(r'<string\s+name="app_name">.*?</string>', strings_source, re.DOTALL):
         strings_source = re.sub(
-            r'<string\\s+name="app_name">.*?</string>',
+            r'<string\s+name="app_name">.*?</string>',
             f'<string name="app_name">{label}</string>',
             strings_source,
             count=1,
@@ -145,7 +145,7 @@ def _configure_app_label(android: Path) -> None:
     else:
         strings_source = strings_source.replace(
             "</resources>",
-            f'    <string name="app_name">{label}</string>\\n</resources>',
+            f'    <string name="app_name">{label}</string>\n</resources>',
             1,
         )
     if "</resources>" not in strings_source:
