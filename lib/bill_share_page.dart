@@ -328,7 +328,7 @@ class _BillSharePageState extends State<BillSharePage> {
       final rowFile = File('${directory.path}/bill_cell_${DateTime.now().microsecondsSinceEpoch}.jpg');
       setState(() => _busy = true);
 
-      Future<String> readCell(double leftRatio, double rightRatio) async {
+      Future<String> readCell(double leftRatio, double rightRatio, {required String language}) async {
         final left = (decoded.width * leftRatio).round().clamp(0, decoded.width - 1).toInt();
         final right = (decoded.width * rightRatio).round().clamp(left + 1, decoded.width).toInt();
         final cell = img.copyCrop(
@@ -342,7 +342,7 @@ class _BillSharePageState extends State<BillSharePage> {
         return TesseractOcr.extractText(
           rowFile.path,
           config: OCRConfig(
-            language: 'fas',
+            language: language,
             engine: OCREngine.tesseract,
             options: const {
               'preserve_interword_spaces': '1',
@@ -355,12 +355,12 @@ class _BillSharePageState extends State<BillSharePage> {
       // Column coordinates follow the photographed table. The outstanding
       // balance column ("بدهی مشترک") is deliberately excluded.
       final values = <String, String>{
-        'name': (await readCell(0.861, 0.998)).replaceAll(RegExp(r'[\r\n]+'), ' ').trim(),
-        'billId': (await readCell(0.649, 0.789)).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
-        'mobile': (await readCell(0.531, 0.648)).replaceAll(RegExp(r'[^0-9۰-۹٠-٩+()]'), '').trim(),
-        'paymentId': (await readCell(0.283, 0.402)).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
-        'amount': (await readCell(0.173, 0.282)).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
-        'periods': (await readCell(0.030, 0.067)).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
+        'name': (await readCell(0.861, 0.998, language: 'fas+eng')).replaceAll(RegExp(r'[\r\n]+'), ' ').trim(),
+        'billId': (await readCell(0.649, 0.789, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
+        'mobile': (await readCell(0.531, 0.648, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩+()]'), '').trim(),
+        'paymentId': (await readCell(0.283, 0.402, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
+        'amount': (await readCell(0.173, 0.282, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
+        'periods': (await readCell(0.030, 0.067, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
       };
       if (!mounted) return;
       final normalizedMobile = _normalizeIranianMobile(values['mobile'] ?? '');
@@ -436,7 +436,7 @@ class _BillSharePageState extends State<BillSharePage> {
       final recognized = await TesseractOcr.extractText(
         cropped.path,
         config: OCRConfig(
-          language: 'fas',
+          language: numericOnly || mobile || rialAmount || periods ? 'eng' : 'fas+eng',
           engine: OCREngine.tesseract,
           options: const {
             'preserve_interword_spaces': '1',
@@ -450,6 +450,11 @@ class _BillSharePageState extends State<BillSharePage> {
           .map((line) => line.trim())
           .where((line) => line.isNotEmpty)
           .toList(growable: false);
+      if (recognized.trim().isEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('موتور OCR اجرا شد اما هیچ متنی از تصویر نخواند؛ عکس واضح‌تر و نزدیک‌تر بگیرید.')),
+        );
+      }
       final editor = TextEditingController(text: lines.length == 1 ? lines.first : '');
       final selected = await showDialog<String>(
         context: context,
@@ -520,10 +525,17 @@ class _BillSharePageState extends State<BillSharePage> {
       }
       controller.text = value;
       controller.selection = TextSelection.collapsed(offset: value.length);
-    } catch (_) {
+    } on PlatformException catch (error) {
+      if (mounted) {
+        final detail = [error.code, error.message].whereType<String>().where((v) => v.isNotEmpty).join(': ');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(detail.isEmpty ? 'خطای موتور OCR رخ داد.' : 'خطای OCR: $detail')),
+        );
+      }
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('اسکن $label انجام نشد؛ محدوده را واضح‌تر و با نور کافی ثبت کنید.')),
+          SnackBar(content: Text('خطای اسکن $label: $error')),
         );
       }
     } finally {
