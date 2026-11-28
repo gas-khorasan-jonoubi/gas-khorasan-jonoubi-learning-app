@@ -36,7 +36,8 @@ flutter:
   assets:
     - assets/approved_splash.png
     - assets/tessdata_config.json
-    - assets/tessdata/
+    - assets/tessdata/fas.traineddata
+    - assets/tessdata/eng.traineddata
 
 flutter_launcher_icons:
   android: true
