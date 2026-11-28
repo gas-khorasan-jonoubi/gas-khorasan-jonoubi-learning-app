@@ -1,5 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
+import 'bill_row_detector.dart';
 
 import 'bill_ocr_parser.dart';
 
@@ -270,35 +275,72 @@ class _BillSharePageState extends State<BillSharePage> {
 
   Future<void> _scanBillRowWithOcr() async {
     if (_busy) return;
-    final picker = ImagePicker();
     try {
-      final photo = await picker.pickImage(
+      final photo = await ImagePicker().pickImage(
         source: ImageSource.camera,
         imageQuality: 95,
         preferredCameraDevice: CameraDevice.rear,
       );
       if (photo == null || !mounted) return;
-
-      final cropped = await ImageCropper().cropImage(
-        sourcePath: photo.path,
-        maxWidth: 2400,
-        maxHeight: 900,
-        compressQuality: 95,
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: 'انتخاب ردیف موردنظر از برگه',
-            toolbarColor: _billNavy,
-            toolbarWidgetColor: Colors.white,
-            lockAspectRatio: false,
-            initAspectRatio: CropAspectRatioPreset.original,
+      final bytes = await File(photo.path).readAsBytes();
+      final rows = BillRowDetector.detect(bytes);
+      if (rows.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('خطوط جدول به‌وضوح تشخیص داده نشد؛ عکس را صاف، کامل و با نور مناسب بگیرید یا از اسکن تکی فیلدها استفاده کنید.')),
+        );
+        return;
+      }
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) return;
+      final selectedIndex = await showDialog<int>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('انتخاب ردیف قبض (\${rows.length} ردیف تشخیص داده شد)'),
+          content: SizedBox(
+            width: 380,
+            height: 420,
+            child: ListView.separated(
+              itemCount: rows.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final row = rows[index];
+                final crop = img.copyCrop(
+                  decoded,
+                  x: 0,
+                  y: row.top,
+                  width: decoded.width,
+                  height: row.height,
+                );
+                final preview = Uint8List.fromList(img.encodeJpg(crop, quality: 75));
+                return ListTile(
+                  leading: SizedBox(width: 100, height: 52, child: Image.memory(preview, fit: BoxFit.contain)),
+                  title: Text('ردیف \${index + 1}'),
+                  subtitle: const Text('برای خواندن این ردیف لمس کنید'),
+                  onTap: () => Navigator.of(dialogContext).pop(index),
+                );
+              },
+            ),
           ),
-        ],
+          actions: [
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('انصراف')),
+          ],
+        ),
       );
-      if (cropped == null || !mounted) return;
-
+      if (selectedIndex == null || !mounted) return;
+      final selectedRow = rows[selectedIndex];
+      final rowImage = img.copyCrop(
+        decoded,
+        x: 0,
+        y: selectedRow.top,
+        width: decoded.width,
+        height: selectedRow.height,
+      );
+      final directory = await getTemporaryDirectory();
+      final rowFile = File('\${directory.path}/bill_row_\${DateTime.now().microsecondsSinceEpoch}.jpg');
+      await rowFile.writeAsBytes(img.encodeJpg(rowImage, quality: 94), flush: true);
       setState(() => _busy = true);
       final recognized = await TesseractOcr.extractText(
-        cropped.path,
+        rowFile.path,
         config: OCRConfig(
           language: 'fas',
           engine: OCREngine.tesseract,
@@ -309,65 +351,45 @@ class _BillSharePageState extends State<BillSharePage> {
         ),
       );
       if (!mounted) return;
-      final parsed = BillOcrParser.parse(recognized);
-      var filled = 0;
-      void setIfFound(TextEditingController controller, String? value) {
-        if (value != null && value.trim().isNotEmpty) {
-          controller.text = value.trim();
-          filled++;
-        }
-      }
-      setIfFound(_name, parsed.name);
-      setIfFound(_billId, parsed.billId);
-      setIfFound(_paymentId, parsed.paymentId);
-      setIfFound(_amount, parsed.amount == null ? null : BillOcrParser.formatRial(parsed.amount!));
-      setIfFound(_periods, parsed.periods);
-      setIfFound(_mobile, parsed.mobile);
-
-      final numbers = RegExp(r'[0-9۰-۹٠-٩]{5,}')
-          .allMatches(BillOcrParser.normalizeDigits(recognized))
-          .map((match) => match.group(0)!)
+      final tokens = recognized
+          .split(RegExp(r'[\s|،؛]+'))
+          .map((value) => value.trim())
+          .where((value) => value.isNotEmpty)
           .toList(growable: false);
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('نتیجه خواندن ردیف قبض'),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(filled > 0
-                    ? '$filled فیلد با برچسب قابل تشخیص، در فرم قرار گرفت.'
-                    : 'متن ردیف خوانده شد؛ چون جدول فاقد عنوان ستون در برش انتخابی است، اعداد را خودکار به شناسه‌ها نسبت ندادیم.'),
-                const SizedBox(height: 12),
-                const Text('اعداد تشخیص‌داده‌شده:', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
-                SelectableText(numbers.isEmpty ? 'عدد قابل تشخیصی پیدا نشد.' : numbers.join('\n')),
-                const SizedBox(height: 12),
-                const Text('متن خام OCR:', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
-                SelectableText(recognized.trim().isEmpty ? 'متنی تشخیص داده نشد.' : recognized.trim()),
-                const SizedBox(height: 8),
-                const Text('لطفاً مقادیر فرم را قبل از ارسال بررسی و اصلاح کنید.'),
-              ],
+          title: Text('متن ردیف \${selectedIndex + 1}'),
+          content: SizedBox(
+            width: 380,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('فقط همین ردیف جدا شده است. برای جلوگیری از جابه‌جایی مبلغ، شناسه‌ها و ستون بدهی مشترک، مقادیر را با اسکن تکی هر فیلد تأیید کنید.'),
+                  const SizedBox(height: 10),
+                  const Text('متن OCR:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 5),
+                  SelectableText(recognized.trim().isEmpty ? 'متنی تشخیص داده نشد.' : recognized.trim()),
+                  const SizedBox(height: 10),
+                  const Text('قطعه‌های تشخیص‌داده‌شده:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 5),
+                  SelectableText(tokens.join('  |  ')),
+                ],
+              ),
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('متوجه شدم'),
-            ),
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('بستن و بررسی فیلدها')),
           ],
         ),
       );
-    } catch (error) {
+    } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(
-            content: Text('خواندن ردیف انجام نشد؛ نور، وضوح عکس و مدل فارسی OCR را بررسی کنید.'),
-          ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('اسکن برگه انجام نشد؛ لطفاً عکس واضح‌تر و بدون زاویه شدید بگیرید.')),
+        );
       }
     } finally {
       if (mounted && _busy) setState(() => _busy = false);
