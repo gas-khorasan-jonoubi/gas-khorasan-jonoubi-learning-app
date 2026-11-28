@@ -23,7 +23,7 @@ class BillRowDetector {
     int threshold = 160,
     int mergeGap = 4,
     double minimumRowHeightRatio = 0.012,
-    double minimumTableTopRatio = 0.015,
+    double minimumTableTopRatio = 0.03,
   }) {
     final decoded = img.decodeImage(encodedImage);
     if (decoded == null || decoded.width < 80 || decoded.height < 100) {
