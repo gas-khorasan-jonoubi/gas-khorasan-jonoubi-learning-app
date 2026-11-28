@@ -61,6 +61,38 @@ void main() {
       expect(rows, hasLength(4));
     });
 
+    test('ignores a short stray line above the table', () {
+      final image = img.Image(width: 300, height: 180);
+      img.fill(image, color: img.ColorRgb8(255, 255, 255));
+      img.drawLine(
+        image,
+        x1: 4,
+        y1: 2,
+        x2: 150,
+        y2: 2,
+        color: img.ColorRgb8(0, 0, 0),
+        thickness: 2,
+      );
+      for (final y in [30, 70, 110, 150]) {
+        img.drawLine(
+          image,
+          x1: 5,
+          y1: y,
+          x2: 294,
+          y2: y,
+          color: img.ColorRgb8(0, 0, 0),
+          thickness: 2,
+        );
+      }
+      final rows = BillRowDetector.detect(
+        Uint8List.fromList(img.encodePng(image)),
+        minimumHorizontalRunRatio: 0.4,
+        minimumRowHeightRatio: 0.1,
+      );
+      expect(rows, hasLength(3));
+      expect(rows.first.top, greaterThanOrEqualTo(30));
+    });
+
     test('returns no rows for an image without table rules', () {
       final image = img.Image(width: 160, height: 160);
       img.fill(image, color: img.ColorRgb8(255, 255, 255));
