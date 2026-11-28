@@ -2,9 +2,9 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
-/// Detects table rows from long horizontal rules in a photographed bill sheet.
-/// The detector is deliberately conservative: it returns intervals only
-/// between two confidently detected horizontal rules.
+/// Finds horizontal table rules by measuring the longest dark run in each
+/// image row. Unlike a whole-row darkness ratio, this tolerates slight page
+/// skew and vertical cell borders that interrupt a printed rule.
 class BillRowBounds {
   const BillRowBounds({required this.top, required this.bottom});
 
@@ -19,9 +19,9 @@ class BillRowDetector {
 
   static List<BillRowBounds> detect(
     Uint8List encodedImage, {
-    double darkPixelRatio = 0.36,
-    int threshold = 150,
-    int mergeGap = 3,
+    double minimumHorizontalRunRatio = 0.14,
+    int threshold = 160,
+    int mergeGap = 4,
     double minimumRowHeightRatio = 0.012,
   }) {
     final decoded = img.decodeImage(encodedImage);
@@ -30,17 +30,21 @@ class BillRowDetector {
     }
 
     final gray = img.grayscale(decoded);
-    final minDarkPixels = (gray.width * darkPixelRatio).round();
+    final minimumRun = (gray.width * minimumHorizontalRunRatio).round();
     final lineRows = <int>[];
 
     for (var y = 0; y < gray.height; y++) {
-      var darkPixels = 0;
+      var run = 0;
+      var longestRun = 0;
       for (var x = 0; x < gray.width; x++) {
         if (gray.getPixel(x, y).r.toInt() < threshold) {
-          darkPixels++;
+          run++;
+          if (run > longestRun) longestRun = run;
+        } else {
+          run = 0;
         }
       }
-      if (darkPixels >= minDarkPixels) lineRows.add(y);
+      if (longestRun >= minimumRun) lineRows.add(y);
     }
 
     if (lineRows.length < 2) return const [];
