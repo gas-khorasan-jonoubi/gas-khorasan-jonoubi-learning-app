@@ -112,6 +112,34 @@ class BillOcrParser {
     return null;
   }
 
+  static String? _amountValue(List<String> lines) {
+    // The statement's "بدهی مشترک" column is the outstanding balance,
+    // not the total bill amount. Never use it as the message amount.
+    const forbidden = ['بدهی مشترک', 'مانده بدهی', 'مبلغ بدهی', 'جمع بدهی'];
+    for (var index = 0; index < lines.length; index++) {
+      final line = lines[index];
+      if (forbidden.any((label) => line.contains(_normalizeText(label)))) {
+        continue;
+      }
+      for (final label in const ['مبلغ کل قبض', 'مبلغ قابل پرداخت', 'مبلغ', 'amount']) {
+        final normalizedLabel = _normalizeText(label);
+        final position = line.indexOf(normalizedLabel);
+        if (position < 0) continue;
+        final remainder = line.substring(position + normalizedLabel.length);
+        var digits = remainder.replaceAll(RegExp(r'[^0-9]'), '');
+        if (digits.isEmpty && index + 1 < lines.length) {
+          final nextLine = lines[index + 1];
+          if (forbidden.any((item) => nextLine.contains(_normalizeText(item)))) {
+            continue;
+          }
+          digits = nextLine.replaceAll(RegExp(r'[^0-9]'), '');
+        }
+        if (digits.length >= 3) return digits;
+      }
+    }
+    return null;
+  }
+
   static ParsedGasBill parse(String rawText) {
     final lines = _lines(rawText);
     final normalizedAll = lines.join(' ');
@@ -132,13 +160,7 @@ class BillOcrParser {
         'شناسه‌پرداخت',
         'payment id',
       ]),
-      amount: _numericValue(lines, const [
-        'مبلغ قابل پرداخت',
-        'مبلغ بدهی',
-        'جمع بدهی',
-        'مبلغ',
-        'amount',
-      ]),
+      amount: _amountValue(lines),
       periods: _numericValue(lines, const [
         'تعداد دوره بدهی',
         'تعداد دوره',
