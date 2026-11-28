@@ -437,13 +437,17 @@ class _BillSharePageState extends State<BillSharePage> {
         maxWidth: 2400,
         maxHeight: 1200,
         compressQuality: 95,
+        // Match the wide horizontal crop frame shown in the approved sample:
+        // approximately 3:1 (the rectangle around «روستای سمبا»).
+        aspectRatio: const CropAspectRatio(ratioX: 3, ratioY: 1),
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'برش محدوده $label',
             toolbarColor: _billNavy,
             toolbarWidgetColor: Colors.white,
-            lockAspectRatio: false,
-            initAspectRatio: CropAspectRatioPreset.original,
+            lockAspectRatio: true,
+            freeStyleCropEnabled: true,
+            showCropGrid: true,
           ),
         ],
       );
