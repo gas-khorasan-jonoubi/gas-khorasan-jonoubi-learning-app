@@ -489,7 +489,7 @@ class _BillSharePageState extends State<BillSharePage> {
       ).timeout(const Duration(seconds: 20));
       if (!mounted) return;
       final rawLines = recognized
-          .split(RegExp(r'[\\r\\n]+'))
+          .split(RegExp(r'[\r\n]+'))
           .map((line) => line.trim())
           .where((line) => line.isNotEmpty);
       // Numeric fields must never display Latin OCR hallucinations.
