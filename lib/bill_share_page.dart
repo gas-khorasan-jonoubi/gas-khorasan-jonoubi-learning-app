@@ -286,7 +286,7 @@ class _BillSharePageState extends State<BillSharePage> {
         compressQuality: 95,
         uiSettings: [
           AndroidUiSettings(
-            toolbarTitle: 'برش دقیق یک ردیف قبض',
+            toolbarTitle: 'انتخاب ردیف موردنظر از برگه',
             toolbarColor: _billNavy,
             toolbarWidgetColor: Colors.white,
             lockAspectRatio: false,
@@ -775,7 +775,7 @@ class _BillSharePageState extends State<BillSharePage> {
         OutlinedButton.icon(
           onPressed: _busy ? null : _scanBillRowWithOcr,
           icon: const Icon(Icons.document_scanner_outlined),
-          label: const Text('عکس‌برداری و خواندن یک ردیف قبض با OCR'),
+          label: const Text('اسکن برگه و انتخاب ردیف موردنظر'),
         ),
         if (_busy) const Padding(
           padding: EdgeInsets.all(12),
