@@ -19,6 +19,10 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         android = Path(temporary.name) / "android"
         app_main = android / "app" / "src" / "main"
         app_main.mkdir(parents=True)
+        (app_main / "AndroidManifest.xml").write_text(
+            '<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <application>\n    </application>\n</manifest>\n',
+            encoding="utf-8",
+        )
 
         if kotlin_dsl:
             (android / "build.gradle.kts").write_text(
@@ -88,7 +92,30 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         self.assertIn("minSdk = 24", app_gradle)
         self.assertIn('applicationId = "ir.gas.khorasanjonoubi.danestani_gaz"', app_gradle)
         self.assertIn("FlutterFragmentActivity", activity_text)
+        self.assertIn("danestani_gaz/contact_picker", activity_text)
+        self.assertIn("ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE", activity_text)
+        self.assertIn("CONTACT_PICK_REQUEST", activity_text)
+        manifest = (android / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
+        self.assertIn("<queries>", manifest)
+        self.assertIn("android.speech.RecognitionService", manifest)
+        self.assertIn("android.permission.RECORD_AUDIO", manifest)
+        self.assertIn('android:label="@string/app_name"', manifest)
+        app_name = (android / "app" / "src" / "main" / "res" / "values" / "strings.xml").read_text(encoding="utf-8")
+        self.assertIn("<string name=\"app_name\">دانستنی‌های گاز</string>", app_name)
+        self.assertIn('android:label="@string/app_name"', manifest)
+        app_name = (android / "app" / "src" / "main" / "res" / "values" / "strings.xml").read_text(encoding="utf-8")
+        self.assertIn("<string name=\"app_name\">دانستنی‌های گاز</string>", app_name)
+        self.assertIn("com.yalantis.ucrop.UCropActivity", manifest)
+        styles = (android / "app" / "src" / "main" / "res" / "values" / "styles.xml").read_text(encoding="utf-8")
+        edge_styles = (android / "app" / "src" / "main" / "res" / "values-v35" / "styles.xml").read_text(encoding="utf-8")
+        self.assertIn('name="Ucrop.CropTheme"', styles)
+        self.assertIn('parent="Theme.AppCompat.Light.NoActionBar"', styles)
+        self.assertIn('name="Ucrop.CropTheme"', edge_styles)
+        self.assertIn("android:windowOptOutEdgeToEdgeEnforcement", edge_styles)
         self.assertNotIn("class MainActivity : FlutterActivity", activity_text)
+        manifest = (android / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
+        self.assertIn("<queries>", manifest)
+        self.assertIn("android.speech.RecognitionService", manifest)
 
     def test_configures_groovy_gradle_host(self) -> None:
         android = self._make_project(kotlin_dsl=False)
@@ -100,8 +127,14 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
 
         self.assertIn("https://jitpack.io", root_gradle)
         self.assertIn("minSdkVersion 24", app_gradle)
+        manifest = (android / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
+        self.assertIn("android.permission.RECORD_AUDIO", manifest)
+        self.assertIn("com.yalantis.ucrop.UCropActivity", manifest)
+        self.assertIn("android.speech.RecognitionService", manifest)
         self.assertIn('applicationId "ir.gas.khorasanjonoubi.danestani_gaz"', app_gradle)
         self.assertIn("FlutterFragmentActivity", activity_text)
+        self.assertIn("danestani_gaz/contact_picker", activity_text)
+        self.assertIn("ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE", activity_text)
 
     def _signing_environment(self) -> dict[str, str]:
         return {
@@ -150,6 +183,17 @@ class ConfigureBazaarAndroidTest(unittest.TestCase):
         root_gradle = (android / "build.gradle.kts").read_text(encoding="utf-8")
         app_gradle = (android / "app" / "build.gradle.kts").read_text(encoding="utf-8")
         self.assertEqual(root_gradle.count("https://jitpack.io"), 1)
+        activity = next((android / "app" / "src" / "main").rglob("MainActivity.kt"))
+        activity_text = activity.read_text(encoding="utf-8")
+        self.assertEqual(activity_text.count("danestani_gaz/contact_picker"), 1)
+        manifest = (android / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
+        self.assertEqual(manifest.count("<queries>"), 1)
+        self.assertEqual(manifest.count("android.speech.RecognitionService"), 1)
+        self.assertEqual(manifest.count("android.permission.RECORD_AUDIO"), 1)
+        self.assertEqual(manifest.count('android:label="@string/app_name"'), 1)
+        strings = (android / "app" / "src" / "main" / "res" / "values" / "strings.xml").read_text(encoding="utf-8")
+        self.assertEqual(strings.count("<string name=\"app_name\">دانستنی‌های گاز</string>"), 1)
+        self.assertEqual(manifest.count("com.yalantis.ucrop.UCropActivity"), 1)
         self.assertEqual(app_gradle.count('create("release")'), 1)
         self.assertEqual(
             app_gradle.count('signingConfig = signingConfigs.getByName("release")'),

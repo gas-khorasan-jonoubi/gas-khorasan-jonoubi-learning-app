@@ -1,0 +1,988 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
+import 'bill_row_detector.dart';
+
+import 'bill_ocr_parser.dart';
+
+import 'package:material_ui/material_ui.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:tesseract_ocr/tesseract_ocr.dart';
+import 'package:tesseract_ocr/ocr_engine_config.dart';
+import 'package:flutter/services.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+const _billNavy = Color(0xFF123B66);
+const _billYellow = Color(0xFFFFD54F);
+const _archiveKey = 'scanned_bill_archive_v1';
+
+class _ThousandsSeparatorInputFormatter extends TextInputFormatter {
+  String _group(String digits) {
+    if (digits.isEmpty) return '';
+    final result = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) result.write('.');
+      result.write(digits[i]);
+    }
+    return result.toString();
+  }
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = BillOcrParser.normalizeDigits(newValue.text)
+        .replaceAll(RegExp(r'[^0-9]'), '');
+    final formatted = _group(digits);
+    final digitsBeforeCursor = BillOcrParser.normalizeDigits(
+      newValue.text.substring(0, newValue.selection.extentOffset.clamp(0, newValue.text.length)),
+    ).replaceAll(RegExp(r'[^0-9]'), '').length;
+
+    var cursor = 0;
+    var seenDigits = 0;
+    while (cursor < formatted.length && seenDigits < digitsBeforeCursor) {
+      if (formatted.codeUnitAt(cursor) >= 48 && formatted.codeUnitAt(cursor) <= 57) {
+        seenDigits++;
+      }
+      cursor++;
+    }
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: cursor),
+      composing: TextRange.empty,
+    );
+  }
+
+}
+
+class BillSharePage extends StatefulWidget {
+  const BillSharePage({super.key});
+
+  @override
+  State<BillSharePage> createState() => _BillSharePageState();
+}
+
+class _BillSharePageState extends State<BillSharePage> {
+  final _formKey = GlobalKey<FormState>();
+  final _name = TextEditingController();
+  final _billId = TextEditingController();
+  final _paymentId = TextEditingController();
+  final _amount = TextEditingController();
+  final _periods = TextEditingController();
+  final _mobile = TextEditingController();
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  static const MethodChannel _contactPicker = MethodChannel('danestani_gaz/contact_picker');
+  bool _speechReady = false;
+
+  bool _sms = true;
+  bool _social = false;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _speech.stop();
+    _name.dispose();
+    _billId.dispose();
+    _paymentId.dispose();
+    _amount.dispose();
+    _periods.dispose();
+    _mobile.dispose();
+    super.dispose();
+  }
+
+  String _normalizeIranianMobile(String raw) =>
+      BillOcrParser.normalizeIranianMobile(raw);
+
+  Future<void> _pickContactMobile() async {
+    if (_busy) return;
+    try {
+      final selected = await _contactPicker.invokeMethod<String>('pickPhone');
+      if (!mounted || selected == null || selected.trim().isEmpty) return;
+
+      final mobile = _normalizeIranianMobile(selected);
+      if (!BillOcrParser.isValidIranianMobile(mobile)) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('شماره انتخاب‌شده معتبر نیست؛ مخاطبی با شماره موبایل ۱۱ رقمی ایران انتخاب کنید.'),
+            ),
+          );
+        return;
+      }
+
+      setState(() {
+        _mobile.text = mobile;
+        _mobile.selection = TextSelection.collapsed(offset: mobile.length);
+      });
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      final message = error.code == 'NO_CONTACT_PICKER'
+          ? 'برنامه مخاطبین در این گوشی در دسترس نیست.'
+          : 'دریافت شماره مخاطب انجام نشد؛ دوباره تلاش کنید.';
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('باز کردن فهرست مخاطبین ممکن نشد.')),
+        );
+    }
+  }
+
+  String _spokenDigits(String value) {
+    final normalized = BillOcrParser.normalizeDigits(value);
+    final directDigits = normalized.replaceAll(RegExp(r'[^0-9]'), '');
+    if (directDigits.isNotEmpty) return directDigits;
+    const words = <String, String>{
+      'صفر': '0', 'یک': '1', 'یه': '1', 'اول': '1',
+      'دو': '2', 'دوتا': '2', 'سه': '3', 'سه‌تا': '3',
+      'چهار': '4', 'پنج': '5', 'شش': '6', 'شیش': '6',
+      'هفت': '7', 'هشت': '8', 'نه': '9',
+    };
+    final tokens = normalized
+        .replaceAll('،', ' ')
+        .replaceAll(',', ' ')
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty);
+    final result = StringBuffer();
+    for (final token in tokens) {
+      final digit = words[token];
+      if (digit == null) return '';
+      result.write(digit);
+    }
+    return result.toString();
+  }
+
+  String _message() => BillOcrParser.buildMessage(
+    name: _name.text,
+    billId: _billId.text,
+    paymentId: _paymentId.text,
+    amount: _amount.text,
+    periods: _periods.text,
+  );
+
+  Future<void> _saveArchive() async {
+    final prefs = await SharedPreferences.getInstance();
+    final items = prefs.getStringList(_archiveKey) ?? <String>[];
+    items.insert(0, jsonEncode({
+      'date': DateTime.now().toIso8601String(),
+      'name': _name.text.trim(),
+      'billId': _billId.text.trim(),
+      'paymentId': _paymentId.text.trim(),
+      'amount': _amount.text.trim(),
+      'periods': _periods.text.trim(),
+      'mobile': _mobile.text.trim(),
+    }));
+    await prefs.setStringList(_archiveKey, items.take(100).toList());
+  }
+
+  Future<void> _share() async {
+    if (!_formKey.currentState!.validate()) return;
+    final phone = _normalizeIranianMobile(_mobile.text);
+    if (_sms && !BillOcrParser.isValidIranianMobile(phone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('برای ارسال پیامک، شماره موبایل معتبر ۱۱ رقمی با ۰۹ وارد کنید.'),
+        ),
+      );
+      return;
+    }
+    if (!_sms && !_social) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('حداقل یک روش اشتراک‌گذاری را انتخاب کنید.')),
+      );
+      return;
+    }
+    final text = _message();
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تأیید نهایی ارسال قبض'),
+        content: SingleChildScrollView(
+          child: SelectableText(
+            '${_sms ? 'شماره گیرنده: $phone\n\n' : ''}$text',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('بازبینی و انصراف'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('تأیید و ادامه'),
+          ),
+        ],
+      ),
+    );
+    if (approved != true || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      await _saveArchive();
+      if (_sms) {
+        final smsUri = Uri(
+          scheme: 'sms',
+          path: phone,
+          queryParameters: <String, String>{'body': text},
+        );
+        final opened = await launchUrl(
+          smsUri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!opened && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('برنامه پیامک گوشی باز نشد.')),
+          );
+        }
+      }
+      if (_social) {
+        await SharePlus.instance.share(
+          ShareParams(
+            text: text,
+            title: 'اطلاعات قبض گاز',
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('اشتراک‌گذاری کامل نشد. برنامه مقصد را بررسی کنید.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+
+  Future<void> _scanBillRowWithOcr() async {
+    if (_busy) return;
+    try {
+      final photo = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        imageQuality: 95,
+        preferredCameraDevice: CameraDevice.rear,
+      );
+      if (photo == null || !mounted) return;
+      final bytes = await File(photo.path).readAsBytes();
+      final rows = BillRowDetector.detect(bytes);
+      if (rows.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('خطوط جدول به‌وضوح تشخیص داده نشد؛ عکس را صاف، کامل و با نور مناسب بگیرید یا از اسکن تکی فیلدها استفاده کنید.')),
+        );
+        return;
+      }
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) return;
+      final selectedIndex = await showDialog<int>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('انتخاب ردیف قبض (${rows.length} ردیف تشخیص داده شد)'),
+          content: SizedBox(
+            width: 380,
+            height: 420,
+            child: ListView.separated(
+              itemCount: rows.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final row = rows[index];
+                final crop = img.copyCrop(decoded, x: 0, y: row.top, width: decoded.width, height: row.height);
+                final preview = Uint8List.fromList(img.encodeJpg(crop, quality: 75));
+                return ListTile(
+                  enabled: index != 0,
+                  leading: SizedBox(width: 100, height: 52, child: Image.memory(preview, fit: BoxFit.contain)),
+                  title: Text(index == 0 ? 'سربرگ جدول' : 'ردیف مشترک ${index}'),
+                  subtitle: Text(index == 0 ? 'عنوان ستون‌ها؛ این مورد را انتخاب نکنید' : 'برای انتخاب این مشترک لمس کنید'),
+                  onTap: index == 0 ? null : () => Navigator.of(dialogContext).pop(index),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('انصراف')),
+          ],
+        ),
+      );
+      if (selectedIndex == null || !mounted) return;
+      final selectedRow = rows[selectedIndex];
+      final safeTop = (selectedRow.top + 2).clamp(0, decoded.height - 1).toInt();
+      final safeBottom = (selectedRow.bottom - 2).clamp(safeTop + 1, decoded.height).toInt();
+      final directory = await getTemporaryDirectory();
+      final rowFile = File('${directory.path}/bill_cell_${DateTime.now().microsecondsSinceEpoch}.jpg');
+      setState(() => _busy = true);
+
+      Future<String> readCell(
+        double leftRatio,
+        double rightRatio, {
+        required String language,
+        int scale = 2,
+        int verticalPadding = 0,
+        int pageSegmentationMode = 7,
+      }) async {
+        final left = (decoded.width * leftRatio).round().clamp(0, decoded.width - 1).toInt();
+        final right = (decoded.width * rightRatio).round().clamp(left + 1, decoded.width).toInt();
+        // Keep OCR inside the actual column. The name column is especially
+        // sensitive: including the adjacent serial-number column pollutes RTL text.
+        final cellTop = (safeTop - verticalPadding).clamp(0, decoded.height - 1).toInt();
+        final cellBottom = (safeBottom + verticalPadding).clamp(cellTop + 1, decoded.height).toInt();
+        final cell = img.copyCrop(
+          decoded,
+          x: left + 1 < right ? left + 1 : left,
+          y: cellTop,
+          width: right - left > 2 ? right - left - 2 : right - left,
+          height: cellBottom - cellTop,
+        );
+        // Upscale small printed cells before OCR; names need extra vertical
+        // context and 4x enlargement, while numeric cells remain 2x.
+        final enlarged = img.copyResize(
+          cell,
+          width: cell.width * scale,
+          interpolation: img.Interpolation.cubic,
+        );
+        await rowFile.writeAsBytes(img.encodeJpg(enlarged, quality: 100), flush: true);
+        return TesseractOcr.extractText(
+          rowFile.path,
+          config: OCRConfig(
+            language: language,
+            engine: OCREngine.tesseract,
+            options: {
+              'preserve_interword_spaces': '1',
+              'tessedit_pageseg_mode': pageSegmentationMode.toString(),
+              if (language == 'eng') 'tessedit_char_whitelist': '0123456789',
+            },
+          ),
+        );
+      }
+
+      // Column coordinates follow the photographed table. The outstanding
+      // balance column ("بدهی مشترک") is deliberately excluded.
+      final values = <String, String>{
+        'name': (await readCell(0.861, 0.982, language: 'fas', scale: 3, verticalPadding: 8, pageSegmentationMode: 6)).replaceAll(RegExp(r'[\r\n]+'), ' ').trim(),
+        'billId': (await readCell(0.649, 0.789, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
+        'mobile': (await readCell(0.531, 0.648, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩+()]'), '').trim(),
+        'paymentId': (await readCell(0.283, 0.402, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
+        'amount': (await readCell(0.173, 0.282, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
+        'periods': (await readCell(0.030, 0.067, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
+      };
+      if (!mounted) return;
+      final normalizedMobile = _normalizeIranianMobile(values['mobile'] ?? '');
+      _name.text = values['name'] ?? '';
+      _billId.text = BillOcrParser.normalizeDigits(values['billId'] ?? '');
+      _paymentId.text = BillOcrParser.normalizeDigits(values['paymentId'] ?? '');
+      _amount.text = BillOcrParser.formatRial(values['amount'] ?? '');
+      _periods.text = BillOcrParser.normalizeDigits(values['periods'] ?? '');
+      _mobile.text = BillOcrParser.isValidIranianMobile(normalizedMobile) ? normalizedMobile : '';
+      for (final controller in [_name, _billId, _paymentId, _amount, _periods, _mobile]) {
+        controller.selection = TextSelection.collapsed(offset: controller.text.length);
+      }
+
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('بررسی اطلاعات استخراج‌شده'),
+          content: const Text(
+            'هر ستون جداگانه خوانده شد و مقادیر به فیلدهای فرم منتقل شدند. قبل از ارسال، همه موارد را با تصویر تطبیق دهید. ستون «بدهی مشترک» عمداً استخراج نشده و مبلغ پیام فقط از ستون «مبلغ» گرفته شده است.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('بررسی و اصلاح فیلدها'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('اسکن برگه انجام نشد؛ لطفاً عکس واضح‌تر و بدون زاویه شدید بگیرید.')),
+        );
+      }
+    } finally {
+      if (mounted && _busy) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _scanFieldWithOcr(
+    String label,
+    TextEditingController controller, {
+    bool numericOnly = false,
+    bool mobile = false,
+    bool rialAmount = false,
+    bool periods = false,
+  }) async {
+    if (_busy) return;
+    try {
+      final photo = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        imageQuality: 95,
+        preferredCameraDevice: CameraDevice.rear,
+      );
+      if (photo == null || !mounted) return;
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: photo.path,
+        maxWidth: 2400,
+        maxHeight: 1200,
+        compressQuality: 95,
+        // Match the wide horizontal crop frame shown in the approved sample:
+        // approximately 3:1 (the rectangle around «روستای سمبا»).
+        aspectRatio: const CropAspectRatio(ratioX: 3, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'برش محدوده $label',
+            toolbarColor: _billNavy,
+            toolbarWidgetColor: Colors.white,
+            lockAspectRatio: true,
+            freeStyleCropEnabled: true,
+            showCropGrid: true,
+          ),
+        ],
+      );
+      if (cropped == null || !mounted) return;
+      setState(() => _busy = true);
+      // Normalize orientation and enlarge small field crops. OCR on a tiny
+      // crop often returns no text even when the source image is readable.
+      final sourceImage = img.decodeImage(await File(cropped.path).readAsBytes());
+      if (sourceImage == null) {
+        throw StateError('تصویر برش‌خورده قابل خواندن نیست.');
+      }
+      final orientedImage = img.bakeOrientation(sourceImage);
+      final isNumeric = numericOnly || mobile || rialAmount || periods;
+      // Keep every OCR input within a predictable size. Previously large
+      // camera crops bypassed the upscale-only branch and could stall phones.
+      final targetWidth = isNumeric ? 1100 : 1400;
+      final ocrImage = orientedImage.width == targetWidth
+          ? orientedImage
+          : img.copyResize(
+              orientedImage,
+              width: targetWidth,
+              interpolation: img.Interpolation.cubic,
+            );
+      final tempDirectory = await getTemporaryDirectory();
+      final ocrFile = File(
+        '${tempDirectory.path}/field_ocr_${DateTime.now().microsecondsSinceEpoch}.jpg',
+      );
+      await ocrFile.writeAsBytes(img.encodeJpg(ocrImage, quality: 88), flush: true);
+      final recognized = await TesseractOcr.extractText(
+        ocrFile.path,
+        config: OCRConfig(
+          language: isNumeric ? 'eng' : 'fas',
+          engine: OCREngine.tesseract,
+          options: {
+            'preserve_interword_spaces': '1',
+            'tessedit_pageseg_mode': '7',
+            if (isNumeric) 'tessedit_char_whitelist': '0123456789',
+          },
+        ),
+      ).timeout(const Duration(seconds: 15));
+      if (!mounted) return;
+      final rawLines = recognized
+          .split(String.fromCharCode(10))
+          .map((line) => line.replaceAll(String.fromCharCode(13), ''))
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty);
+      // Never turn Latin hallucinations into digits by stripping letters.
+      // IDs need plausible digit runs; mobile numbers must be exactly 11.
+      final minDigits = mobile ? 11 : (periods ? 1 : (numericOnly || rialAmount ? 5 : 1));
+      final maxDigits = periods ? 3 : (mobile ? 11 : (rialAmount ? 16 : 20));
+      final lines = isNumeric
+          ? BillOcrParser.numericCandidates(
+              recognized,
+              minDigits: minDigits,
+              maxDigits: maxDigits,
+              exactDigits: mobile ? 11 : null,
+            )
+          : rawLines.toList(growable: false);
+      if (lines.isEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isNumeric
+                ? 'عدد از تصویر با اطمینان خوانده نشد؛ لطفاً مقدار را دستی وارد کنید.'
+                : 'متنی از تصویر خوانده نشد؛ لطفاً مقدار را دستی وارد کنید.'),
+          ),
+        );
+      }
+      final editor = TextEditingController(text: lines.length == 1 ? lines.first : '');
+      final selected = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text('انتخاب مقدار $label'),
+          content: SizedBox(
+            width: 360,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('روی یکی از متن‌های تشخیص‌داده‌شده بزنید یا مقدار صحیح را دستی اصلاح کنید.'),
+                  const SizedBox(height: 10),
+                  if (lines.isEmpty)
+                    const Text('عدد یا متن قابل‌اعتماد تشخیص داده نشد؛ مقدار را در کادر زیر دستی وارد کنید.')
+                  else
+                    ...lines.map((line) => ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(line, textDirection: isNumeric ? TextDirection.ltr : TextDirection.rtl),
+                      onTap: () {
+                        setDialogState(() {
+                          editor.value = TextEditingValue(
+                            text: line,
+                            selection: TextSelection.collapsed(offset: line.length),
+                          );
+                        });
+                      },
+                    )),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: editor,
+                    autofocus: lines.isEmpty,
+                    maxLines: isNumeric ? 1 : 2,
+                    keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
+                    inputFormatters: isNumeric
+                        ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9۰-۹٠-٩]'))]
+                        : null,
+                    textDirection: isNumeric ? TextDirection.ltr : TextDirection.rtl,
+                    decoration: InputDecoration(
+                      labelText: 'مقدار نهایی $label',
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('انصراف'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(editor.text.trim()),
+              child: const Text('ثبت در فیلد'),
+            ),
+          ],
+          ),
+        ),
+      );
+      editor.dispose();
+      if (selected == null || !mounted) return;
+      var value = BillOcrParser.normalizeDigits(selected).trim();
+      if (isNumeric && value.replaceAll(RegExp(r'[^0-9]'), '').isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('مقدار عددی معتبری ثبت نشد؛ لطفاً فقط رقم‌ها را وارد کنید.')),
+        );
+        return;
+      }
+      if (numericOnly && value.replaceAll(RegExp(r'[^0-9]'), '').length < 5) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('شناسه باید حداقل ۵ رقم داشته باشد؛ مقدار را دوباره بررسی کنید.')),
+        );
+        return;
+      }
+      if (mobile) {
+        value = _normalizeIranianMobile(value);
+        if (!BillOcrParser.isValidIranianMobile(value)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('شماره انتخاب‌شده معتبر نیست؛ شماره باید ۱۱ رقم و با ۰۹ باشد.')),
+          );
+          return;
+        }
+      } else if (numericOnly || periods || rialAmount) {
+        value = value.replaceAll(RegExp(r'[^0-9]'), '');
+        if (periods && value.length > 3) value = value.substring(0, 3);
+        if (rialAmount) value = BillOcrParser.formatRial(value);
+      }
+      controller.text = value;
+      controller.selection = TextSelection.collapsed(offset: value.length);
+    } on PlatformException catch (error) {
+      if (mounted) {
+        final detail = [error.code, error.message].whereType<String>().where((v) => v.isNotEmpty).join(': ');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(detail.isEmpty ? 'خطای موتور OCR رخ داد.' : 'خطای OCR: $detail')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطای اسکن $label: $error')),
+        );
+      }
+    } finally {
+      if (mounted && _busy) setState(() => _busy = false);
+    }
+  }
+
+  void _showSpeechFailure({String? errorCode}) {
+    if (!mounted) return;
+    final code = (errorCode ?? '').toLowerCase();
+
+    if (code == 'error_no_match' || code == 'error_speech_timeout') {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('صدا تشخیص داده نشد؛ لطفاً دوباره و واضح‌تر صحبت کنید.'),
+          ),
+        );
+      return;
+    }
+
+    if (code == 'error_permission' || code == 'error_audio_error') {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('مجوز میکروفون یا دسترسی ضبط صدا را در تنظیمات گوشی بررسی کنید.'),
+          ),
+        );
+      return;
+    }
+
+    const networkErrors = <String>{
+      'error_network',
+      'error_network_timeout',
+      'error_server',
+      'error_server_disconnected',
+      'error_language_unavailable',
+      'error_language_not_supported',
+    };
+    final isNetworkProblem = networkErrors.contains(code) ||
+        code.contains('network') ||
+        code.contains('server');
+
+    final message = isNetworkProblem
+        ? 'تشخیص گفتار آفلاین در دسترس نیست؛ لطفاً اینترنت خود را متصل کنید و دوباره تلاش کنید.'
+        : 'ورود صوتی در دسترس نیست؛ لطفاً اینترنت خود را متصل کنید و فعال بودن سرویس گفتار فارسی و مجوز میکروفون را بررسی کنید.';
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _listenInto(TextEditingController controller) async {
+    if (_speech.isListening) {
+      await _speech.stop();
+      if (mounted) setState(() {});
+      return;
+    }
+    try {
+      _speechReady = await _speech.initialize(
+        onStatus: (_) { if (mounted) setState(() {}); },
+        onError: (error) {
+          _showSpeechFailure(errorCode: error.errorMsg);
+        },
+      );
+      if (!_speechReady) {
+        _showSpeechFailure();
+        return;
+      }
+      await _speech.listen(
+        localeId: 'fa_IR',
+        listenFor: const Duration(seconds: 15),
+        pauseFor: const Duration(seconds: 3),
+        onResult: (result) {
+          if (!mounted || result.recognizedWords.trim().isEmpty) return;
+          final spoken = result.recognizedWords.trim();
+          final isNumericField = controller == _billId || controller == _paymentId || controller == _periods || controller == _mobile;
+          controller.text = controller == _mobile
+              ? _normalizeIranianMobile(_spokenDigits(spoken))
+              : isNumericField ? _spokenDigits(spoken) : spoken;
+          controller.selection = TextSelection.collapsed(offset: controller.text.length);
+          setState(() {});
+        },
+      );
+      if (mounted) setState(() {});
+    } catch (_) {
+      _showSpeechFailure();
+    }
+  }
+
+  Widget _field(
+    String label,
+    TextEditingController controller, {
+    TextInputType keyboard = TextInputType.text,
+    bool required = false,
+    bool mobile = false,
+    bool periods = false,
+    bool numericOnly = false,
+    bool rialAmount = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboard,
+        inputFormatters: mobile || periods || numericOnly
+            ? [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9۰-۹٠-٩]')),
+                if (mobile) LengthLimitingTextInputFormatter(11),
+                if (periods) LengthLimitingTextInputFormatter(3),
+              ]
+            : rialAmount
+                ? [_ThousandsSeparatorInputFormatter()]
+                : null,
+        validator: mobile
+            ? (value) {
+                final normalized = _normalizeIranianMobile(value ?? '');
+                if (normalized.isEmpty) {
+                  return _sms ? 'برای ارسال پیامک، شماره موبایل را وارد کنید.' : null;
+                }
+                return BillOcrParser.isValidIranianMobile(normalized)
+                    ? null
+                    : 'شماره موبایل باید دقیقاً ۱۱ رقم و با ۰۹ شروع شود.';
+              }
+            : required
+                ? (value) => (value == null || value.trim().isEmpty)
+                    ? 'این فیلد الزامی است'
+                    : null
+                : null,
+        textDirection: mobile || periods || numericOnly ? TextDirection.ltr : TextDirection.rtl,
+        textAlign: mobile || periods || numericOnly ? TextAlign.right : TextAlign.start,
+        decoration: InputDecoration(
+          labelText: label,
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(13)),
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'اسکن تصویری همین فیلد: $label',
+                onPressed: _busy ? null : () => _scanFieldWithOcr(
+                  label,
+                  controller,
+                  numericOnly: numericOnly,
+                  mobile: mobile,
+                  rialAmount: rialAmount,
+                  periods: periods,
+                ),
+                icon: const Icon(Icons.document_scanner_outlined),
+              ),
+              IconButton(
+                tooltip: 'ورود صوتی برای $label',
+                onPressed: _busy ? null : () => _listenInto(controller),
+                icon: Icon(_speech.isListening ? Icons.mic_off : Icons.mic),
+              ),
+              if (mobile)
+                IconButton(
+                  tooltip: 'انتخاب شماره از مخاطبین گوشی',
+                  onPressed: _busy ? null : _pickContactMobile,
+                  icon: const Icon(Icons.contacts_outlined),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      backgroundColor: _billNavy,
+      foregroundColor: Colors.white,
+      title: const Text('اسکن و اشتراک‌گذاری قبض'),
+      actions: [
+        IconButton(
+          tooltip: 'آرشیو قبض‌ها',
+          icon: const Icon(Icons.archive_outlined),
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const BillArchivePage()),
+          ),
+        ),
+      ],
+    ),
+    body: ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _billNavy,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: const Row(children: [
+            Icon(Icons.document_scanner_outlined, color: _billYellow, size: 36),
+            SizedBox(width: 12),
+            Expanded(child: Text(
+              'برای اسکن تصویری هر فیلد، آیکن برگه را بزنید و برای ورود صوتی از میکروفون استفاده کنید. برای شماره موبایل می‌توانید از مخاطبین گوشی هم انتخاب کنید. اطلاعات را پیش از ارسال بررسی و اصلاح کنید.',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+            )),
+          ]),
+        ),
+        const SizedBox(height: 14),
+        OutlinedButton.icon(
+          onPressed: _busy ? null : _scanBillRowWithOcr,
+          icon: const Icon(Icons.document_scanner_outlined),
+          label: const Text('اسکن برگه و انتخاب ردیف موردنظر'),
+        ),
+        if (_busy) const Padding(
+          padding: EdgeInsets.all(12),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        const SizedBox(height: 18),
+        Form(
+          key: _formKey,
+          child: Column(children: [
+            _field('نام مشترک', _name, required: true),
+            _field('شناسه قبض', _billId, keyboard: TextInputType.number, required: true, numericOnly: true),
+            _field('شناسه پرداخت', _paymentId, keyboard: TextInputType.number, required: true, numericOnly: true),
+            _field('مبلغ کل قبض (ریال) — جداکنندهٔ سه‌رقمی', _amount, keyboard: TextInputType.number, required: true, rialAmount: true),
+            _field('تعداد دوره‌های بدهی (حداکثر ۳ رقم)', _periods, keyboard: TextInputType.number, periods: true),
+            _field('شماره موبایل دریافت‌کننده (۱۱ رقم)', _mobile, keyboard: TextInputType.phone, mobile: true),
+          ]),
+        ),
+        const SizedBox(height: 8),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('روش اشتراک‌گذاری', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _sms,
+                onChanged: _busy ? null : (v) => setState(() { _sms = v ?? false; if (v == true) _social = false; }),
+                title: const Text('پیامک'),
+                subtitle: const Text('فقط متن اطلاعات قبض'),
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _social,
+                onChanged: _busy ? null : (v) => setState(() { _social = v ?? false; if (v == true) _sms = false; }),
+                title: const Text('شبکه‌های اجتماعی'),
+                subtitle: const Text('فقط متن اطلاعات قبض؛ انتخاب برنامه و گیرنده در مقصد'),
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          style: FilledButton.styleFrom(backgroundColor: _billYellow, foregroundColor: Colors.black, padding: const EdgeInsets.all(15)),
+          onPressed: _busy ? null : _share,
+          icon: const Icon(Icons.share),
+          label: const Text('اشتراک‌گذاری قبض', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'توجه: متن و اعداد تشخیص‌داده‌شده را پیش از ارسال کنترل کنید. تشخیص متن فارسی در موتور آفلاین فعلی محدود است؛ نام و شناسه‌ها را حتماً بررسی و در صورت نیاز اصلاح کنید.',
+          style: TextStyle(color: Colors.black54, fontSize: 12),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ),
+  );
+}
+
+class BillArchivePage extends StatefulWidget {
+  const BillArchivePage({super.key});
+
+  @override
+  State<BillArchivePage> createState() => _BillArchivePageState();
+}
+
+class _BillArchivePageState extends State<BillArchivePage> {
+  Future<List<Map<String, dynamic>>> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final values = prefs.getStringList(_archiveKey) ?? <String>[];
+    final records = <Map<String, dynamic>>[];
+    for (final value in values) {
+      try {
+        final item = jsonDecode(value);
+        if (item is Map<String, dynamic>) records.add(item);
+      } catch (_) {}
+    }
+    return records;
+  }
+
+  Future<void> _delete(Map<String, dynamic> item) async {
+    final prefs = await SharedPreferences.getInstance();
+    final values = prefs.getStringList(_archiveKey) ?? <String>[];
+    values.removeWhere((value) {
+      try {
+        final decoded = jsonDecode(value);
+        return decoded is Map && decoded['date'] == item['date'];
+      } catch (_) {
+        return false;
+      }
+    });
+    await prefs.setStringList(_archiveKey, values);
+    final path = item['imagePath'];
+    if (path is String) {
+      try { final file = File(path); if (await file.exists()) await file.delete(); } catch (_) {}
+    }
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('آرشیو قبض‌های اسکن‌شده')),
+    body: FutureBuilder<List<Map<String, dynamic>>>(
+      future: _load(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final records = snapshot.data ?? [];
+        if (records.isEmpty) return const Center(child: Text('هنوز قبضی ذخیره نشده است.'));
+        return ListView.builder(
+          padding: const EdgeInsets.all(12),
+          itemCount: records.length,
+          itemBuilder: (context, index) {
+            final item = records[index];
+            final date = DateTime.tryParse(item['date'] as String? ?? '');
+            final path = item['imagePath'];
+            return Card(
+              child: ListTile(
+                leading: path is String && File(path).existsSync()
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.file(File(path), width: 52, height: 52, fit: BoxFit.cover),
+                      )
+                    : const CircleAvatar(child: Icon(Icons.receipt_long)),
+                title: Text((item['name'] as String?)?.isNotEmpty == true ? item['name'] as String : 'قبض بدون نام'),
+                subtitle: Text('شناسه قبض: ${item['billId'] ?? '-'}\n${date == null ? '' : '${date.year}/${date.month}/${date.day}'}'),
+                isThreeLine: true,
+                trailing: IconButton(
+                  tooltip: 'حذف از آرشیو',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () => _delete(item),
+                ),
+                onTap: () => showDialog<void>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('اطلاعات قبض'),
+                    content: SingleChildScrollView(child: Text(
+                      'نام مشترک: ${item['name'] ?? '-'}\n'
+                      'شناسه قبض: ${item['billId'] ?? '-'}\n'
+                      'شناسه پرداخت: ${item['paymentId'] ?? '-'}\n'
+                      'مبلغ کل قبض: ${item['amount'] ?? '-'} ریال\n'
+                      'دوره‌ها: ${item['periods'] ?? '-'}\n'
+                      'موبایل: ${item['mobile'] ?? '-'}',
+                    )),
+                    actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('بستن'))],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ),
+  );
+}

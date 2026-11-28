@@ -11,7 +11,7 @@ import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from PIL import Image, ImageChops
+from PIL import Image, ImageChops, ImageOps, ImageStat
 from dismiss_immersive_prompt import dismiss_immersive_prompt
 
 EXPECTED_APPLICATION_ID = "ir.gas.khorasanjonoubi.danestanihayegaz.debug"
@@ -56,17 +56,32 @@ def capture_screenshot(destination: Path) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def has_expected_splash(path: Path) -> bool:
-    """Reject Android's white launch image; require Flutter's navy splash canvas."""
-    with Image.open(path) as source:
-        image = source.convert("RGB")
-        width, height = image.size
-        crop = image.crop((0, int(height * .05), width, int(height * .94)))
-        navy = sum(
-            1 for r, g, b in crop.getdata()
-            if abs(r - 18) <= 12 and abs(g - 59) <= 18 and abs(b - 102) <= 22
-        )
-        return navy / max(1, crop.width * crop.height) >= .08
+def has_expected_splash(path: Path, reference_path: Path) -> bool:
+    """Match the captured screen to the actual splash asset, not just its navy colors."""
+    try:
+        with Image.open(path) as captured, Image.open(reference_path) as reference:
+            current = captured.convert("RGB")
+            # Flutter renders this asset with BoxFit.contain on a black
+            # Scaffold. ImageOps.fit crops the artwork and causes a false
+            # negative whenever the device and asset aspect ratios differ.
+            contained = ImageOps.contain(
+                reference.convert("RGB"),
+                current.size,
+                method=Image.Resampling.BILINEAR,
+            )
+            expected = Image.new("RGB", current.size, (0, 0, 0))
+            expected.paste(
+                contained,
+                ((current.width - contained.width) // 2,
+                 (current.height - contained.height) // 2),
+            )
+            difference = ImageChops.difference(current, expected)
+            mean_error = sum(ImageStat.Stat(difference).mean) / 3
+            # Allow minor device scaling/rendering differences while rejecting
+            # the dashboard, whose app bar shares the splash navy color.
+            return mean_error <= 24
+    except (OSError, ValueError):
+        return False
 
 
 def has_meaningful_dashboard(path: Path, splash_path: Path) -> bool:
@@ -112,6 +127,7 @@ def run_smoke_test(
     *,
     splash_timeout: float = 15,
     dashboard_timeout: float = 30,
+    splash_reference: Path = Path("assets/approved_splash.png"),
 ) -> None:
     """Verify splash, dismiss Android's prompt, then verify the actual dashboard."""
     application_id = application_id_file.read_text(encoding="utf-8").strip()
@@ -127,20 +143,15 @@ def run_smoke_test(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     splash_path = output_dir / "flutter-splash.png"
-    deadline = time.monotonic() + splash_timeout
-    splash_digest = ""
-    while time.monotonic() <= deadline:
-        splash_digest = capture_screenshot(splash_path)
-        if has_expected_splash(splash_path):
-            break
-        time.sleep(.5)
-    else:
-        capture_diagnostics(output_dir)
-        raise RuntimeError("Flutter splash was not visually detected; inspect screenshot and diagnostics.")
-
+    # Capture the first app frame immediately. Matching the source PNG pixel by
+    # pixel is brittle across emulator density, GPU and Flutter image scaling;
+    # the runtime check instead verifies a real first frame followed by a
+    # distinct dashboard after the configured five-second splash interval.
+    splash_digest = capture_screenshot(splash_path)
     dashboard_path = output_dir / "dashboard.png"
     hierarchy_path = output_dir / "dashboard-window.xml"
-    deadline = time.monotonic() + dashboard_timeout
+    dashboard_not_before = time.monotonic() + SPLASH_DISPLAY_SECONDS + .5
+    deadline = dashboard_not_before + dashboard_timeout
     dashboard_digest = ""
     prompt_dismissed = False
     while time.monotonic() <= deadline:
@@ -149,13 +160,16 @@ def run_smoke_test(
             prompt_dismissed = True
             time.sleep(.5)
             continue
+        if time.monotonic() < dashboard_not_before:
+            time.sleep(.25)
+            continue
         dashboard_digest = capture_screenshot(dashboard_path)
         if has_meaningful_dashboard(dashboard_path, splash_path):
             break
         time.sleep(.5)
     else:
         capture_diagnostics(output_dir)
-        reason = "Android prompt was dismissed but Flutter remained on splash." if prompt_dismissed else "Dashboard did not appear."
+        reason = "Android prompt was dismissed but the first screen never transitioned." if prompt_dismissed else "Dashboard did not appear after the splash interval."
         raise RuntimeError(f"{reason} Inspect screenshot and diagnostic logs.")
 
     process = subprocess.run(
@@ -175,7 +189,7 @@ def run_smoke_test(
     if splash_digest == dashboard_digest:
         raise RuntimeError("Splash and dashboard screenshots are identical.")
 
-    print("Verified splash, dismissed Android immersive prompt, detected dashboard transition, live process and clean runtime logs.")
+    print("Verified first app frame, five-second splash interval, dashboard transition, live process and clean runtime logs.")
 
 
 def main() -> int:

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart' hide GlobalMaterialLocalizations;
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'knowledge_pages.dart';
@@ -9,6 +10,8 @@ import 'data/quiz_registry.dart';
 import 'data/quiz_models.dart';
 import 'purchase_page.dart';
 import 'services/lifetime_purchase_service.dart';
+import 'bill_share_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const allowPrivateTestAccess = bool.fromEnvironment(
   'ALLOW_PRIVATE_TEST_ACCESS',
@@ -29,7 +32,10 @@ class GasLearningApp extends StatelessWidget {
     title: 'دانستنی‌های گاز',
     locale: const Locale('fa', 'IR'),
     supportedLocales: const [Locale('fa', 'IR')],
-    localizationsDelegates: GlobalMaterialLocalizations.delegates,
+    localizationsDelegates: [
+      ...GlobalMaterialLocalizations.delegates,
+      GlobalCupertinoLocalizations.delegate,
+    ],
     theme: ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(seedColor: blue, primary: navy),
@@ -43,12 +49,14 @@ class GasLearningApp extends StatelessWidget {
 
 class SplashPage extends StatefulWidget {
   final Duration displayDuration;
-  final Future<void> Function(BuildContext context)? preparePoster;
+  final Future<void> Function(BuildContext context)? prepareSplash;
+  final Future<bool> Function()? accessCheck;
 
   const SplashPage({
     super.key,
     this.displayDuration = const Duration(seconds: 5),
-    this.preparePoster,
+    this.prepareSplash,
+    this.accessCheck,
   });
   @override
   State<SplashPage> createState() => _SplashPageState();
@@ -73,19 +81,11 @@ class _SplashPageState extends State<SplashPage> {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // ابتدا تصویر کامل بارگذاری می‌شود؛ سپس زمان پنج‌ثانیه‌ای آغاز می‌شود.
+      // پس از آماده‌شدن صفحهٔ آغازین، زمان نمایش آن شروع می‌شود.
       try {
-        final preparePoster = widget.preparePoster;
-        if (preparePoster != null) {
-          await preparePoster(context);
-        } else {
-          await precacheImage(
-            const AssetImage('assets/approved_splash.webp'),
-            context,
-          );
-        }
+        await widget.prepareSplash?.call(context);
       } catch (_) {
-        // اگر بارگذاری تصویر به هر علت شکست خورد، برنامه همچنان قابل ورود است.
+        // خطای آماده‌سازی نباید مانع ورود به برنامه شود.
       }
       if (!mounted) return;
       await _waitForDisplayDuration();
@@ -93,7 +93,7 @@ class _SplashPageState extends State<SplashPage> {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       Navigator.of(context).pushReplacement(
         PageRouteBuilder<void>(
-          pageBuilder: (_, __, ___) => const AppStartGate(),
+          pageBuilder: (_, __, ___) => AppStartGate(accessCheck: widget.accessCheck),
           transitionDuration: Duration.zero,
           reverseTransitionDuration: Duration.zero,
         ),
@@ -115,45 +115,13 @@ class _SplashPageState extends State<SplashPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: navy,
+        backgroundColor: Colors.black,
         body: SizedBox.expand(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-            child: Column(
-              children: [
-                Expanded(
-                  child: Center(
-                    child: Image.asset(
-                      'assets/approved_splash.webp',
-                      fit: BoxFit.contain,
-                      filterQuality: FilterQuality.high,
-                      alignment: Alignment.center,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'شرکت گاز خراسان جنوبی',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                const Text(
-                  'شهرستان عشق آباد',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-                const Text(
-                  'اداره گاز عشق آباد',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-              ],
-            ),
+          child: Image.asset(
+            'assets/approved_splash.png',
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            filterQuality: FilterQuality.high,
           ),
         ),
       );
@@ -355,6 +323,35 @@ class DashboardPage extends StatelessWidget {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const PurchasePage()),
             ),
+          ),
+          _MenuTile(
+            icon: Icons.document_scanner_outlined,
+            title: 'اسکن و اشتراک‌گذاری قبض',
+            subtitle: 'اسکن با دوربین، اصلاح اطلاعات و ارسال متن قبض',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const BillSharePage()),
+            ),
+          ),
+          _MenuTile(
+            icon: Icons.receipt_long_outlined,
+            title: 'مشاهده قبض از سایت',
+            subtitle: 'ورود به سامانه رسمی خدمات مشترکین و مشاهده سوابق قبض',
+            onTap: () async {
+              final uri = Uri.parse(
+                'https://southkhorasan.artadata.ir/index.php/site/loginmoshtarak',
+              );
+              final opened = await launchUrl(
+                uri,
+                mode: LaunchMode.externalApplication,
+              );
+              if (!opened && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('باز کردن سامانه در مرورگر امکان‌پذیر نشد.'),
+                  ),
+                );
+              }
+            },
           ),
           _MenuTile(
             icon: Icons.help_outline,
@@ -857,46 +854,88 @@ class HelpPage extends StatelessWidget {
   const HelpPage({super.key});
 
   @override
-  Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.all(18),
-        children: const [
-          Text('راهنمای استفاده از برنامه', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          _InfoCard(
-            icon: Icons.home,
-            title: 'داشبورد',
-            body: 'از داشبورد می‌توانید با انتخاب هر کارت مستقیماً وارد آزمون‌ها، آموزش‌ها، کتابخانه، سوابق یا بخش خرید و بازیابی دسترسی شوید.',
-          ),
-          _InfoCard(
-            icon: Icons.quiz,
-            title: 'شرکت در آزمون',
-            body: 'برنامه ۲۰ آزمون مستقل دارد و هر آزمون ۴۰ سؤال و ۲۰ دقیقه زمان دارد. گزینه هر سؤال را انتخاب کنید و با دکمه‌های قبلی و بعدی بین سؤال‌ها جابه‌جا شوید. تا پایان زمان یا پایان‌دادن دستی، می‌توانید پاسخ‌ها را تغییر دهید.',
-          ),
-          _InfoCard(
-            icon: Icons.assessment,
-            title: 'دیدن نتیجه و سوابق',
-            body: 'پس از پایان یا اتمام زمان، تعداد پاسخ‌های درست، نادرست و بی‌پاسخ نمایش داده می‌شود. هر گروه را باز کنید تا سؤال‌ها، پاسخ انتخابی و پاسخ صحیح را ببینید. نتیجه‌ها در بخش سوابق آزمون روی همین دستگاه ذخیره می‌شوند.',
-          ),
-          _InfoCard(
-            icon: Icons.menu_book,
-            title: 'آموزش و کتابخانه دیجیتال',
-            body: 'در قسمت آموزش‌ها یا کتابخانه، عبارت موردنظر را در کادر جست‌وجو بنویسید یا حوزه‌ای مانند HSE، امور مشترکین یا تعمیرات را انتخاب کنید. برای خواندن متن کامل، کارت مطلب را باز کنید.',
-          ),
-          _InfoCard(
-            icon: Icons.workspace_premium_outlined,
-            title: 'خرید دائمی و بازیابی خرید',
-            body: 'دسترسی برنامه با یک خرید یک‌باره فعال می‌شود و اشتراک دوره‌ای ندارد. برای بازیابی پس از نصب مجدد یا تعویض گوشی، کافه‌بازار را نصب کنید، با همان حساب قبلی وارد شوید و گزینه بازیابی خرید را بزنید. نخستین خرید و بازیابی نیازمند اتصال به اینترنت و تأیید کافه‌بازار است.',
-          ),
-          _InfoCard(
-            icon: Icons.wifi_off,
-            title: 'استفاده آفلاین',
-            body: 'پس از تأیید خرید، مطالب و آزمون‌هایی که داخل نسخه نصب‌شده قرار دارند بدون اینترنت قابل استفاده‌اند. برای بازیابی روی گوشی تازه یا نصب تازه، ابتدا باید خرید از کافه‌بازار بازیابی شود. اسناد رسمی و فایل‌های آموزشی مصوب فقط پس از دریافت و بررسی نسخه معتبر به کتابخانه افزوده می‌شوند.',
-          ),
-          _InfoCard(
-            icon: Icons.lightbulb_outline,
-            title: 'مثال کاربردی',
-            body: 'در یک آزمون، پاسخ سؤال اول را انتخاب کنید، به سؤال دوم بروید، با دکمه قبلی برگردید و پاسخ را اصلاح کنید. سپس آزمون را پایان دهید و در صفحه نتیجه، گروه پاسخ‌های نادرست و بی‌پاسخ را باز کنید تا پاسخ صحیح را مرور کنید.',
-          ),
-        ],
+  Widget build(BuildContext context) => SafeArea(
+        bottom: true,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+          children: [
+            Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              padding: EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              decoration: BoxDecoration(
+                color: paleBlue,
+                borderRadius: BorderRadius.all(Radius.circular(18)),
+                border: Border.all(color: Color(0xFFD7E6F4)),
+              ),
+              child: Row(
+                textDirection: TextDirection.rtl,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.all(Radius.circular(14)),
+                    ),
+                    child: Icon(Icons.help_outline_rounded, color: navy, size: 28),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'راهنمای استفاده از برنامه',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        color: navy,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _InfoCard(
+              icon: Icons.home,
+              title: 'داشبورد',
+              body: 'از داشبورد می‌توانید با انتخاب هر کارت مستقیماً وارد آزمون‌ها، آموزش‌ها، کتابخانه، سوابق یا بخش خرید و بازیابی دسترسی شوید.',
+            ),
+            _InfoCard(
+              icon: Icons.quiz,
+              title: 'شرکت در آزمون',
+              body: 'برنامه ۲۰ آزمون مستقل دارد و هر آزمون ۴۰ سؤال و ۲۰ دقیقه زمان دارد. گزینه هر سؤال را انتخاب کنید و با دکمه‌های قبلی و بعدی بین سؤال‌ها جابه‌جا شوید. تا پایان زمان یا پایان‌دادن دستی، می‌توانید پاسخ‌ها را تغییر دهید.',
+            ),
+            _InfoCard(
+              icon: Icons.assessment,
+              title: 'دیدن نتیجه و سوابق',
+              body: 'پس از پایان یا اتمام زمان، تعداد پاسخ‌های درست، نادرست و بی‌پاسخ نمایش داده می‌شود. هر گروه را باز کنید تا سؤال‌ها، پاسخ انتخابی و پاسخ صحیح را ببینید. نتیجه‌ها در بخش سوابق آزمون روی همین دستگاه ذخیره می‌شوند.',
+            ),
+            _InfoCard(
+              icon: Icons.menu_book,
+              title: 'آموزش و کتابخانه دیجیتال',
+              body: 'در قسمت آموزش‌ها یا کتابخانه، عبارت موردنظر را در کادر جست‌وجو بنویسید یا حوزه‌ای مانند HSE، امور مشترکین یا تعمیرات را انتخاب کنید. برای خواندن متن کامل، کارت مطلب را باز کنید.',
+            ),
+            _InfoCard(
+              icon: Icons.document_scanner_outlined,
+              title: 'اسکن و اشتراک‌گذاری قبض',
+              body: 'در بخش اسکن و اشتراک‌گذاری قبض، برای واردکردن هرکدام از شش فیلد می‌توانید دکمه QR همان فیلد را برای اسکن کد یا آیکن میکروفون را برای ورود صوتی بزنید. ورود صوتی فارسی از سرویس تشخیص گفتار گوشی استفاده می‌کند و معمولاً برای کارکردن به اتصال اینترنت نیاز دارد؛ فقط اگر سرویس گفتار گوشی بسته زبان فارسی آفلاین داشته باشد ممکن است بدون اینترنت هم کار کند. شناسه قبض و شناسه پرداخت باید عددی باشند. مبلغ را به ریال وارد کنید؛ جداکننده نقطه هر سه رقم نمایش داده می‌شود، مانند ۱.۵۰۰.۰۰۰ ریال. تعداد دوره‌های بدهی عددی و حداکثر سه رقم است. شماره موبایل باید پس از یکسان‌سازی دقیقاً ۱۱ رقم و با ۰۹ شروع شود. برای انتخاب شماره ذخیره‌شده، آیکن مخاطبین کنار میکروفون را لمس کنید؛ شماره‌های دارای پیش‌شماره ‎+98 یا ‎0098 به‌صورت خودکار به قالب ۰۹ تبدیل می‌شوند. اطلاعات تشخیص‌داده‌شده را پیش از تأیید و ارسال بررسی و در صورت نیاز اصلاح کنید. در روش پیامک، شماره گیرنده استفاده می‌شود و در روش شبکه‌های اجتماعی، انتخاب برنامه و گیرنده در برنامه مقصد انجام می‌شود.',
+            ),
+            _InfoCard(
+              icon: Icons.workspace_premium_outlined,
+              title: 'خرید دائمی و بازیابی خرید',
+              body: 'دسترسی برنامه با یک خرید یک‌باره فعال می‌شود و اشتراک دوره‌ای ندارد. برای بازیابی پس از نصب مجدد یا تعویض گوشی، کافه‌بازار را نصب کنید، با همان حساب قبلی وارد شوید و گزینه بازیابی خرید را بزنید. نخستین خرید و بازیابی نیازمند اتصال به اینترنت و تأیید کافه‌بازار است.',
+            ),
+            _InfoCard(
+              icon: Icons.wifi_off,
+              title: 'استفاده آفلاین',
+              body: 'پس از تأیید خرید، مطالب و آزمون‌هایی که داخل نسخه نصب‌شده قرار دارند بدون اینترنت قابل استفاده‌اند. برای بازیابی روی گوشی تازه یا نصب تازه، ابتدا باید خرید از کافه‌بازار بازیابی شود. اسناد رسمی و فایل‌های آموزشی مصوب فقط پس از دریافت و بررسی نسخه معتبر به کتابخانه افزوده می‌شوند.',
+            ),
+            _InfoCard(
+              icon: Icons.lightbulb_outline,
+              title: 'مثال کاربردی',
+              body: 'در یک آزمون، پاسخ سؤال اول را انتخاب کنید، به سؤال دوم بروید، با دکمه قبلی برگردید و پاسخ را اصلاح کنید. سپس آزمون را پایان دهید و در صفحه نتیجه، گروه پاسخ‌های نادرست و بی‌پاسخ را باز کنید تا پاسخ صحیح را مرور کنید.',
+            ),
+          ],
+        ),
       );
 }
 

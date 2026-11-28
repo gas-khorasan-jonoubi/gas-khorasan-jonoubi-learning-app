@@ -104,6 +104,328 @@ def _configure_activity(android: Path) -> None:
     activity_file.write_text(source, encoding="utf-8")
 
 
+def _configure_app_label(android: Path) -> None:
+    """Set the Android launcher label independently from the Flutter project name."""
+    source_root = android / "app" / "src" / "main"
+    manifest = source_root / "AndroidManifest.xml"
+    if not manifest.is_file():
+        raise RuntimeError("AndroidManifest.xml was not generated.")
+    source = manifest.read_text(encoding="utf-8")
+    application_pattern = re.compile(r"<application\b[^>]*>")
+    match = application_pattern.search(source)
+    if match is None:
+        raise RuntimeError("Could not find the Android application element.")
+
+    application_tag = match.group(0)
+    if re.search(r"\bandroid:label\s*=", application_tag):
+        updated_tag = re.sub(
+            r'android:label\s*=\s*("[^"]*"|\'[^\']*\')',
+            'android:label="@string/app_name"',
+            application_tag,
+            count=1,
+        )
+    else:
+        updated_tag = application_tag[:-1] + ' android:label="@string/app_name">'
+    source = source[:match.start()] + updated_tag + source[match.end():]
+    manifest.write_text(source, encoding="utf-8")
+
+    values = source_root / "res" / "values"
+    values.mkdir(parents=True, exist_ok=True)
+    strings = values / "strings.xml"
+    strings_source = strings.read_text(encoding="utf-8") if strings.exists() else '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n</resources>\n'
+    label = "دانستنی‌های گاز"
+    if re.search(r'<string\s+name="app_name">.*?</string>', strings_source, re.DOTALL):
+        strings_source = re.sub(
+            r'<string\s+name="app_name">.*?</string>',
+            f'<string name="app_name">{label}</string>',
+            strings_source,
+            count=1,
+            flags=re.DOTALL,
+        )
+    else:
+        strings_source = strings_source.replace(
+            "</resources>",
+            f'    <string name="app_name">{label}</string>\n</resources>',
+            1,
+        )
+    if "</resources>" not in strings_source:
+        raise RuntimeError("Could not write Android app_name string resource.")
+    strings.write_text(strings_source, encoding="utf-8")
+
+
+def _configure_speech_queries(android: Path) -> None:
+    manifest = android / "app" / "src" / "main" / "AndroidManifest.xml"
+    if not manifest.is_file():
+        raise RuntimeError("AndroidManifest.xml was not generated.")
+    source = manifest.read_text(encoding="utf-8")
+    additions = ""
+    if "android.permission.RECORD_AUDIO" not in source:
+        additions += '\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n'
+    if "android.speech.RecognitionService" not in source:
+        additions += """
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+"""
+    if not additions:
+        return
+    updated, count = re.subn(
+        r"(<manifest\b[^>]*>)",
+        lambda match: match.group(1) + additions,
+        source,
+        count=1,
+    )
+    if count != 1:
+        raise RuntimeError("Could not configure Android microphone permission and speech recognition visibility.")
+    manifest.write_text(updated, encoding="utf-8")
+
+
+
+def _configure_contact_picker(android: Path) -> None:
+    """Install a native, single-number contact picker with URI-grant access."""
+    source_root = android / "app" / "src" / "main"
+    candidates = [
+        path
+        for path in source_root.rglob("*")
+        if path.is_file() and path.name in {"MainActivity.kt", "MainActivity.java"}
+    ] if source_root.is_dir() else []
+    if len(candidates) != 1:
+        raise RuntimeError(
+            f"Expected exactly one MainActivity.kt or MainActivity.java, found {len(candidates)}."
+        )
+
+    activity_file = candidates[0]
+    source = activity_file.read_text(encoding="utf-8")
+    if "danestani_gaz/contact_picker" in source:
+        return
+
+    if activity_file.suffix == ".kt":
+        extra_imports = """import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.provider.ContactsContract
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel"""
+        package_match = re.search(r"(?m)^package\s+[\w.]+\s*$", source)
+        if package_match is None:
+            raise RuntimeError("Could not find the MainActivity Kotlin package declaration.")
+        source = source[:package_match.end()] + "\n\n" + extra_imports + source[package_match.end():]
+        activity = r'''class MainActivity : FlutterFragmentActivity() {
+    companion object {
+        private const val CONTACT_PICK_REQUEST = 7321
+        private const val CONTACT_CHANNEL = "danestani_gaz/contact_picker"
+    }
+
+    private var pendingContactResult: MethodChannel.Result? = null
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CONTACT_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                if (call.method != "pickPhone") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                if (pendingContactResult != null) {
+                    result.error("PICKER_BUSY", "A contact selection is already in progress.", null)
+                    return@setMethodCallHandler
+                }
+                pendingContactResult = result
+                val intent = Intent(Intent.ACTION_PICK).apply {
+                    type = ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE
+                }
+                try {
+                    startActivityForResult(intent, CONTACT_PICK_REQUEST)
+                } catch (error: ActivityNotFoundException) {
+                    pendingContactResult?.error(
+                        "NO_CONTACT_PICKER",
+                        error.message,
+                        null
+                    )
+                    pendingContactResult = null
+                }
+            }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != CONTACT_PICK_REQUEST) return
+
+        val result = pendingContactResult
+        pendingContactResult = null
+        val contactUri = if (resultCode == Activity.RESULT_OK) data?.data else null
+        if (contactUri == null) {
+            result?.success(null)
+            return
+        }
+
+        try {
+            contentResolver.query(
+                contactUri,
+                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                result?.success(
+                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                )
+            } ?: result?.success(null)
+        } catch (error: Exception) {
+            result?.error("CONTACT_READ_FAILED", error.message, null)
+        }
+    }
+}'''
+        pattern = r"class\s+MainActivity\s*:\s*FlutterFragmentActivity\s*\(\s*\)\s*(?:\{\s*\})?"
+        updated, count = re.subn(pattern, lambda _: activity, source, count=1)
+    else:
+        extra_imports = """import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.database.Cursor;
+import android.provider.ContactsContract;
+import androidx.annotation.NonNull;
+import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.plugin.common.MethodChannel;"""
+        package_match = re.search(r"(?m)^package\s+[\w.]+;\s*$", source)
+        if package_match is None:
+            raise RuntimeError("Could not find the MainActivity Java package declaration.")
+        source = source[:package_match.end()] + "\n\n" + extra_imports + source[package_match.end():]
+        activity = r'''public class MainActivity extends FlutterFragmentActivity {
+    private static final int CONTACT_PICK_REQUEST = 7321;
+    private static final String CONTACT_CHANNEL = "danestani_gaz/contact_picker";
+    private MethodChannel.Result pendingContactResult;
+
+    @Override
+    public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
+        super.configureFlutterEngine(flutterEngine);
+        new MethodChannel(
+            flutterEngine.getDartExecutor().getBinaryMessenger(),
+            CONTACT_CHANNEL
+        ).setMethodCallHandler((call, result) -> {
+            if (!"pickPhone".equals(call.method)) {
+                result.notImplemented();
+                return;
+            }
+            if (pendingContactResult != null) {
+                result.error("PICKER_BUSY", "A contact selection is already in progress.", null);
+                return;
+            }
+            pendingContactResult = result;
+            Intent intent = new Intent(Intent.ACTION_PICK);
+            intent.setType(ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE);
+            try {
+                startActivityForResult(intent, CONTACT_PICK_REQUEST);
+            } catch (ActivityNotFoundException error) {
+                pendingContactResult.error("NO_CONTACT_PICKER", error.getMessage(), null);
+                pendingContactResult = null;
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != CONTACT_PICK_REQUEST) return;
+
+        MethodChannel.Result result = pendingContactResult;
+        pendingContactResult = null;
+        if (resultCode != Activity.RESULT_OK || data == null || data.getData() == null) {
+            if (result != null) result.success(null);
+            return;
+        }
+
+        Cursor cursor = null;
+        try {
+            cursor = getContentResolver().query(
+                data.getData(),
+                new String[]{ContactsContract.CommonDataKinds.Phone.NUMBER},
+                null,
+                null,
+                null
+            );
+            if (cursor != null && cursor.moveToFirst()) {
+                if (result != null) result.success(cursor.getString(0));
+            } else if (result != null) {
+                result.success(null);
+            }
+        } catch (Exception error) {
+            if (result != null) result.error("CONTACT_READ_FAILED", error.getMessage(), null);
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+    }
+}'''
+        pattern = r"public\s+class\s+MainActivity\s+extends\s+FlutterFragmentActivity\s*\{\s*\}"
+        updated, count = re.subn(pattern, lambda _: activity, source, count=1)
+
+    if count != 1:
+        raise RuntimeError("Could not add the native phone contact picker to MainActivity.")
+    activity_file.write_text(updated, encoding="utf-8")
+
+
+def _configure_cropper_activity(android: Path) -> None:
+    manifest = android / "app" / "src" / "main" / "AndroidManifest.xml"
+    if not manifest.is_file():
+        raise RuntimeError("AndroidManifest.xml was not generated.")
+    source = manifest.read_text(encoding="utf-8")
+    if "com.yalantis.ucrop.UCropActivity" in source:
+        return
+    activity = '''
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Ucrop.CropTheme" />
+'''
+    updated, count = re.subn(
+        r"(</application>)",
+        lambda match: activity + "    " + match.group(1),
+        source,
+        count=1,
+    )
+    if count != 1:
+        raise RuntimeError("Could not register image cropper activity.")
+    manifest.write_text(updated, encoding="utf-8")
+
+def _configure_cropper_styles(android: Path) -> None:
+    """Provide the uCrop theme required by image_cropper 14 on all Android versions."""
+    app_res = android / "app" / "src" / "main" / "res"
+    values = app_res / "values"
+    values.mkdir(parents=True, exist_ok=True)
+    styles = values / "styles.xml"
+    source = styles.read_text(encoding="utf-8") if styles.exists() else '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n</resources>\n'
+    if "name=" + '"Ucrop.CropTheme"' not in source:
+        updated, count = re.subn(
+            r"</resources>",
+            '    <style name="Ucrop.CropTheme" parent="Theme.AppCompat.Light.NoActionBar"/>\n</resources>',
+            source,
+            count=1,
+        )
+        if count != 1:
+            raise RuntimeError("Could not add the uCrop theme to values/styles.xml.")
+        styles.write_text(updated, encoding="utf-8")
+
+    values_v35 = app_res / "values-v35"
+    values_v35.mkdir(parents=True, exist_ok=True)
+    edge_styles = values_v35 / "styles.xml"
+    edge_source = edge_styles.read_text(encoding="utf-8") if edge_styles.exists() else '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n</resources>\n'
+    if "name=" + '"Ucrop.CropTheme"' not in edge_source:
+        updated, count = re.subn(
+            r"</resources>",
+            '    <style name="Ucrop.CropTheme" parent="Theme.AppCompat.Light.NoActionBar">\n'
+            '        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>\n'
+            '    </style>\n</resources>',
+            edge_source,
+            count=1,
+        )
+        if count != 1:
+            raise RuntimeError("Could not add the Android 15 uCrop theme override.")
+        edge_styles.write_text(updated, encoding="utf-8")
+
+
 def _configure_min_sdk(android: Path) -> None:
     kotlin_gradle = android / "app" / "build.gradle.kts"
     groovy_gradle = android / "app" / "build.gradle"
@@ -280,7 +602,12 @@ def configure_android(
         raise RuntimeError(f"Android directory does not exist: {android_directory}")
     _configure_jitpack(android_directory)
     _configure_activity(android_directory)
+    _configure_app_label(android_directory)
+    _configure_contact_picker(android_directory)
     _configure_min_sdk(android_directory)
+    _configure_speech_queries(android_directory)
+    _configure_cropper_activity(android_directory)
+    _configure_cropper_styles(android_directory)
     _configure_application_id(android_directory, application_id)
     _configure_release_signing(android_directory, signing_environment or {})
 

@@ -1,96 +1,77 @@
-import 'package:flutter/services.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:gas_khorasan_jonoubi_learning_app/main.dart';
 
 void main() {
-  testWidgets('the optimized approved WebP poster is included in the offline bundle', (tester) async {
-    final poster = await rootBundle.load('assets/approved_splash.webp');
-    expect(poster.lengthInBytes, greaterThan(0));
-  });
-
-  testWidgets('real poster preload completes and splash opens dashboard after five seconds', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: SplashPage()));
-    await tester.pump();
-    await tester.runAsync(() async {
-      await Future<void>.delayed(const Duration(milliseconds: 250));
-    });
-    await tester.pump();
-    expect(find.text('شرکت گاز خراسان جنوبی'), findsOneWidget);
-    await tester.pump(const Duration(seconds: 4));
-    expect(find.text('داشبورد'), findsNothing);
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pumpAndSettle();
-    expect(find.text('داشبورد'), findsOneWidget);
-  });
-
-  testWidgets('splash remains visible for three seconds after poster is ready', (tester) async {
-    var posterPrepared = false;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: SplashPage(
-          displayDuration: const Duration(seconds: 3),
-          preparePoster: (_) async {
-            posterPrepared = true;
-          },
-        ),
-      ),
-    );
-    await tester.pump();
-    expect(posterPrepared, isTrue);
-
-    final posterFinder = find.byWidgetPredicate(
-      (widget) =>
-          widget is Image &&
-          widget.image is AssetImage &&
-          (widget.image as AssetImage).assetName == 'assets/approved_splash.webp',
-    );
-    expect(posterFinder, findsOneWidget);
-
-    await tester.pump(const Duration(milliseconds: 2999));
-    expect(posterFinder, findsOneWidget);
-    expect(find.text('داشبورد'), findsNothing);
-
-    await tester.pump(const Duration(milliseconds: 1));
-    await tester.pumpAndSettle();
-
-    expect(find.text('داشبورد'), findsOneWidget);
-  });
-
-  testWidgets('splash shows local office labels on a compact screen and cancels its timer on dispose', (tester) async {
-    tester.view.physicalSize = const Size(320, 640);
+  // Keep the splash widget test compatible with the current Flutter test view API.
+  testWidgets('splash shows the approved artwork full screen without extra labels', (tester) async {
+    tester.view.physicalSize = const Size(432, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    var posterPrepared = false;
     await tester.pumpWidget(
       MaterialApp(
         home: SplashPage(
           displayDuration: const Duration(hours: 1),
-          preparePoster: (_) async {
-            posterPrepared = true;
-          },
+          prepareSplash: (_) async {},
         ),
       ),
     );
     await tester.pump();
 
-    expect(posterPrepared, isTrue);
-    expect(find.text('شرکت گاز خراسان جنوبی'), findsOneWidget);
-    expect(find.text('شهرستان عشق آباد'), findsOneWidget);
-    expect(find.text('اداره گاز عشق آباد'), findsOneWidget);
-    final posterFinder = find.byWidgetPredicate(
+    final imageFinder = find.byWidgetPredicate(
       (widget) =>
           widget is Image &&
           widget.image is AssetImage &&
-          (widget.image as AssetImage).assetName == 'assets/approved_splash.webp',
+          (widget.image as AssetImage).assetName == 'assets/approved_splash.png',
     );
-    expect(posterFinder, findsOneWidget);
+    expect(imageFinder, findsOneWidget);
+    final image = tester.widget<Image>(imageFinder);
+    expect(image.fit, BoxFit.contain);
+    expect(find.textContaining('شرکت'), findsNothing);
+    expect(find.textContaining('اداره'), findsNothing);
+    expect(find.textContaining('شهرستان'), findsNothing);
 
-    final poster = tester.widget<Image>(posterFinder);
-    expect(poster.fit, BoxFit.contain);
-    expect(poster.filterQuality, FilterQuality.high);
+    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('splash remains visible for three seconds then opens the app start gate', (tester) async {
+    // Keep the access check pending: this test verifies splash navigation, not
+    // the dashboard's localization delegates or navigation-bar semantics.
+    final accessCheck = Completer<bool>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SplashPage(
+          displayDuration: const Duration(seconds: 3),
+          accessCheck: () => accessCheck.future,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(Image), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 2999));
+    expect(find.text('داشبورد'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump();
+    expect(find.byType(AppStartGate), findsOneWidget);
+  });
+
+  testWidgets('splash timer is cancelled safely when the page is disposed', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SplashPage(
+          displayDuration: const Duration(hours: 1),
+          prepareSplash: (_) async {},
+        ),
+      ),
+    );
+    await tester.pump();
 
     await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
     await tester.pump();

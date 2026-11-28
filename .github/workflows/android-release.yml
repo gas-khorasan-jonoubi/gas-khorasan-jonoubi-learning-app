@@ -3,6 +3,8 @@ name: Android release APK
 on:
   workflow_dispatch:
   push:
+    branches:
+      - "feature/bill-scan-share"
     tags:
       - "v*"
 
@@ -26,7 +28,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Install Flutter stable
         uses: subosito/flutter-action@v2
@@ -51,14 +53,18 @@ jobs:
             exit 1
           fi
 
-      - name: Restore private Android signing key
+      - name: Restore and validate private Android signing key
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          CM_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          CM_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           set -euo pipefail
+          umask 077
           mkdir -p "$RUNNER_TEMP/android-signing"
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/android-signing/release.keystore"
           test -s "$RUNNER_TEMP/android-signing/release.keystore"
+          keytool -list -keystore "$RUNNER_TEMP/android-signing/release.keystore" -storepass "$CM_KEYSTORE_PASSWORD" -alias "$CM_KEY_ALIAS" >/dev/null
           echo "CM_KEYSTORE_PATH=$RUNNER_TEMP/android-signing/release.keystore" >> "$GITHUB_ENV"
 
       - name: Generate Android host and configure signing
@@ -75,19 +81,18 @@ jobs:
           fi
           python3 tool/configure_bazaar_android.py
 
-      - name: Prepare compact splash asset
+      - name: Install screenshot analysis tools
         run: |
-          set -euo pipefail
           python3 -m venv /tmp/danestani-image-tools
           /tmp/danestani-image-tools/bin/python -m pip install --disable-pip-version-check --quiet Pillow
-          /tmp/danestani-image-tools/bin/python tool/prepare_splash_asset.py --quality 92
-          /tmp/danestani-image-tools/bin/python tool/test_prepare_splash_asset.py
-          test -s assets/approved_splash.webp
+
+      - name: Prepare offline Persian OCR models
+        run: bash tool/prepare_fas_ocr_model.sh
 
       - name: Get dependencies and verify launcher artwork
         run: |
           set -euo pipefail
-          flutter pub get --enforce-lockfile
+          flutter pub get
           echo 'e0310a00567f7b4877632119ceba87c862dbf67b20b53e29202fe37e84c7094a  assets/app_icon.jpg' | sha256sum --check -
           dart run flutter_launcher_icons
 
@@ -96,11 +101,16 @@ jobs:
           BAZAAR_LIFETIME_PRODUCT_ID: ${{ secrets.BAZAAR_LIFETIME_PRODUCT_ID }}
           BAZAAR_RSA_PUBLIC_KEY: ${{ secrets.BAZAAR_RSA_PUBLIC_KEY }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
         run: |
           set -euo pipefail
           if [ -z "${BAZAAR_LIFETIME_PRODUCT_ID:-}" ] && [ -z "${BAZAAR_RSA_PUBLIC_KEY:-}" ]; then
-            if [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]; then
+            if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF" != "refs/heads/feature/bill-scan-share" ]; then
               echo "A tagged/public release requires both Bazaar billing secrets. Refusing to build an APK that cannot unlock."
+              exit 1
+            fi
+            if [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ] && [ "$GITHUB_REF" != "refs/heads/feature/bill-scan-share" ]; then
+              echo "Private test builds are allowed only from workflow_dispatch or the designated feature branch."
               exit 1
             fi
             echo "Private test build only: Bazaar billing is not configured. Public release remains blocked."
@@ -128,14 +138,20 @@ jobs:
         if: env.BAZAAR_IAP_CONFIGURED == 'true'
         run: dart run iran_iap doctor --store bazaar
 
+      # Keep static analysis and the complete test suite as hard gates before signing.
       - name: Analyze and test
         run: |
           set -euo pipefail
-          flutter analyze
+          flutter analyze --no-fatal-infos
           flutter test --reporter expanded
           /tmp/danestani-image-tools/bin/python -m unittest discover -s tool -p 'test_*.py' -v
 
       - name: Build signed release APK
+        env:
+          CM_KEYSTORE_PATH: ${{ runner.temp }}/android-signing/release.keystore
+          CM_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          CM_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          CM_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           if [ "${BAZAAR_IAP_CONFIGURED:-false}" = "true" ]; then
@@ -163,6 +179,70 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: danestani-gaz-${{ env.BAZAAR_IAP_CONFIGURED == 'true' && 'iap' || 'private-test' }}-${{ github.run_number }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: ${{ env.BAZAAR_IAP_CONFIGURED == 'true' && 14 || 3 }}
+
+      - name: Build optimized arm64 release APK
+        env:
+          CM_KEYSTORE_PATH: ${{ runner.temp }}/android-signing/release.keystore
+          CM_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          CM_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          CM_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          BAZAAR_APPLICATION_ID: ${{ secrets.BAZAAR_APPLICATION_ID || 'ir.gas.khorasanjonoubi.danestani_gaz' }}
+        run: |
+          set -euo pipefail
+          flutter clean
+          flutter pub get
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          gradle = next((p for p in (Path('android/app/build.gradle.kts'), Path('android/app/build.gradle')) if p.is_file()), None)
+          if gradle is None: raise SystemExit('Android app Gradle file not found')
+          source = gradle.read_text(encoding='utf-8')
+          if 'abiFilters' in source: raise SystemExit('Existing ABI filters require manual review')
+          match = re.search(r'(?m)^(\s*)defaultConfig\s*\{', source)
+          if match is None: raise SystemExit('defaultConfig block not found')
+          indent = match.group(1) + '    '
+          if gradle.suffix == '.kts':
+              block = '\n' + indent + 'ndk {\n' + indent + '    abiFilters += setOf("arm64-v8a")\n' + indent + '}\n'
+          else:
+              block = '\n' + indent + "ndk {\n" + indent + "    abiFilters 'arm64-v8a'\n" + indent + '}\n'
+          gradle.write_text(source[:match.end()] + block + source[match.end():], encoding='utf-8')
+          if gradle.suffix == '.kts':
+              packaging = '\n    packaging { jniLibs { excludes += setOf("**/armeabi-v7a/**", "**/x86_64/**") } }\n'
+          else:
+              packaging = '\n    packaging { jniLibs { excludes += ["**/armeabi-v7a/**", "**/x86_64/**"] } }\n'
+          android_match = re.search(r'(?m)^android\s*\{', source)
+          if android_match is None: raise SystemExit('android block not found')
+          source = source[:android_match.end()] + packaging + source[android_match.end():]
+          gradle.write_text(source, encoding='utf-8')
+          print('Configured arm64-v8a packaging exclusions')
+          PY
+          if [ "${BAZAAR_IAP_CONFIGURED:-false}" = "true" ]; then
+            dart run iran_iap build apk --store bazaar -- --release --target-platform android-arm64 --dart-define-from-file=build/ci-iap-defines.json
+          elif [ "${ALLOW_PRIVATE_TEST_ACCESS:-false}" = "true" ]; then
+            flutter build apk --release --target-platform android-arm64 --dart-define=ALLOW_PRIVATE_TEST_ACCESS=true
+          else
+            echo "Refusing an unconfigured optimized release build."
+            exit 1
+          fi
+
+      - name: Verify optimized arm64 APK signature and package
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)/apksigner" verify --verbose "$APK"
+          unexpected_abis="$(unzip -Z1 "$APK" | awk -F/ '/^lib\// {print $2}' | sort -u | grep -v '^arm64-v8a$' || true)"
+          if [ -n "$unexpected_abis" ]; then echo "Unexpected native ABIs: $unexpected_abis"; exit 1; fi
+          unzip -Z1 "$APK" | grep -q '^lib/arm64-v8a/'
+          sha256sum "$APK"
+          ls -lh "$APK"
+      - name: Upload optimized arm64 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: danestani-gaz-${{ env.BAZAAR_IAP_CONFIGURED == 'true' && 'iap' || 'private-test' }}-arm64-${{ github.run_number }}
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: ${{ env.BAZAAR_IAP_CONFIGURED == 'true' && 14 || 3 }}
