@@ -645,7 +645,7 @@ class _BillSharePageState extends State<BillSharePage> {
             _field('نام مشترک', _name, required: true),
             _field('شناسه قبض', _billId, keyboard: TextInputType.number, required: true, numericOnly: true),
             _field('شناسه پرداخت', _paymentId, keyboard: TextInputType.number, required: true, numericOnly: true),
-            _field('مبلغ بدهی (ریال) — جداکنندهٔ سه‌رقمی', _amount, keyboard: TextInputType.number, required: true, rialAmount: true),
+            _field('مبلغ کل قبض (ریال) — جداکنندهٔ سه‌رقمی', _amount, keyboard: TextInputType.number, required: true, rialAmount: true),
             _field('تعداد دوره‌های بدهی (حداکثر ۳ رقم)', _periods, keyboard: TextInputType.number, periods: true),
             _field('شماره موبایل دریافت‌کننده (۱۱ رقم)', _mobile, keyboard: TextInputType.phone, mobile: true),
           ]),
@@ -775,7 +775,7 @@ class _BillArchivePageState extends State<BillArchivePage> {
                       'نام مشترک: ${item['name'] ?? '-'}\n'
                       'شناسه قبض: ${item['billId'] ?? '-'}\n'
                       'شناسه پرداخت: ${item['paymentId'] ?? '-'}\n'
-                      'مبلغ قابل پرداخت: ${item['amount'] ?? '-'} ریال\n'
+                      'مبلغ کل قبض: ${item['amount'] ?? '-'} ریال\n'
                       'دوره‌ها: ${item['periods'] ?? '-'}\n'
                       'موبایل: ${item['mobile'] ?? '-'}',
                     )),
