@@ -63,6 +63,36 @@ void main() {
       expect(result.amount, '456789');
     });
 
+
+    test('never treats outstanding balance as total bill amount', () {
+      const sample = '''
+نام مشترک: علی محمدی
+مبلغ کل قبض: ۲۸۷۵۰۰۰
+بدهی مشترک: ۱۰۰۰۰۰۰
+تعداد: ۳
+''';
+      final result = BillOcrParser.parse(sample);
+      expect(result.amount, '2875000');
+      final message = BillOcrParser.buildMessage(
+        name: result.name ?? '',
+        billId: '',
+        paymentId: '',
+        amount: result.amount ?? '',
+        periods: result.periods ?? '',
+      );
+      expect(message, contains('مبلغ کل قبض: 2.875.000 ریال'));
+      expect(message, isNot(contains('1.000.000')));
+      expect(message, isNot(contains('بدهی مشترک')));
+    });
+
+    test('does not extract outstanding balance when total bill amount is absent', () {
+      const sample = '''
+بدهی مشترک: ۱۰۰۰۰۰۰
+مانده بدهی: ۵۰۰۰۰۰
+''';
+      expect(BillOcrParser.parse(sample).amount, isNull);
+    });
+
     test('formats amount as rial without converting to toman', () {
       expect(BillOcrParser.formatRial('۲۸۷۵۰۰۰'), '2.875.000');
       final message = BillOcrParser.buildMessage(
@@ -72,7 +102,7 @@ void main() {
         amount: '2875000',
         periods: '2',
       );
-      expect(message, contains('مبلغ قابل پرداخت: 2.875.000 ریال'));
+      expect(message, contains('مبلغ کل قبض: 2.875.000 ریال'));
       expect(message, contains('نام مشترک: علی محمدی\n\nشناسه قبض: 123'));
       expect(message, contains('شناسه قبض: 123\n\nشناسه پرداخت: 456'));
       expect(message, contains('شناسه پرداخت: 456\n\nمبلغ قابل پرداخت: 2.875.000 ریال'));
