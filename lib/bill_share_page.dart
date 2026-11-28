@@ -371,7 +371,7 @@ class _BillSharePageState extends State<BillSharePage> {
       // Column coordinates follow the photographed table. The outstanding
       // balance column ("بدهی مشترک") is deliberately excluded.
       final values = <String, String>{
-        'name': (await readCell(0.861, 0.982, language: 'fas', scale: 4, verticalPadding: 5, pageSegmentationMode: 6)).replaceAll(RegExp(r'[\r\n]+'), ' ').trim(),
+        'name': (await readCell(0.861, 0.982, language: 'fas', scale: 3, verticalPadding: 8, pageSegmentationMode: 6)).replaceAll(RegExp(r'[\r\n]+'), ' ').trim(),
         'billId': (await readCell(0.649, 0.789, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
         'mobile': (await readCell(0.531, 0.648, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩+()]'), '').trim(),
         'paymentId': (await readCell(0.283, 0.402, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
