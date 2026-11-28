@@ -341,6 +341,42 @@ def _configure_cropper_activity(android: Path) -> None:
         raise RuntimeError("Could not register image cropper activity.")
     manifest.write_text(updated, encoding="utf-8")
 
+def _configure_cropper_styles(android: Path) -> None:
+    """Provide the uCrop theme required by image_cropper 14 on all Android versions."""
+    app_res = android / "app" / "src" / "main" / "res"
+    values = app_res / "values"
+    values.mkdir(parents=True, exist_ok=True)
+    styles = values / "styles.xml"
+    source = styles.read_text(encoding="utf-8") if styles.exists() else '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n</resources>\n'
+    if "name=" + '"Ucrop.CropTheme"' not in source:
+        updated, count = re.subn(
+            r"</resources>",
+            '    <style name="Ucrop.CropTheme" parent="Theme.AppCompat.Light.NoActionBar"/>\n</resources>',
+            source,
+            count=1,
+        )
+        if count != 1:
+            raise RuntimeError("Could not add the uCrop theme to values/styles.xml.")
+        styles.write_text(updated, encoding="utf-8")
+
+    values_v35 = app_res / "values-v35"
+    values_v35.mkdir(parents=True, exist_ok=True)
+    edge_styles = values_v35 / "styles.xml"
+    edge_source = edge_styles.read_text(encoding="utf-8") if edge_styles.exists() else '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n</resources>\n'
+    if "name=" + '"Ucrop.CropTheme"' not in edge_source:
+        updated, count = re.subn(
+            r"</resources>",
+            '    <style name="Ucrop.CropTheme" parent="Theme.AppCompat.Light.NoActionBar">\n'
+            '        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>\n'
+            '    </style>\n</resources>',
+            edge_source,
+            count=1,
+        )
+        if count != 1:
+            raise RuntimeError("Could not add the Android 15 uCrop theme override.")
+        edge_styles.write_text(updated, encoding="utf-8")
+
+
 def _configure_min_sdk(android: Path) -> None:
     kotlin_gradle = android / "app" / "build.gradle.kts"
     groovy_gradle = android / "app" / "build.gradle"
