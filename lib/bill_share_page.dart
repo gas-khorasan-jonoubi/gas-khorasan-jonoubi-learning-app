@@ -325,21 +325,32 @@ class _BillSharePageState extends State<BillSharePage> {
       final rowFile = File('${directory.path}/bill_cell_${DateTime.now().microsecondsSinceEpoch}.jpg');
       setState(() => _busy = true);
 
-      Future<String> readCell(double leftRatio, double rightRatio, {required String language}) async {
+      Future<String> readCell(
+        double leftRatio,
+        double rightRatio, {
+        required String language,
+        int scale = 2,
+        int verticalPadding = 0,
+        int pageSegmentationMode = 7,
+      }) async {
         final left = (decoded.width * leftRatio).round().clamp(0, decoded.width - 1).toInt();
         final right = (decoded.width * rightRatio).round().clamp(left + 1, decoded.width).toInt();
+        // Keep OCR inside the actual column. The name column is especially
+        // sensitive: including the adjacent serial-number column pollutes RTL text.
+        final cellTop = (safeTop - verticalPadding).clamp(0, decoded.height - 1).toInt();
+        final cellBottom = (safeBottom + verticalPadding).clamp(cellTop + 1, decoded.height).toInt();
         final cell = img.copyCrop(
           decoded,
           x: left + 1 < right ? left + 1 : left,
-          y: safeTop,
+          y: cellTop,
           width: right - left > 2 ? right - left - 2 : right - left,
-          height: safeBottom - safeTop,
+          height: cellBottom - cellTop,
         );
-        // Enlarge narrow table cells before OCR so small printed digits
-        // are not lost at the original camera resolution.
+        // Upscale small printed cells before OCR; names need extra vertical
+        // context and 4x enlargement, while numeric cells remain 2x.
         final enlarged = img.copyResize(
           cell,
-          width: cell.width * 2,
+          width: cell.width * scale,
           interpolation: img.Interpolation.cubic,
         );
         await rowFile.writeAsBytes(img.encodeJpg(enlarged, quality: 100), flush: true);
@@ -350,7 +361,7 @@ class _BillSharePageState extends State<BillSharePage> {
             engine: OCREngine.tesseract,
             options: {
               'preserve_interword_spaces': '1',
-              'tessedit_pageseg_mode': '7',
+              'tessedit_pageseg_mode': pageSegmentationMode.toString(),
               if (language == 'eng') 'tessedit_char_whitelist': '0123456789',
             },
           ),
@@ -360,7 +371,7 @@ class _BillSharePageState extends State<BillSharePage> {
       // Column coordinates follow the photographed table. The outstanding
       // balance column ("بدهی مشترک") is deliberately excluded.
       final values = <String, String>{
-        'name': (await readCell(0.861, 0.998, language: 'fas+eng')).replaceAll(RegExp(r'[\r\n]+'), ' ').trim(),
+        'name': (await readCell(0.861, 0.982, language: 'fas', scale: 4, verticalPadding: 5, pageSegmentationMode: 6)).replaceAll(RegExp(r'[\r\n]+'), ' ').trim(),
         'billId': (await readCell(0.649, 0.789, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
         'mobile': (await readCell(0.531, 0.648, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩+()]'), '').trim(),
         'paymentId': (await readCell(0.283, 0.402, language: 'eng')).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
