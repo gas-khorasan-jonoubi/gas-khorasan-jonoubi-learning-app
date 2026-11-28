@@ -1,5 +1,13 @@
 class ParsedGasBill {
-  const ParsedGasBill({this.name, this.billId, this.paymentId, this.amount, this.periods, this.mobile});
+  const ParsedGasBill({
+    this.name,
+    this.billId,
+    this.paymentId,
+    this.amount,
+    this.periods,
+    this.mobile,
+  });
+
   final String? name;
   final String? billId;
   final String? paymentId;
@@ -30,18 +38,19 @@ class BillOcrParser {
     } else if (digits.startsWith('98')) {
       digits = digits.substring(2);
     }
-    if (digits.length == 10 && digits.startsWith('9')) digits = '0$digits';
+    if (digits.length == 10 && digits.startsWith('9')) {
+      digits = '0$digits';
+    }
     return digits;
   }
 
   static bool isValidIranianMobile(String value) {
     final normalized = normalizeDigits(value).trim();
-    final isInternational = normalized.startsWith('+98') ||
+    final international = normalized.startsWith('+98') ||
         normalized.startsWith('0098') ||
         normalized.startsWith('98');
-    // Local 09 numbers must be entered as 11 uninterrupted digits.
-    // International contact formats may contain normal visual separators.
-    if (!isInternational && !RegExp(r'^09[0-9]{9}
+    if (!international && !RegExp(r'^09[0-9]{9}
+
 
   static String _normalizeText(String value) => normalizeDigits(value)
       .replaceAll('ي', 'ی')
@@ -65,7 +74,9 @@ class BillOcrParser {
         if (position < 0) continue;
         var value = line.substring(position + normalizedLabel.length);
         value = value.replaceFirst(RegExp(r'^[\s:：؛،.\-]+'), '').trim();
-        if (value.isEmpty && index + 1 < lines.length) value = lines[index + 1].trim();
+        if (value.isEmpty && index + 1 < lines.length) {
+          value = lines[index + 1].trim();
+        }
         if (value.isNotEmpty && !RegExp(r'\d{4,}').hasMatch(value)) {
           return value.replaceAll(RegExp(r'[|؛;]+$'), '').trim();
         }
@@ -74,7 +85,11 @@ class BillOcrParser {
     return null;
   }
 
-  static String? _numericValue(List<String> lines, List<String> labels, {int minDigits = 3}) {
+  static String? _numericValue(
+    List<String> lines,
+    List<String> labels, {
+    int minDigits = 3,
+  }) {
     for (var index = 0; index < lines.length; index++) {
       final line = lines[index];
       for (final label in labels) {
@@ -98,11 +113,34 @@ class BillOcrParser {
     final normalizedAll = lines.join(' ');
     final mobile = RegExp(r'09[0-9]{9}').firstMatch(normalizedAll)?.group(0);
     return ParsedGasBill(
-      name: _textValue(lines, const ['نام و نام خانوادگی', 'نام مشترک', 'نام خانوادگی']),
-      billId: _numericValue(lines, const ['شناسه قبض', 'شناسه‌قبض', 'bill id']),
-      paymentId: _numericValue(lines, const ['شناسه پرداخت', 'شناسه‌پرداخت', 'payment id']),
-      amount: _numericValue(lines, const ['مبلغ قابل پرداخت', 'مبلغ بدهی', 'جمع بدهی', 'مبلغ', 'amount']),
-      periods: _numericValue(lines, const ['تعداد دوره بدهی', 'تعداد دوره', 'دوره بدهی', 'ماه بدهی'], minDigits: 1),
+      name: _textValue(lines, const [
+        'نام و نام خانوادگی',
+        'نام مشترک',
+        'نام خانوادگی',
+      ]),
+      billId: _numericValue(lines, const [
+        'شناسه قبض',
+        'شناسه‌قبض',
+        'bill id',
+      ]),
+      paymentId: _numericValue(lines, const [
+        'شناسه پرداخت',
+        'شناسه‌پرداخت',
+        'payment id',
+      ]),
+      amount: _numericValue(lines, const [
+        'مبلغ قابل پرداخت',
+        'مبلغ بدهی',
+        'جمع بدهی',
+        'مبلغ',
+        'amount',
+      ]),
+      periods: _numericValue(lines, const [
+        'تعداد دوره بدهی',
+        'تعداد دوره',
+        'دوره بدهی',
+        'ماه بدهی',
+      ], minDigits: 1),
       mobile: mobile,
     );
   }
@@ -110,7 +148,10 @@ class BillOcrParser {
   static String formatRial(String raw) {
     final digits = normalizeDigits(raw).replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.isEmpty) return raw.trim();
-    return digits.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
+    return digits.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => '.',
+    );
   }
 
   static String buildMessage({
@@ -120,7 +161,8 @@ class BillOcrParser {
     required String amount,
     required String periods,
   }) {
-    String value(String input) => input.trim().isEmpty ? 'ثبت نشده' : input.trim();
+    String value(String input) =>
+        input.trim().isEmpty ? 'ثبت نشده' : input.trim();
     return 'سلام\n\n'
         'لطفاً نسبت به پرداخت قبض زیر اقدام فرمایید:\n\n'
         'نوع قبض: گاز\n\n'
@@ -137,6 +179,7 @@ class BillOcrParser {
     }
     return RegExp(r'^09[0-9]{9}
 
+
   static String _normalizeText(String value) => normalizeDigits(value)
       .replaceAll('ي', 'ی')
       .replaceAll('ك', 'ک')
@@ -159,7 +202,9 @@ class BillOcrParser {
         if (position < 0) continue;
         var value = line.substring(position + normalizedLabel.length);
         value = value.replaceFirst(RegExp(r'^[\s:：؛،.\-]+'), '').trim();
-        if (value.isEmpty && index + 1 < lines.length) value = lines[index + 1].trim();
+        if (value.isEmpty && index + 1 < lines.length) {
+          value = lines[index + 1].trim();
+        }
         if (value.isNotEmpty && !RegExp(r'\d{4,}').hasMatch(value)) {
           return value.replaceAll(RegExp(r'[|؛;]+$'), '').trim();
         }
@@ -168,7 +213,11 @@ class BillOcrParser {
     return null;
   }
 
-  static String? _numericValue(List<String> lines, List<String> labels, {int minDigits = 3}) {
+  static String? _numericValue(
+    List<String> lines,
+    List<String> labels, {
+    int minDigits = 3,
+  }) {
     for (var index = 0; index < lines.length; index++) {
       final line = lines[index];
       for (final label in labels) {
@@ -192,11 +241,34 @@ class BillOcrParser {
     final normalizedAll = lines.join(' ');
     final mobile = RegExp(r'09[0-9]{9}').firstMatch(normalizedAll)?.group(0);
     return ParsedGasBill(
-      name: _textValue(lines, const ['نام و نام خانوادگی', 'نام مشترک', 'نام خانوادگی']),
-      billId: _numericValue(lines, const ['شناسه قبض', 'شناسه‌قبض', 'bill id']),
-      paymentId: _numericValue(lines, const ['شناسه پرداخت', 'شناسه‌پرداخت', 'payment id']),
-      amount: _numericValue(lines, const ['مبلغ قابل پرداخت', 'مبلغ بدهی', 'جمع بدهی', 'مبلغ', 'amount']),
-      periods: _numericValue(lines, const ['تعداد دوره بدهی', 'تعداد دوره', 'دوره بدهی', 'ماه بدهی'], minDigits: 1),
+      name: _textValue(lines, const [
+        'نام و نام خانوادگی',
+        'نام مشترک',
+        'نام خانوادگی',
+      ]),
+      billId: _numericValue(lines, const [
+        'شناسه قبض',
+        'شناسه‌قبض',
+        'bill id',
+      ]),
+      paymentId: _numericValue(lines, const [
+        'شناسه پرداخت',
+        'شناسه‌پرداخت',
+        'payment id',
+      ]),
+      amount: _numericValue(lines, const [
+        'مبلغ قابل پرداخت',
+        'مبلغ بدهی',
+        'جمع بدهی',
+        'مبلغ',
+        'amount',
+      ]),
+      periods: _numericValue(lines, const [
+        'تعداد دوره بدهی',
+        'تعداد دوره',
+        'دوره بدهی',
+        'ماه بدهی',
+      ], minDigits: 1),
       mobile: mobile,
     );
   }
@@ -204,7 +276,10 @@ class BillOcrParser {
   static String formatRial(String raw) {
     final digits = normalizeDigits(raw).replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.isEmpty) return raw.trim();
-    return digits.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
+    return digits.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => '.',
+    );
   }
 
   static String buildMessage({
@@ -214,7 +289,8 @@ class BillOcrParser {
     required String amount,
     required String periods,
   }) {
-    String value(String input) => input.trim().isEmpty ? 'ثبت نشده' : input.trim();
+    String value(String input) =>
+        input.trim().isEmpty ? 'ثبت نشده' : input.trim();
     return 'سلام\n\n'
         'لطفاً نسبت به پرداخت قبض زیر اقدام فرمایید:\n\n'
         'نوع قبض: گاز\n\n'
@@ -229,6 +305,7 @@ class BillOcrParser {
 ).hasMatch(normalizeIranianMobile(value));
   }
 
+
   static String _normalizeText(String value) => normalizeDigits(value)
       .replaceAll('ي', 'ی')
       .replaceAll('ك', 'ک')
@@ -251,7 +328,9 @@ class BillOcrParser {
         if (position < 0) continue;
         var value = line.substring(position + normalizedLabel.length);
         value = value.replaceFirst(RegExp(r'^[\s:：؛،.\-]+'), '').trim();
-        if (value.isEmpty && index + 1 < lines.length) value = lines[index + 1].trim();
+        if (value.isEmpty && index + 1 < lines.length) {
+          value = lines[index + 1].trim();
+        }
         if (value.isNotEmpty && !RegExp(r'\d{4,}').hasMatch(value)) {
           return value.replaceAll(RegExp(r'[|؛;]+$'), '').trim();
         }
@@ -260,7 +339,11 @@ class BillOcrParser {
     return null;
   }
 
-  static String? _numericValue(List<String> lines, List<String> labels, {int minDigits = 3}) {
+  static String? _numericValue(
+    List<String> lines,
+    List<String> labels, {
+    int minDigits = 3,
+  }) {
     for (var index = 0; index < lines.length; index++) {
       final line = lines[index];
       for (final label in labels) {
@@ -284,11 +367,34 @@ class BillOcrParser {
     final normalizedAll = lines.join(' ');
     final mobile = RegExp(r'09[0-9]{9}').firstMatch(normalizedAll)?.group(0);
     return ParsedGasBill(
-      name: _textValue(lines, const ['نام و نام خانوادگی', 'نام مشترک', 'نام خانوادگی']),
-      billId: _numericValue(lines, const ['شناسه قبض', 'شناسه‌قبض', 'bill id']),
-      paymentId: _numericValue(lines, const ['شناسه پرداخت', 'شناسه‌پرداخت', 'payment id']),
-      amount: _numericValue(lines, const ['مبلغ قابل پرداخت', 'مبلغ بدهی', 'جمع بدهی', 'مبلغ', 'amount']),
-      periods: _numericValue(lines, const ['تعداد دوره بدهی', 'تعداد دوره', 'دوره بدهی', 'ماه بدهی'], minDigits: 1),
+      name: _textValue(lines, const [
+        'نام و نام خانوادگی',
+        'نام مشترک',
+        'نام خانوادگی',
+      ]),
+      billId: _numericValue(lines, const [
+        'شناسه قبض',
+        'شناسه‌قبض',
+        'bill id',
+      ]),
+      paymentId: _numericValue(lines, const [
+        'شناسه پرداخت',
+        'شناسه‌پرداخت',
+        'payment id',
+      ]),
+      amount: _numericValue(lines, const [
+        'مبلغ قابل پرداخت',
+        'مبلغ بدهی',
+        'جمع بدهی',
+        'مبلغ',
+        'amount',
+      ]),
+      periods: _numericValue(lines, const [
+        'تعداد دوره بدهی',
+        'تعداد دوره',
+        'دوره بدهی',
+        'ماه بدهی',
+      ], minDigits: 1),
       mobile: mobile,
     );
   }
@@ -296,7 +402,10 @@ class BillOcrParser {
   static String formatRial(String raw) {
     final digits = normalizeDigits(raw).replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.isEmpty) return raw.trim();
-    return digits.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
+    return digits.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => '.',
+    );
   }
 
   static String buildMessage({
@@ -306,7 +415,8 @@ class BillOcrParser {
     required String amount,
     required String periods,
   }) {
-    String value(String input) => input.trim().isEmpty ? 'ثبت نشده' : input.trim();
+    String value(String input) =>
+        input.trim().isEmpty ? 'ثبت نشده' : input.trim();
     return 'سلام\n\n'
         'لطفاً نسبت به پرداخت قبض زیر اقدام فرمایید:\n\n'
         'نوع قبض: گاز\n\n'
