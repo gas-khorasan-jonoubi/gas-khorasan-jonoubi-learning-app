@@ -374,6 +374,137 @@ class _BillSharePageState extends State<BillSharePage> {
     }
   }
 
+  Future<void> _scanFieldWithOcr(
+    String label,
+    TextEditingController controller, {
+    bool numericOnly = false,
+    bool mobile = false,
+    bool rialAmount = false,
+    bool periods = false,
+  }) async {
+    if (_busy) return;
+    try {
+      final photo = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        imageQuality: 95,
+        preferredCameraDevice: CameraDevice.rear,
+      );
+      if (photo == null || !mounted) return;
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: photo.path,
+        maxWidth: 2400,
+        maxHeight: 1200,
+        compressQuality: 95,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'برش محدوده $label',
+            toolbarColor: _billNavy,
+            toolbarWidgetColor: Colors.white,
+            lockAspectRatio: false,
+            initAspectRatio: CropAspectRatioPreset.original,
+          ),
+        ],
+      );
+      if (cropped == null || !mounted) return;
+      setState(() => _busy = true);
+      final recognized = await TesseractOcr.extractText(
+        cropped.path,
+        config: OCRConfig(
+          language: 'fas',
+          engine: OCREngine.tesseract,
+          options: const {
+            'preserve_interword_spaces': '1',
+            'tessedit_pageseg_mode': '7',
+          },
+        ),
+      );
+      if (!mounted) return;
+      final lines = recognized
+          .split(RegExp(r'[\\r\\n]+'))
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty)
+          .toList(growable: false);
+      final editor = TextEditingController(text: lines.length == 1 ? lines.first : '');
+      final selected = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('انتخاب مقدار $label'),
+          content: SizedBox(
+            width: 360,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('روی یکی از متن‌های تشخیص‌داده‌شده بزنید یا مقدار صحیح را دستی اصلاح کنید.'),
+                  const SizedBox(height: 10),
+                  if (lines.isEmpty)
+                    const Text('متنی تشخیص داده نشد؛ مقدار را دستی وارد کنید.')
+                  else
+                    ...lines.map((line) => ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(line, textDirection: TextDirection.rtl),
+                      onTap: () => editor.text = line,
+                    )),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: editor,
+                    autofocus: lines.isEmpty,
+                    maxLines: 2,
+                    textDirection: numericOnly || mobile || periods || rialAmount
+                        ? TextDirection.ltr
+                        : TextDirection.rtl,
+                    decoration: InputDecoration(
+                      labelText: 'مقدار نهایی $label',
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('انصراف'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(editor.text.trim()),
+              child: const Text('ثبت در فیلد'),
+            ),
+          ],
+        ),
+      );
+      editor.dispose();
+      if (selected == null || !mounted) return;
+      var value = BillOcrParser.normalizeDigits(selected).trim();
+      if (mobile) {
+        value = _normalizeIranianMobile(value);
+        if (!BillOcrParser.isValidIranianMobile(value)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('شماره انتخاب‌شده معتبر نیست؛ شماره باید ۱۱ رقم و با ۰۹ باشد.')),
+          );
+          return;
+        }
+      } else if (numericOnly || periods || rialAmount) {
+        value = value.replaceAll(RegExp(r'[^0-9]'), '');
+        if (periods && value.length > 3) value = value.substring(0, 3);
+        if (rialAmount) value = BillOcrParser.formatRial(value);
+      }
+      controller.text = value;
+      controller.selection = TextSelection.collapsed(offset: value.length);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('اسکن $label انجام نشد؛ محدوده را واضح‌تر و با نور کافی ثبت کنید.')),
+        );
+      }
+    } finally {
+      if (mounted && _busy) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _scanQrInto(TextEditingController controller) async {
     if (_busy) return;
     final value = await showDialog<String>(
@@ -572,7 +703,19 @@ class _BillSharePageState extends State<BillSharePage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                tooltip: 'اسکن QR برای $label',
+                tooltip: 'اسکن تصویری همین فیلد: $label',
+                onPressed: _busy ? null : () => _scanFieldWithOcr(
+                  label,
+                  controller,
+                  numericOnly: numericOnly,
+                  mobile: mobile,
+                  rialAmount: rialAmount,
+                  periods: periods,
+                ),
+                icon: const Icon(Icons.document_scanner_outlined),
+              ),
+              IconButton(
+                tooltip: 'اسکن QR یا بارکد برای $label',
                 onPressed: _busy ? null : () => _scanQrInto(controller),
                 icon: const Icon(Icons.qr_code_scanner),
               ),
