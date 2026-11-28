@@ -329,7 +329,7 @@ def _configure_cropper_activity(android: Path) -> None:
         <activity
             android:name="com.yalantis.ucrop.UCropActivity"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+            android:theme="@style/Ucrop.CropTheme" />
 '''
     updated, count = re.subn(
         r"(</application>)",
