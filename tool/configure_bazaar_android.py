@@ -317,6 +317,30 @@ import io.flutter.plugin.common.MethodChannel;"""
         raise RuntimeError("Could not add the native phone contact picker to MainActivity.")
     activity_file.write_text(updated, encoding="utf-8")
 
+
+def _configure_cropper_activity(android: Path) -> None:
+    manifest = android / "app" / "src" / "main" / "AndroidManifest.xml"
+    if not manifest.is_file():
+        raise RuntimeError("AndroidManifest.xml was not generated.")
+    source = manifest.read_text(encoding="utf-8")
+    if "com.yalantis.ucrop.UCropActivity" in source:
+        return
+    activity = '''
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+'''
+    updated, count = re.subn(
+        r"(</application>)",
+        lambda match: activity + "    " + match.group(1),
+        source,
+        count=1,
+    )
+    if count != 1:
+        raise RuntimeError("Could not register image cropper activity.")
+    manifest.write_text(updated, encoding="utf-8")
+
 def _configure_min_sdk(android: Path) -> None:
     kotlin_gradle = android / "app" / "build.gradle.kts"
     groovy_gradle = android / "app" / "build.gradle"
