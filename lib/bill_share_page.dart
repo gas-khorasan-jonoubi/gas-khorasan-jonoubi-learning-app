@@ -14,7 +14,6 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:tesseract_ocr/tesseract_ocr.dart';
 import 'package:tesseract_ocr/ocr_engine_config.dart';
 import 'package:flutter/services.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -532,69 +531,6 @@ class _BillSharePageState extends State<BillSharePage> {
     }
   }
 
-  Future<void> _scanQrInto(TextEditingController controller) async {
-    if (_busy) return;
-    final value = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('اسکن ردیف قبض'),
-        content: SizedBox(
-          width: 320,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'دوربین را روی ردیف موردنظر نگه دارید؛ کادر افقی برای اسکن همان ردیف تنظیم شده است.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 88,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: MobileScanner(
-                    fit: BoxFit.cover,
-                    onDetect: (capture) {
-                      if (capture.barcodes.isEmpty) return;
-                      final raw = capture.barcodes.first.rawValue?.trim();
-                      if (raw == null || raw.isEmpty) return;
-                      Navigator.of(dialogContext).pop(raw);
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('انصراف'),
-          ),
-        ],
-      ),
-    );
-    if (value != null && value.isNotEmpty && mounted) {
-      final numericField = controller == _billId ||
-          controller == _paymentId ||
-          controller == _periods ||
-          controller == _mobile;
-      var accepted = numericField
-          ? _digits(value).replaceAll(RegExp(r'[^0-9]'), '')
-          : value;
-      if (controller == _periods && accepted.length > 3) {
-        accepted = accepted.substring(0, 3);
-      }
-      if (controller == _mobile) {
-        accepted = _normalizeIranianMobile(accepted);
-        if (accepted.length > 11) accepted = accepted.substring(0, 11);
-      }
-      controller.text = accepted;
-      controller.selection = TextSelection.collapsed(offset: accepted.length);
-    }
-  }
-
   void _showSpeechFailure({String? errorCode}) {
     if (!mounted) return;
     final code = (errorCode ?? '').toLowerCase();
@@ -742,11 +678,6 @@ class _BillSharePageState extends State<BillSharePage> {
                 icon: const Icon(Icons.document_scanner_outlined),
               ),
               IconButton(
-                tooltip: 'اسکن QR یا بارکد برای $label',
-                onPressed: _busy ? null : () => _scanQrInto(controller),
-                icon: const Icon(Icons.qr_code_scanner),
-              ),
-              IconButton(
                 tooltip: 'ورود صوتی برای $label',
                 onPressed: _busy ? null : () => _listenInto(controller),
                 icon: Icon(_speech.isListening ? Icons.mic_off : Icons.mic),
@@ -793,7 +724,7 @@ class _BillSharePageState extends State<BillSharePage> {
             Icon(Icons.document_scanner_outlined, color: _billYellow, size: 36),
             SizedBox(width: 12),
             Expanded(child: Text(
-              'برای اسکن تصویری هر فیلد، آیکن برگه را بزنید؛ برای QR از آیکن QR و برای ورود صوتی از میکروفون استفاده کنید. اطلاعات را پیش از ارسال بررسی و اصلاح کنید.',
+              'برای اسکن تصویری هر فیلد، آیکن برگه را بزنید و برای ورود صوتی از میکروفون استفاده کنید. برای شماره موبایل می‌توانید از مخاطبین گوشی هم انتخاب کنید. اطلاعات را پیش از ارسال بررسی و اصلاح کنید.',
               style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
             )),
           ]),
