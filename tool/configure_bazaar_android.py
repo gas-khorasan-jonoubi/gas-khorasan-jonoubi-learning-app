@@ -104,6 +104,55 @@ def _configure_activity(android: Path) -> None:
     activity_file.write_text(source, encoding="utf-8")
 
 
+def _configure_app_label(android: Path) -> None:
+    """Set the Android launcher label independently from the Flutter project name."""
+    source_root = android / "app" / "src" / "main"
+    manifest = source_root / "AndroidManifest.xml"
+    if not manifest.is_file():
+        raise RuntimeError("AndroidManifest.xml was not generated.")
+    source = manifest.read_text(encoding="utf-8")
+    application_pattern = re.compile(r"<application\\b[^>]*>")
+    match = application_pattern.search(source)
+    if match is None:
+        raise RuntimeError("Could not find the Android application element.")
+
+    application_tag = match.group(0)
+    if re.search(r"\\bandroid:label\\s*=", application_tag):
+        updated_tag = re.sub(
+            r'android:label\\s*=\\s*("[^"]*"|\\'[^\\']*\\')',
+            'android:label="@string/app_name"',
+            application_tag,
+            count=1,
+        )
+    else:
+        updated_tag = application_tag[:-1] + ' android:label="@string/app_name">'
+    source = source[:match.start()] + updated_tag + source[match.end():]
+    manifest.write_text(source, encoding="utf-8")
+
+    values = source_root / "res" / "values"
+    values.mkdir(parents=True, exist_ok=True)
+    strings = values / "strings.xml"
+    strings_source = strings.read_text(encoding="utf-8") if strings.exists() else '<?xml version="1.0" encoding="utf-8"?>\\n<resources>\\n</resources>\\n'
+    label = "دانستنی‌های گاز"
+    if re.search(r'<string\\s+name="app_name">.*?</string>', strings_source, re.DOTALL):
+        strings_source = re.sub(
+            r'<string\\s+name="app_name">.*?</string>',
+            f'<string name="app_name">{label}</string>',
+            strings_source,
+            count=1,
+            flags=re.DOTALL,
+        )
+    else:
+        strings_source = strings_source.replace(
+            "</resources>",
+            f'    <string name="app_name">{label}</string>\\n</resources>',
+            1,
+        )
+    if "</resources>" not in strings_source:
+        raise RuntimeError("Could not write Android app_name string resource.")
+    strings.write_text(strings_source, encoding="utf-8")
+
+
 def _configure_speech_queries(android: Path) -> None:
     manifest = android / "app" / "src" / "main" / "AndroidManifest.xml"
     if not manifest.is_file():
@@ -553,6 +602,7 @@ def configure_android(
         raise RuntimeError(f"Android directory does not exist: {android_directory}")
     _configure_jitpack(android_directory)
     _configure_activity(android_directory)
+    _configure_app_label(android_directory)
     _configure_contact_picker(android_directory)
     _configure_min_sdk(android_directory)
     _configure_speech_queries(android_directory)
