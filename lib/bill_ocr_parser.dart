@@ -195,7 +195,7 @@ class BillOcrParser {
         'نام مشترک: ${value(name)}\n\n'
         'شناسه قبض: ${value(billId)}\n\n'
         'شناسه پرداخت: ${value(paymentId)}\n\n'
-        'مبلغ قابل پرداخت: ${formatRial(amount)} ریال\n\n'
+        'مبلغ کل قبض: ${formatRial(amount)} ریال\n\n'
         'تعداد دوره بدهی: ${value(periods)}\n\n'
         'با تشکر';
   }
