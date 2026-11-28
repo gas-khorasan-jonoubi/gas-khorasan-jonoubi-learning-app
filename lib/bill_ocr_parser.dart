@@ -50,12 +50,12 @@ class BillOcrParser {
   static String _normalizeText(String value) => normalizeDigits(value)
       .replaceAll('ي', 'ی')
       .replaceAll('ك', 'ک')
-      .replaceAll('\\u200c', ' ')
-      .replaceAll(RegExp(r'\\s+'), ' ')
+      .replaceAll('\u200c', ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
 
   static List<String> _lines(String value) => value
-      .split(RegExp(r'[\\r\\n]+'))
+      .split(RegExp(r'[\r\n]+'))
       .map(_normalizeText)
       .where((line) => line.isNotEmpty)
       .toList(growable: false);
@@ -68,11 +68,11 @@ class BillOcrParser {
         final position = line.indexOf(normalizedLabel);
         if (position < 0) continue;
         var value = line.substring(position + normalizedLabel.length);
-        value = value.replaceFirst(RegExp(r'^[\\s:：؛،.\\-]+'), '').trim();
+        value = value.replaceFirst(RegExp(r'^[\s:：؛،.\-]+'), '').trim();
         if (value.isEmpty && index + 1 < lines.length) {
           value = lines[index + 1].trim();
         }
-        if (value.isNotEmpty && !RegExp(r'\\d{4,}').hasMatch(value)) {
+        if (value.isNotEmpty && !RegExp(r'\d{4,}').hasMatch(value)) {
           return value.replaceAll(RegExp(r'[|؛;]+$'), '').trim();
         }
       }
@@ -144,7 +144,7 @@ class BillOcrParser {
     final digits = normalizeDigits(raw).replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.isEmpty) return raw.trim();
     return digits.replaceAllMapped(
-      RegExp(r'\\B(?=(\\d{3})+(?!\\d))'),
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
       (_) => '.',
     );
   }
@@ -158,14 +158,14 @@ class BillOcrParser {
   }) {
     String value(String input) =>
         input.trim().isEmpty ? 'ثبت نشده' : input.trim();
-    return 'سلام\\n\\n'
-        'لطفاً نسبت به پرداخت قبض زیر اقدام فرمایید:\\n\\n'
-        'نوع قبض: گاز\\n\\n'
-        'نام مشترک: ${value(name)}\\n\\n'
-        'شناسه قبض: ${value(billId)}\\n\\n'
-        'شناسه پرداخت: ${value(paymentId)}\\n\\n'
-        'مبلغ قابل پرداخت: ${formatRial(amount)} ریال\\n\\n'
-        'تعداد دوره بدهی: ${value(periods)}\\n\\n'
+    return 'سلام\n\n'
+        'لطفاً نسبت به پرداخت قبض زیر اقدام فرمایید:\n\n'
+        'نوع قبض: گاز\n\n'
+        'نام مشترک: \${value(name)}\n\n'
+        'شناسه قبض: \${value(billId)}\n\n'
+        'شناسه پرداخت: \${value(paymentId)}\n\n'
+        'مبلغ قابل پرداخت: \${formatRial(amount)} ریال\n\n'
+        'تعداد دوره بدهی: \${value(periods)}\n\n'
         'با تشکر';
   }
 }
