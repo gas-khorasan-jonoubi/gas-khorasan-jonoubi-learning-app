@@ -460,10 +460,13 @@ class _BillSharePageState extends State<BillSharePage> {
         throw StateError('تصویر برش‌خورده قابل خواندن نیست.');
       }
       final orientedImage = img.bakeOrientation(sourceImage);
-      final ocrImage = orientedImage.width < 1800
+      final isNumeric = numericOnly || mobile || rialAmount || periods;
+      // Bound OCR image size to reduce memory/CPU pressure on Android phones.
+      final targetWidth = isNumeric ? 1200 : 1600;
+      final ocrImage = orientedImage.width < targetWidth
           ? img.copyResize(
               orientedImage,
-              width: 1800,
+              width: targetWidth,
               interpolation: img.Interpolation.cubic,
             )
           : orientedImage;
@@ -471,29 +474,40 @@ class _BillSharePageState extends State<BillSharePage> {
       final ocrFile = File(
         '${tempDirectory.path}/field_ocr_${DateTime.now().microsecondsSinceEpoch}.jpg',
       );
-      await ocrFile.writeAsBytes(img.encodeJpg(ocrImage, quality: 100), flush: true);
-      final isNumeric = numericOnly || mobile || rialAmount || periods;
+      await ocrFile.writeAsBytes(img.encodeJpg(ocrImage, quality: 92), flush: true);
       final recognized = await TesseractOcr.extractText(
         ocrFile.path,
         config: OCRConfig(
-          language: isNumeric ? 'eng' : 'fas+eng',
+          language: isNumeric ? 'eng' : 'fas',
           engine: OCREngine.tesseract,
           options: {
             'preserve_interword_spaces': '1',
-            'tessedit_pageseg_mode': '7',
+            'tessedit_pageseg_mode': isNumeric ? '8' : '7',
             if (isNumeric) 'tessedit_char_whitelist': '0123456789',
           },
         ),
-      );
+      ).timeout(const Duration(seconds: 20));
       if (!mounted) return;
-      final lines = recognized
-          .split(RegExp(r'[\r\n]+'))
+      final rawLines = recognized
+          .split(RegExp(r'[\\r\\n]+'))
           .map((line) => line.trim())
-          .where((line) => line.isNotEmpty)
-          .toList(growable: false);
-      if (recognized.trim().isEmpty && mounted) {
+          .where((line) => line.isNotEmpty);
+      // Numeric fields must never display Latin OCR hallucinations.
+      final lines = isNumeric
+          ? rawLines
+              .map((line) => BillOcrParser.normalizeDigits(line)
+                  .replaceAll(RegExp(r'[^0-9]'), ''))
+              .where((line) => line.isNotEmpty)
+              .toSet()
+              .toList(growable: false)
+          : rawLines.toList(growable: false);
+      if (lines.isEmpty && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('موتور OCR اجرا شد اما هیچ متنی از تصویر نخواند؛ عکس واضح‌تر و نزدیک‌تر بگیرید.')),
+          SnackBar(
+            content: Text(isNumeric
+                ? 'عدد از تصویر با اطمینان خوانده نشد؛ لطفاً مقدار را دستی وارد کنید.'
+                : 'متنی از تصویر خوانده نشد؛ لطفاً مقدار را دستی وارد کنید.'),
+          ),
         );
       }
       final editor = TextEditingController(text: lines.length == 1 ? lines.first : '');
@@ -511,22 +525,29 @@ class _BillSharePageState extends State<BillSharePage> {
                   const Text('روی یکی از متن‌های تشخیص‌داده‌شده بزنید یا مقدار صحیح را دستی اصلاح کنید.'),
                   const SizedBox(height: 10),
                   if (lines.isEmpty)
-                    const Text('متنی تشخیص داده نشد؛ مقدار را دستی وارد کنید.')
+                    const Text('عدد یا متن قابل‌اعتماد تشخیص داده نشد؛ مقدار را در کادر زیر دستی وارد کنید.')
                   else
                     ...lines.map((line) => ListTile(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
-                      title: Text(line, textDirection: TextDirection.rtl),
-                      onTap: () => editor.text = line,
+                      title: Text(line, textDirection: isNumeric ? TextDirection.ltr : TextDirection.rtl),
+                      onTap: () {
+                        editor.value = TextEditingValue(
+                          text: line,
+                          selection: TextSelection.collapsed(offset: line.length),
+                        );
+                      },
                     )),
                   const SizedBox(height: 8),
                   TextField(
                     controller: editor,
                     autofocus: lines.isEmpty,
                     maxLines: 2,
-                    textDirection: numericOnly || mobile || periods || rialAmount
-                        ? TextDirection.ltr
-                        : TextDirection.rtl,
+                    keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
+                    inputFormatters: isNumeric
+                        ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9۰-۹٠-٩]'))]
+                        : null,
+                    textDirection: isNumeric ? TextDirection.ltr : TextDirection.rtl,
                     decoration: InputDecoration(
                       labelText: 'مقدار نهایی $label',
                       border: const OutlineInputBorder(),
@@ -551,6 +572,13 @@ class _BillSharePageState extends State<BillSharePage> {
       editor.dispose();
       if (selected == null || !mounted) return;
       var value = BillOcrParser.normalizeDigits(selected).trim();
+      if ((numericOnly || mobile || rialAmount || periods) &&
+          value.replaceAll(RegExp(r'[^0-9]'), '').isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('مقدار عددی معتبری ثبت نشد؛ لطفاً فقط رقم‌ها را وارد کنید.')),
+        );
+        return;
+      }
       if (mobile) {
         value = _normalizeIranianMobile(value);
         if (!BillOcrParser.isValidIranianMobile(value)) {
