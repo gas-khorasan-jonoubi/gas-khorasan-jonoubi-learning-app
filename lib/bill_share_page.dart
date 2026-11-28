@@ -4,6 +4,10 @@ import 'dart:io';
 import 'bill_ocr_parser.dart';
 
 import 'package:material_ui/material_ui.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:tesseract_ocr/tesseract_ocr.dart';
+import 'package:tesseract_ocr/ocr_engine_config.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -263,6 +267,113 @@ class _BillSharePageState extends State<BillSharePage> {
     }
   }
 
+
+  Future<void> _scanBillRowWithOcr() async {
+    if (_busy) return;
+    final picker = ImagePicker();
+    try {
+      final photo = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 95,
+        preferredCameraDevice: CameraDevice.rear,
+      );
+      if (photo == null || !mounted) return;
+
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: photo.path,
+        maxWidth: 2400,
+        maxHeight: 900,
+        compressQuality: 95,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'برش دقیق یک ردیف قبض',
+            toolbarColor: _billNavy,
+            toolbarWidgetColor: Colors.white,
+            lockAspectRatio: false,
+            initAspectRatio: CropAspectRatioPreset.original,
+          ),
+        ],
+      );
+      if (cropped == null || !mounted) return;
+
+      setState(() => _busy = true);
+      final recognized = await TesseractOcr.extractText(
+        cropped.path,
+        config: OCRConfig(
+          language: 'fas',
+          engine: OCREngine.tesseract,
+          options: const {
+            'preserve_interword_spaces': '1',
+            'tessedit_pageseg_mode': '7',
+          },
+        ),
+      );
+      if (!mounted) return;
+      final parsed = BillOcrParser.parse(recognized);
+      var filled = 0;
+      void setIfFound(TextEditingController controller, String? value) {
+        if (value != null && value.trim().isNotEmpty) {
+          controller.text = value.trim();
+          filled++;
+        }
+      }
+      setIfFound(_name, parsed.name);
+      setIfFound(_billId, parsed.billId);
+      setIfFound(_paymentId, parsed.paymentId);
+      setIfFound(_amount, parsed.amount == null ? null : BillOcrParser.formatRial(parsed.amount!));
+      setIfFound(_periods, parsed.periods);
+      setIfFound(_mobile, parsed.mobile);
+
+      final numbers = RegExp(r'[0-9۰-۹٠-٩]{5,}')
+          .allMatches(BillOcrParser.normalizeDigits(recognized))
+          .map((match) => match.group(0)!)
+          .toList(growable: false);
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('نتیجه خواندن ردیف قبض'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(filled > 0
+                    ? '$filled فیلد با برچسب قابل تشخیص، در فرم قرار گرفت.'
+                    : 'متن ردیف خوانده شد؛ چون جدول فاقد عنوان ستون در برش انتخابی است، اعداد را خودکار به شناسه‌ها نسبت ندادیم.'),
+                const SizedBox(height: 12),
+                const Text('اعداد تشخیص‌داده‌شده:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                SelectableText(numbers.isEmpty ? 'عدد قابل تشخیصی پیدا نشد.' : numbers.join('\n')),
+                const SizedBox(height: 12),
+                const Text('متن خام OCR:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                SelectableText(recognized.trim().isEmpty ? 'متنی تشخیص داده نشد.' : recognized.trim()),
+                const SizedBox(height: 8),
+                const Text('لطفاً مقادیر فرم را قبل از ارسال بررسی و اصلاح کنید.'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('متوجه شدم'),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(
+            content: Text('خواندن ردیف انجام نشد؛ نور، وضوح عکس و مدل فارسی OCR را بررسی کنید.'),
+          ));
+      }
+    } finally {
+      if (mounted && _busy) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _scanQrInto(TextEditingController controller) async {
     if (_busy) return;
     final value = await showDialog<String>(
@@ -518,6 +629,11 @@ class _BillSharePageState extends State<BillSharePage> {
           ]),
         ),
         const SizedBox(height: 14),
+        OutlinedButton.icon(
+          onPressed: _busy ? null : _scanBillRowWithOcr,
+          icon: const Icon(Icons.document_scanner_outlined),
+          label: const Text('عکس‌برداری و خواندن یک ردیف قبض با OCR'),
+        ),
         if (_busy) const Padding(
           padding: EdgeInsets.all(12),
           child: Center(child: CircularProgressIndicator()),
