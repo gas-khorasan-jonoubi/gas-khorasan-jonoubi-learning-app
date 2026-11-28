@@ -304,19 +304,14 @@ class _BillSharePageState extends State<BillSharePage> {
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final row = rows[index];
-                final crop = img.copyCrop(
-                  decoded,
-                  x: 0,
-                  y: row.top,
-                  width: decoded.width,
-                  height: row.height,
-                );
+                final crop = img.copyCrop(decoded, x: 0, y: row.top, width: decoded.width, height: row.height);
                 final preview = Uint8List.fromList(img.encodeJpg(crop, quality: 75));
                 return ListTile(
+                  enabled: index != 0,
                   leading: SizedBox(width: 100, height: 52, child: Image.memory(preview, fit: BoxFit.contain)),
-                  title: Text('ردیف ${index + 1}'),
-                  subtitle: const Text('برای خواندن این ردیف لمس کنید'),
-                  onTap: () => Navigator.of(dialogContext).pop(index),
+                  title: Text(index == 0 ? 'سربرگ جدول' : 'ردیف مشترک ${index}'),
+                  subtitle: Text(index == 0 ? 'عنوان ستون‌ها؛ این مورد را انتخاب نکنید' : 'برای انتخاب این مشترک لمس کنید'),
+                  onTap: index == 0 ? null : () => Navigator.of(dialogContext).pop(index),
                 );
               },
             ),
@@ -328,60 +323,70 @@ class _BillSharePageState extends State<BillSharePage> {
       );
       if (selectedIndex == null || !mounted) return;
       final selectedRow = rows[selectedIndex];
-      final rowImage = img.copyCrop(
-        decoded,
-        x: 0,
-        y: selectedRow.top,
-        width: decoded.width,
-        height: selectedRow.height,
-      );
+      final safeTop = (selectedRow.top + 2).clamp(0, decoded.height - 1);
+      final safeBottom = (selectedRow.bottom - 2).clamp(safeTop + 1, decoded.height);
       final directory = await getTemporaryDirectory();
-      final rowFile = File('${directory.path}/bill_row_${DateTime.now().microsecondsSinceEpoch}.jpg');
-      await rowFile.writeAsBytes(img.encodeJpg(rowImage, quality: 94), flush: true);
+      final rowFile = File('${directory.path}/bill_cell_${DateTime.now().microsecondsSinceEpoch}.jpg');
       setState(() => _busy = true);
-      final recognized = await TesseractOcr.extractText(
-        rowFile.path,
-        config: OCRConfig(
-          language: 'fas',
-          engine: OCREngine.tesseract,
-          options: const {
-            'preserve_interword_spaces': '1',
-            'tessedit_pageseg_mode': '7',
-          },
-        ),
-      );
+
+      Future<String> readCell(double leftRatio, double rightRatio) async {
+        final left = (decoded.width * leftRatio).round().clamp(0, decoded.width - 1);
+        final right = (decoded.width * rightRatio).round().clamp(left + 1, decoded.width);
+        final cell = img.copyCrop(
+          decoded,
+          x: left + 1 < right ? left + 1 : left,
+          y: safeTop,
+          width: right - left > 2 ? right - left - 2 : right - left,
+          height: safeBottom - safeTop,
+        );
+        await rowFile.writeAsBytes(img.encodeJpg(cell, quality: 96), flush: true);
+        return TesseractOcr.extractText(
+          rowFile.path,
+          config: OCRConfig(
+            language: 'fas',
+            engine: OCREngine.tesseract,
+            options: const {
+              'preserve_interword_spaces': '1',
+              'tessedit_pageseg_mode': '7',
+            },
+          ),
+        );
+      }
+
+      // Column coordinates follow the photographed table. The outstanding
+      // balance column ("بدهی مشترک") is deliberately excluded.
+      final values = <String, String>{
+        'name': (await readCell(0.861, 0.998)).replaceAll(RegExp(r'[\r\n]+'), ' ').trim(),
+        'billId': (await readCell(0.649, 0.789)).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
+        'mobile': (await readCell(0.531, 0.648)).replaceAll(RegExp(r'[^0-9۰-۹٠-٩+()]'), '').trim(),
+        'paymentId': (await readCell(0.283, 0.402)).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
+        'amount': (await readCell(0.173, 0.282)).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
+        'periods': (await readCell(0.030, 0.067)).replaceAll(RegExp(r'[^0-9۰-۹٠-٩]'), ''),
+      };
       if (!mounted) return;
-      final tokens = recognized
-          .split(RegExp(r'[\s|،؛]+'))
-          .map((value) => value.trim())
-          .where((value) => value.isNotEmpty)
-          .toList(growable: false);
+      final normalizedMobile = _normalizeIranianMobile(values['mobile'] ?? '');
+      _name.text = values['name'] ?? '';
+      _billId.text = BillOcrParser.normalizeDigits(values['billId'] ?? '');
+      _paymentId.text = BillOcrParser.normalizeDigits(values['paymentId'] ?? '');
+      _amount.text = BillOcrParser.formatRial(values['amount'] ?? '');
+      _periods.text = BillOcrParser.normalizeDigits(values['periods'] ?? '');
+      _mobile.text = BillOcrParser.isValidIranianMobile(normalizedMobile) ? normalizedMobile : '';
+      for (final controller in [_name, _billId, _paymentId, _amount, _periods, _mobile]) {
+        controller.selection = TextSelection.collapsed(offset: controller.text.length);
+      }
+
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: Text('متن ردیف ${selectedIndex + 1}'),
-          content: SizedBox(
-            width: 380,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('فقط همین ردیف جدا شده است. برای جلوگیری از جابه‌جایی مبلغ، شناسه‌ها و ستون بدهی مشترک، مقادیر را با اسکن تکی هر فیلد تأیید کنید.'),
-                  const SizedBox(height: 10),
-                  const Text('متن OCR:', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 5),
-                  SelectableText(recognized.trim().isEmpty ? 'متنی تشخیص داده نشد.' : recognized.trim()),
-                  const SizedBox(height: 10),
-                  const Text('قطعه‌های تشخیص‌داده‌شده:', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 5),
-                  SelectableText(tokens.join('  |  ')),
-                ],
-              ),
-            ),
+          title: const Text('بررسی اطلاعات استخراج‌شده'),
+          content: const Text(
+            'هر ستون جداگانه خوانده شد و مقادیر به فیلدهای فرم منتقل شدند. قبل از ارسال، همه موارد را با تصویر تطبیق دهید. ستون «بدهی مشترک» عمداً استخراج نشده و مبلغ پیام فقط از ستون «مبلغ» گرفته شده است.',
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('بستن و بررسی فیلدها')),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('بررسی و اصلاح فیلدها'),
+            ),
           ],
         ),
       );
