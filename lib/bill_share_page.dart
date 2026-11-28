@@ -295,7 +295,7 @@ class _BillSharePageState extends State<BillSharePage> {
       final selectedIndex = await showDialog<int>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: Text('انتخاب ردیف قبض (\${rows.length} ردیف تشخیص داده شد)'),
+          title: Text('انتخاب ردیف قبض (${rows.length} ردیف تشخیص داده شد)'),
           content: SizedBox(
             width: 380,
             height: 420,
@@ -314,7 +314,7 @@ class _BillSharePageState extends State<BillSharePage> {
                 final preview = Uint8List.fromList(img.encodeJpg(crop, quality: 75));
                 return ListTile(
                   leading: SizedBox(width: 100, height: 52, child: Image.memory(preview, fit: BoxFit.contain)),
-                  title: Text('ردیف \${index + 1}'),
+                  title: Text('ردیف ${index + 1}'),
                   subtitle: const Text('برای خواندن این ردیف لمس کنید'),
                   onTap: () => Navigator.of(dialogContext).pop(index),
                 );
@@ -336,7 +336,7 @@ class _BillSharePageState extends State<BillSharePage> {
         height: selectedRow.height,
       );
       final directory = await getTemporaryDirectory();
-      final rowFile = File('\${directory.path}/bill_row_\${DateTime.now().microsecondsSinceEpoch}.jpg');
+      final rowFile = File('${directory.path}/bill_row_${DateTime.now().microsecondsSinceEpoch}.jpg');
       await rowFile.writeAsBytes(img.encodeJpg(rowImage, quality: 94), flush: true);
       setState(() => _busy = true);
       final recognized = await TesseractOcr.extractText(
@@ -359,7 +359,7 @@ class _BillSharePageState extends State<BillSharePage> {
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: Text('متن ردیف \${selectedIndex + 1}'),
+          title: Text('متن ردیف ${selectedIndex + 1}'),
           content: SizedBox(
             width: 380,
             child: SingleChildScrollView(
