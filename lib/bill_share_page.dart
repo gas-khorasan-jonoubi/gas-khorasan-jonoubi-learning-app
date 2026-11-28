@@ -335,15 +335,23 @@ class _BillSharePageState extends State<BillSharePage> {
           width: right - left > 2 ? right - left - 2 : right - left,
           height: safeBottom - safeTop,
         );
-        await rowFile.writeAsBytes(img.encodeJpg(cell, quality: 96), flush: true);
+        // Enlarge narrow table cells before OCR so small printed digits
+        // are not lost at the original camera resolution.
+        final enlarged = img.copyResize(
+          cell,
+          width: cell.width * 2,
+          interpolation: img.Interpolation.cubic,
+        );
+        await rowFile.writeAsBytes(img.encodeJpg(enlarged, quality: 100), flush: true);
         return TesseractOcr.extractText(
           rowFile.path,
           config: OCRConfig(
             language: language,
             engine: OCREngine.tesseract,
-            options: const {
+            options: {
               'preserve_interword_spaces': '1',
               'tessedit_pageseg_mode': '7',
+              if (language == 'eng') 'tessedit_char_whitelist': '0123456789',
             },
           ),
         );
@@ -430,14 +438,35 @@ class _BillSharePageState extends State<BillSharePage> {
       );
       if (cropped == null || !mounted) return;
       setState(() => _busy = true);
+      // Normalize orientation and enlarge small field crops. OCR on a tiny
+      // crop often returns no text even when the source image is readable.
+      final sourceImage = img.decodeImage(await File(cropped.path).readAsBytes());
+      if (sourceImage == null) {
+        throw StateError('تصویر برش‌خورده قابل خواندن نیست.');
+      }
+      final orientedImage = img.bakeOrientation(sourceImage);
+      final ocrImage = orientedImage.width < 1800
+          ? img.copyResize(
+              orientedImage,
+              width: 1800,
+              interpolation: img.Interpolation.cubic,
+            )
+          : orientedImage;
+      final tempDirectory = await getTemporaryDirectory();
+      final ocrFile = File(
+        '${tempDirectory.path}/field_ocr_${DateTime.now().microsecondsSinceEpoch}.jpg',
+      );
+      await ocrFile.writeAsBytes(img.encodeJpg(ocrImage, quality: 100), flush: true);
+      final isNumeric = numericOnly || mobile || rialAmount || periods;
       final recognized = await TesseractOcr.extractText(
-        cropped.path,
+        ocrFile.path,
         config: OCRConfig(
-          language: numericOnly || mobile || rialAmount || periods ? 'eng' : 'fas+eng',
+          language: isNumeric ? 'eng' : 'fas+eng',
           engine: OCREngine.tesseract,
-          options: const {
+          options: {
             'preserve_interword_spaces': '1',
             'tessedit_pageseg_mode': '7',
+            if (isNumeric) 'tessedit_char_whitelist': '0123456789',
           },
         ),
       );
