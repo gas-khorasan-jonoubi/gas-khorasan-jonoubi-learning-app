@@ -268,20 +268,34 @@ class _BillSharePageState extends State<BillSharePage> {
     final value = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('اسکن QR برای همین فیلد'),
+        title: const Text('اسکن ردیف قبض'),
         content: SizedBox(
-          width: 160,
-          height: 160,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: MobileScanner(
-              onDetect: (capture) {
-                if (capture.barcodes.isEmpty) return;
-                final raw = capture.barcodes.first.rawValue?.trim();
-                if (raw == null || raw.isEmpty) return;
-                Navigator.of(dialogContext).pop(raw);
-              },
-            ),
+          width: 320,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'دوربین را روی ردیف موردنظر نگه دارید؛ کادر افقی برای اسکن همان ردیف تنظیم شده است.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 88,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: MobileScanner(
+                    fit: BoxFit.cover,
+                    onDetect: (capture) {
+                      if (capture.barcodes.isEmpty) return;
+                      final raw = capture.barcodes.first.rawValue?.trim();
+                      if (raw == null || raw.isEmpty) return;
+                      Navigator.of(dialogContext).pop(raw);
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         actions: [
