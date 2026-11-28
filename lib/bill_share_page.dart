@@ -766,7 +766,7 @@ class _BillSharePageState extends State<BillSharePage> {
             Icon(Icons.document_scanner_outlined, color: _billYellow, size: 36),
             SizedBox(width: 12),
             Expanded(child: Text(
-              'برای ورود اطلاعات، QR کنار همان فیلد یا میکروفون را بزنید؛ اطلاعات را بررسی و اصلاح کنید، سپس روش ارسال را انتخاب کنید.',
+              'برای اسکن تصویری هر فیلد، آیکن برگه را بزنید؛ برای QR از آیکن QR و برای ورود صوتی از میکروفون استفاده کنید. اطلاعات را پیش از ارسال بررسی و اصلاح کنید.',
               style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
             )),
           ]),
