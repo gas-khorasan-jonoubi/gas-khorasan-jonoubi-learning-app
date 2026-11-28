@@ -420,7 +420,7 @@ class _BillSharePageState extends State<BillSharePage> {
       );
       if (!mounted) return;
       final lines = recognized
-          .split(RegExp(r'[\\r\\n]+'))
+          .split(RegExp(r'[\r\n]+'))
           .map((line) => line.trim())
           .where((line) => line.isNotEmpty)
           .toList(growable: false);
