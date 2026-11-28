@@ -43,7 +43,9 @@ class BillOcrParser {
     for (final rawLine in rawText.split(String.fromCharCode(10))) {
       final line = normalizeDigits(rawLine).replaceAll(String.fromCharCode(13), '').trim();
       if (line.isEmpty) continue;
-      final codes = line.codeUnits;
+      final colon = line.lastIndexOf(':');
+      final candidatePart = colon >= 0 ? line.substring(colon + 1).trim() : line;
+      final codes = candidatePart.codeUnits;
       final digits = codes.where((c) => c >= 48 && c <= 57).map(String.fromCharCode).join();
       final onlyDigitsAndSeparators = codes.every((c) =>
           (c >= 48 && c <= 57) || c == 32 || c == 46 || c == 44 || c == 58 || c == 47 || c == 45 || c == 1548 || c == 1563);
