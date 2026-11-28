@@ -23,6 +23,7 @@ class BillRowDetector {
     int threshold = 160,
     int mergeGap = 4,
     double minimumRowHeightRatio = 0.012,
+    double minimumTableTopRatio = 0.015,
   }) {
     final decoded = img.decodeImage(encodedImage);
     if (decoded == null || decoded.width < 80 || decoded.height < 100) {
@@ -65,7 +66,7 @@ class BillRowDetector {
     for (var i = 0; i < lines.length - 1; i++) {
       final top = lines[i].bottom;
       final bottom = lines[i + 1].top;
-      if (bottom - top >= minHeight) {
+      if (bottom - top >= minHeight && top >= (gray.height * minimumTableTopRatio).round()) {
         rows.add(BillRowBounds(top: top, bottom: bottom));
       }
     }
