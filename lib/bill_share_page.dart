@@ -490,7 +490,8 @@ class _BillSharePageState extends State<BillSharePage> {
       ).timeout(const Duration(seconds: 15));
       if (!mounted) return;
       final rawLines = recognized
-          .split(RegExp(r'[\\r\\n]+'))
+          .split(String.fromCharCode(10))
+          .map((line) => line.replaceAll(String.fromCharCode(13), ''))
           .map((line) => line.trim())
           .where((line) => line.isNotEmpty);
       // Never turn Latin hallucinations into digits by stripping letters.
@@ -517,7 +518,8 @@ class _BillSharePageState extends State<BillSharePage> {
       final editor = TextEditingController(text: lines.length == 1 ? lines.first : '');
       final selected = await showDialog<String>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, setDialogState) => AlertDialog(
           title: Text('انتخاب مقدار $label'),
           content: SizedBox(
             width: 360,
@@ -536,10 +538,12 @@ class _BillSharePageState extends State<BillSharePage> {
                       contentPadding: EdgeInsets.zero,
                       title: Text(line, textDirection: isNumeric ? TextDirection.ltr : TextDirection.rtl),
                       onTap: () {
-                        editor.value = TextEditingValue(
-                          text: line,
-                          selection: TextSelection.collapsed(offset: line.length),
-                        );
+                        setDialogState(() {
+                          editor.value = TextEditingValue(
+                            text: line,
+                            selection: TextSelection.collapsed(offset: line.length),
+                          );
+                        });
                       },
                     )),
                   const SizedBox(height: 8),
@@ -571,6 +575,7 @@ class _BillSharePageState extends State<BillSharePage> {
               child: const Text('ثبت در فیلد'),
             ),
           ],
+          ),
         ),
       );
       editor.dispose();
