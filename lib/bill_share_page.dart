@@ -323,15 +323,15 @@ class _BillSharePageState extends State<BillSharePage> {
       );
       if (selectedIndex == null || !mounted) return;
       final selectedRow = rows[selectedIndex];
-      final safeTop = (selectedRow.top + 2).clamp(0, decoded.height - 1);
-      final safeBottom = (selectedRow.bottom - 2).clamp(safeTop + 1, decoded.height);
+      final safeTop = (selectedRow.top + 2).clamp(0, decoded.height - 1).toInt();
+      final safeBottom = (selectedRow.bottom - 2).clamp(safeTop + 1, decoded.height).toInt();
       final directory = await getTemporaryDirectory();
       final rowFile = File('${directory.path}/bill_cell_${DateTime.now().microsecondsSinceEpoch}.jpg');
       setState(() => _busy = true);
 
       Future<String> readCell(double leftRatio, double rightRatio) async {
-        final left = (decoded.width * leftRatio).round().clamp(0, decoded.width - 1);
-        final right = (decoded.width * rightRatio).round().clamp(left + 1, decoded.width);
+        final left = (decoded.width * leftRatio).round().clamp(0, decoded.width - 1).toInt();
+        final right = (decoded.width * rightRatio).round().clamp(left + 1, decoded.width).toInt();
         final cell = img.copyCrop(
           decoded,
           x: left + 1 < right ? left + 1 : left,
