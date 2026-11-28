@@ -7,6 +7,37 @@ void main() {
       expect(BillOcrParser.normalizeDigits('۱۲۳٤۵۶'), '123456');
     });
 
+    test('filters OCR numeric candidates and rejects Latin hallucinations', () {
+      expect(
+        BillOcrParser.numericCandidates(
+          'Sw YTYEEVIL AST\\nWYYAF. AST\\nشناسه: ۰۰۲۱۴۵۶۷۰۸۶۳۰',
+          minDigits: 10,
+          maxDigits: 20,
+        ),
+        ['0021456708630'],
+      );
+      expect(
+        BillOcrParser.numericCandidates(
+          'شناسه: ۱۲۳ ۴۵۶ ۷۸۹',
+          minDigits: 5,
+          maxDigits: 20,
+        ),
+        ['123456789'],
+      );
+      expect(
+        BillOcrParser.numericCandidates(
+          'Sw YTYEEVIL AST\\nWYYAF. AST',
+          minDigits: 5,
+          maxDigits: 20,
+        ),
+        isEmpty,
+      );
+      expect(
+        BillOcrParser.numericCandidates('۰۹۱۲۳۴۵۶۷۸۹', exactDigits: 11),
+        ['09123456789'],
+      );
+    });
+
     test('normalizes Iranian mobile numbers from international formats', () {
       expect(BillOcrParser.normalizeIranianMobile('+989123456789'), '09123456789');
       expect(BillOcrParser.normalizeIranianMobile('00989123456789'), '09123456789');
