@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
@@ -97,8 +96,6 @@ class _BillSharePageState extends State<BillSharePage> {
     _mobile.dispose();
     super.dispose();
   }
-
-  String _digits(String value) => BillOcrParser.normalizeDigits(value);
 
   String _normalizeIranianMobile(String raw) =>
       BillOcrParser.normalizeIranianMobile(raw);
