@@ -461,20 +461,21 @@ class _BillSharePageState extends State<BillSharePage> {
       }
       final orientedImage = img.bakeOrientation(sourceImage);
       final isNumeric = numericOnly || mobile || rialAmount || periods;
-      // Bound OCR image size to reduce memory/CPU pressure on Android phones.
-      final targetWidth = isNumeric ? 1200 : 1600;
-      final ocrImage = orientedImage.width < targetWidth
-          ? img.copyResize(
+      // Keep every OCR input within a predictable size. Previously large
+      // camera crops bypassed the upscale-only branch and could stall phones.
+      final targetWidth = isNumeric ? 1100 : 1400;
+      final ocrImage = orientedImage.width == targetWidth
+          ? orientedImage
+          : img.copyResize(
               orientedImage,
               width: targetWidth,
               interpolation: img.Interpolation.cubic,
-            )
-          : orientedImage;
+            );
       final tempDirectory = await getTemporaryDirectory();
       final ocrFile = File(
         '${tempDirectory.path}/field_ocr_${DateTime.now().microsecondsSinceEpoch}.jpg',
       );
-      await ocrFile.writeAsBytes(img.encodeJpg(ocrImage, quality: 92), flush: true);
+      await ocrFile.writeAsBytes(img.encodeJpg(ocrImage, quality: 88), flush: true);
       final recognized = await TesseractOcr.extractText(
         ocrFile.path,
         config: OCRConfig(
@@ -482,24 +483,27 @@ class _BillSharePageState extends State<BillSharePage> {
           engine: OCREngine.tesseract,
           options: {
             'preserve_interword_spaces': '1',
-            'tessedit_pageseg_mode': isNumeric ? '8' : '7',
+            'tessedit_pageseg_mode': '7',
             if (isNumeric) 'tessedit_char_whitelist': '0123456789',
           },
         ),
-      ).timeout(const Duration(seconds: 20));
+      ).timeout(const Duration(seconds: 15));
       if (!mounted) return;
       final rawLines = recognized
-          .split(RegExp(r'[\r\n]+'))
+          .split(RegExp(r'[\\r\\n]+'))
           .map((line) => line.trim())
           .where((line) => line.isNotEmpty);
-      // Numeric fields must never display Latin OCR hallucinations.
+      // Never turn Latin hallucinations into digits by stripping letters.
+      // IDs need plausible digit runs; mobile numbers must be exactly 11.
+      final minDigits = mobile ? 11 : (periods ? 1 : (numericOnly || rialAmount ? 5 : 1));
+      final maxDigits = periods ? 3 : (mobile ? 11 : (rialAmount ? 16 : 20));
       final lines = isNumeric
-          ? rawLines
-              .map((line) => BillOcrParser.normalizeDigits(line)
-                  .replaceAll(RegExp(r'[^0-9]'), ''))
-              .where((line) => line.isNotEmpty)
-              .toSet()
-              .toList(growable: false)
+          ? BillOcrParser.numericCandidates(
+              recognized,
+              minDigits: minDigits,
+              maxDigits: maxDigits,
+              exactDigits: mobile ? 11 : null,
+            )
           : rawLines.toList(growable: false);
       if (lines.isEmpty && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -542,7 +546,7 @@ class _BillSharePageState extends State<BillSharePage> {
                   TextField(
                     controller: editor,
                     autofocus: lines.isEmpty,
-                    maxLines: 2,
+                    maxLines: isNumeric ? 1 : 2,
                     keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
                     inputFormatters: isNumeric
                         ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9۰-۹٠-٩]'))]
@@ -572,10 +576,15 @@ class _BillSharePageState extends State<BillSharePage> {
       editor.dispose();
       if (selected == null || !mounted) return;
       var value = BillOcrParser.normalizeDigits(selected).trim();
-      if ((numericOnly || mobile || rialAmount || periods) &&
-          value.replaceAll(RegExp(r'[^0-9]'), '').isEmpty) {
+      if (isNumeric && value.replaceAll(RegExp(r'[^0-9]'), '').isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('مقدار عددی معتبری ثبت نشد؛ لطفاً فقط رقم‌ها را وارد کنید.')),
+        );
+        return;
+      }
+      if (numericOnly && value.replaceAll(RegExp(r'[^0-9]'), '').length < 5) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('شناسه باید حداقل ۵ رقم داشته باشد؛ مقدار را دوباره بررسی کنید.')),
         );
         return;
       }
