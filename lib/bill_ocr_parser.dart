@@ -31,9 +31,8 @@ class BillOcrParser {
     }).join();
   }
 
-  /// Extracts only plausible digit-only OCR candidates.
-  /// Letters are never stripped and concatenated into an ID, which prevents
-  /// Latin OCR hallucinations from becoming apparently valid numeric values.
+  /// Extract only plausible digit-only OCR candidates; never turn Latin
+  /// recognition noise into a numeric identifier by deleting its letters.
   static List<String> numericCandidates(
     String rawText, {
     int minDigits = 1,
@@ -41,10 +40,11 @@ class BillOcrParser {
     int? exactDigits,
   }) {
     final candidates = <String>{};
-    for (final rawLine in rawText.split(RegExp(r'[\\r\\n]+'))) {
-      final line = normalizeDigits(rawLine).trim();
+    final lines = rawText.split(String.fromCharCode(10));
+    for (final rawLine in lines) {
+      final line = normalizeDigits(rawLine).replaceAll(String.fromCharCode(13), '').trim();
       if (line.isEmpty) continue;
-      final compactDigits = RegExp(r'^[0-9\\s.,،؛:/\\-]+
+      final compact = RegExp('^[0-9 .,،؛:/-]+
     var digits = normalizeDigits(value).replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.startsWith('0098')) {
       digits = digits.substring(4);
@@ -214,11 +214,11 @@ class BillOcrParser {
   }
 }
 ).hasMatch(line)
-          ? line.replaceAll(RegExp(r'[^0-9]'), '')
+          ? line.replaceAll(RegExp('[^0-9]'), '')
           : '';
-      final values = compactDigits.isNotEmpty
-          ? <String>[compactDigits]
-          : RegExp(r'[0-9]+').allMatches(line).map((match) => match.group(0)!).toList();
+      final values = compact.isNotEmpty
+          ? <String>[compact]
+          : RegExp('[0-9]+').allMatches(line).map((m) => m.group(0)!).toList();
       for (final value in values) {
         if (exactDigits != null && value.length != exactDigits) continue;
         if (value.length < minDigits || value.length > maxDigits) continue;
@@ -227,7 +227,6 @@ class BillOcrParser {
     }
     return candidates.toList(growable: false);
   }
-
   static String normalizeIranianMobile(String value) {
     var digits = normalizeDigits(value).replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.startsWith('0098')) {
